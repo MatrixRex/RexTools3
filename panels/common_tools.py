@@ -19,3 +19,7 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         row = layout.row()
         row.label(text=f"X: {wm.modal_x}")
         row.label(text=f"Y: {wm.modal_y}")
+        
+        layout.separator()
+        layout.operator("rextools3.select_similar_modal", text="Select Similar by Normal")
+        layout.prop(wm, "select_similar_threshold", text="Threshold", slider=True)

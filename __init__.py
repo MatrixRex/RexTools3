@@ -15,21 +15,23 @@ bl_info = {
     "name": "Rextools3",
     "author": "matrix rex",
     "description": "",
-    "blender": (2, 80, 0),
+    "blender": (4, 50, 0),
     "version": (0, 0, 1),
     "location": "",
     "warning": "",
     "category": "Generic",
 }
 
-from . import auto_load
+from . import auto_load , properties
 
 auto_load.init()
 
 
 def register():
+    properties.register_properties()
     auto_load.register()
 
 
 def unregister():
     auto_load.unregister()
+    properties.unregister_properties()

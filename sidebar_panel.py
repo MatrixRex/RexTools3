@@ -7,10 +7,10 @@ class REXTools3Panel(bpy.types.Panel):
     bl_region_type = 'UI'      # sidebar
     bl_category = "RexTools3"  # tab name
 
+    
     def draw(self, context):
         layout = self.layout
-        layout.label(text="welcome")
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="welcome")
-        layout.operator("rextools3.open_folder", text="Open Folder")
+        layout.label(text="RexTools3")
+       
+        
+

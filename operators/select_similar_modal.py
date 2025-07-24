@@ -22,6 +22,13 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
             self.report({'ERROR'}, "Must be in Edit Mode on a mesh")
             return {'CANCELLED'}
 
+        # get a BMesh to check face selection
+        bm = bmesh.from_edit_mesh(obj.data)
+        seed = [f.index for f in bm.faces if f.select]
+        if not seed:
+            self.report({'WARNING'}, "No face selected – please select at least one face first")
+            return {'CANCELLED'}
+
         # 1️⃣ Store original seed face indices
         bm = bmesh.from_edit_mesh(obj.data)
         self.seed_indices = [f.index for f in bm.faces if f.select]
@@ -71,6 +78,8 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
 
         # ✅ Finish on left-click
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            bpy.ops.mesh.region_to_loop()
+            bpy.ops.mesh.mark_seam(clear=False)
             return {'FINISHED'}
 
         # ❌ Cancel on right-click or Esc

@@ -10,3 +10,7 @@ class REXTools3Panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.label(text="welcome")
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="welcome")
+        layout.operator("rextools3.open_folder", text="Open Folder")

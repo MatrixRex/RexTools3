@@ -2,7 +2,7 @@ import bpy, bmesh, gpu, blf
 from gpu_extras.batch import batch_for_shader
 from bpy.props import FloatProperty
 from .. import overlay_drawer
-
+import time
 
 class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
     bl_idname = "rextools3.select_similar_modal"
@@ -11,7 +11,7 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
 
     # sensitivity and available types
     sensitivity = 0.001
-    SIM_TYPES = ['FACE_NORMAL', 'FACE_COPLANAR']
+    SIM_TYPES = ['FACE_NORMAL', 'FACE_COPLANAR','FACE_SMOOTH']
 
     def invoke(self, context, event):
         obj = context.object
@@ -27,6 +27,7 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
         self.start_mouse = (event.mouse_region_x, event.mouse_region_y)
         self.current_mouse = self.start_mouse
         self.threshold = 0.0
+        self.option_show_until = 0.0 
 
         # start with the first type
         self.type_index = 0
@@ -77,26 +78,27 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
         od.draw_info_block(
             x=sx,
             y=sy,
-            title="Fuse",
+            title="Surface Mode",
             lines=[
                 ("Threshold", (self.threshold, 0.0, 1.0), "scroll"),
-                ("Type", self.sim_type, "wheel up/down"),
-            ]
+                ("Type", (self.SIM_TYPES, self.sim_type), "wheel up/down"),
+            ],
+            show_until_map={
+                "Type": self.option_show_until
+            }
+        )
+        
+        od.draw_option_set(
+            x=200,
+            y=160,
+            options=self.SIM_TYPES,
+            current_option=self.sim_type,
+            show_until_time=self.option_show_until
         )
 
 
-        # Draw progress bar
-        od.draw_progress_bar(
-            x=20,
-            y=100,
-            width=200,
-            height=20,
-            value=self.threshold,
-            min_value=0.0,
-            max_value=1.0,
-            label=" "
-        )
 
+        
 
 
 
@@ -106,8 +108,10 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
         # ——— scroll wheel switches sim_type ——
         if event.type == 'WHEELUPMOUSE' and event.value == 'PRESS':
             self.type_index = (self.type_index + 1) % len(self.SIM_TYPES)
+            self.option_show_until = time.time() + 1.2
         elif event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS':
             self.type_index = (self.type_index - 1) % len(self.SIM_TYPES)
+            self.option_show_until = time.time() + 1.2
         else:
             self.type_index = self.type_index  # no change
 

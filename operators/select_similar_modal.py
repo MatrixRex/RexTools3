@@ -1,6 +1,8 @@
 import bpy, bmesh, gpu, blf
 from gpu_extras.batch import batch_for_shader
 from bpy.props import FloatProperty
+from .. import overlay_drawer
+
 
 class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
     bl_idname = "rextools3.select_similar_modal"
@@ -61,42 +63,25 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
         )
 
     def _draw_overlay(self, context):
-        """Draw dot, line, threshold and sim_type in screen‐space."""
+        
+
         sx, sy = self.start_mouse
         cx, cy = self.current_mouse
 
-        # 1) draw line from start→current
-        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        batch = batch_for_shader(shader, 'LINES', {
-            "pos": [(sx, sy), (cx, cy)]
-        })
-        shader.bind()
-        shader.uniform_float("color", (1, 1, 1, 1))
-        batch.draw(shader)
+        od = overlay_drawer
+        
+        od.draw_line((sx, sy), (cx, cy))
+        od.draw_point((sx, sy), radius=6, color=(1, 0, 0, 1))
 
-        # 2) draw a small red square as the “dot”
-        size = 6
-        verts = [
-            (sx - size, sy - size),
-            (sx + size, sy - size),
-            (sx + size, sy + size),
-            (sx - size, sy + size),
-        ]
-        batch = batch_for_shader(shader, 'TRI_FAN', {"pos": verts})
-        shader.bind()
-        shader.uniform_float("color", (1, 0, 0, 1))
-        batch.draw(shader)
+        # Draw info block
+        od.draw_info_block(
+            x=sx, y=sy,
+            lines=[
+                ("Threshold", f"{self.threshold:.3f}", "scroll"),
+                ("Type", self.sim_type, "wheel up/down"),
+            ]
+        )
 
-        # draw threshold text just below the dot
-        font_id = 0
-        blf.position(font_id, sx, sy - 18, 0)
-        blf.size(font_id, 14)
-        blf.draw(font_id, f"Thr: {self.threshold:.3f}")
-
-        # draw current sim_type below the threshold
-        blf.position(font_id, sx, sy - 36, 0)
-        blf.size(font_id, 12)
-        blf.draw(font_id, f"Mode: {self.sim_type}")
 
     def modal(self, context, event):
         wm = context.window_manager

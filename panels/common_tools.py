@@ -8,6 +8,9 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
     bl_region_type = 'UI'  # sidebar
     bl_category = "RexTools3"  # tab name
     
+    
+    
+    
     def draw(self, context):
         layout = self.layout
         wm = context.window_manager
@@ -20,6 +23,3 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         row.label(text=f"X: {wm.modal_x}")
         row.label(text=f"Y: {wm.modal_y}")
         
-        layout.separator()
-        layout.operator("rextools3.select_similar_modal", text="Select Similar by Normal")
-        layout.prop(wm, "select_similar_threshold", text="Threshold", slider=True)

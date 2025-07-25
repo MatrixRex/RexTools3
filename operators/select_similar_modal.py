@@ -1,20 +1,15 @@
-# operators/select_similar_modal.py
-
-import bpy, bmesh
+import bpy, bmesh, gpu, blf
+from gpu_extras.batch import batch_for_shader
 from bpy.props import FloatProperty
 
 class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
-    """Select similar faces by normal—and drag to tweak the threshold."""
     bl_idname = "rextools3.select_similar_modal"
-    bl_label = "Select by Normal (drag to adjust)"
+    bl_label = "Select by Similar (drag/scroll to adjust)"
     bl_options = {'REGISTER', 'UNDO', 'GRAB_CURSOR', 'BLOCKING'}
 
-    threshold: FloatProperty(
-        name="Threshold",
-        description="Face-normal similarity threshold",
-        default=0.0, min=0.0, max=1.0
-    )
-    sensitivity = 0.001  # px → threshold
+    # sensitivity and available types
+    sensitivity = 0.001
+    SIM_TYPES = ['FACE_NORMAL', 'FACE_COPLANAR']
 
     def invoke(self, context, event):
         obj = context.object
@@ -22,68 +17,134 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
             self.report({'ERROR'}, "Must be in Edit Mode on a mesh")
             return {'CANCELLED'}
 
-        # get a BMesh to check face selection
-        bm = bmesh.from_edit_mesh(obj.data)
-        seed = [f.index for f in bm.faces if f.select]
-        if not seed:
-            self.report({'WARNING'}, "No face selected – please select at least one face first")
-            return {'CANCELLED'}
-
-        # 1️⃣ Store original seed face indices
+        # store seed faces
         bm = bmesh.from_edit_mesh(obj.data)
         self.seed_indices = [f.index for f in bm.faces if f.select]
 
-        # 2️⃣ Initialize threshold & record start X
+        # initial state
+        self.start_mouse = (event.mouse_region_x, event.mouse_region_y)
+        self.current_mouse = self.start_mouse
         self.threshold = 0.0
-        self.start_x = event.mouse_region_x
 
-        # 3️⃣ Do first select (so you see initial effect)
+        # start with the first type
+        self.type_index = 0
+        self.sim_type = self.SIM_TYPES[self.type_index]
+
+        # record start mouse pos & threshold
+        self.start_mouse = (event.mouse_region_x, event.mouse_region_y)
+        self.threshold = 0.0
+
+        # initial select
         self._restore_and_select(context)
 
-        # 4️⃣ Enter modal loop
+        # install our POST_PIXEL draw handler
+        self._handle = bpy.types.SpaceView3D.draw_handler_add(
+            self._draw_overlay, (context,), 'WINDOW', 'POST_PIXEL'
+        )
+
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def _restore_and_select(self, context):
-        """Deselect all, reselect seed faces, then run select_similar."""
         obj = context.object
         bm = bmesh.from_edit_mesh(obj.data)
-
-        # Deselect everything
+        # deselect all, reselect the seeds
         for f in bm.faces:
             f.select = False
-        # Reselect only the seeds
         for idx in self.seed_indices:
             bm.faces[idx].select = True
         bmesh.update_edit_mesh(obj.data)
+        # run similarity select
+        bpy.ops.mesh.select_similar(
+            type=self.sim_type,
+            threshold=self.threshold
+        )
 
-        # Now extend selection by normal similarity
-        bpy.ops.mesh.select_similar(type='FACE_NORMAL',
-                                    threshold=self.threshold)
+    def _draw_overlay(self, context):
+        """Draw dot, line, threshold and sim_type in screen‐space."""
+        sx, sy = self.start_mouse
+        cx, cy = self.current_mouse
+
+        # 1) draw line from start→current
+        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+        batch = batch_for_shader(shader, 'LINES', {
+            "pos": [(sx, sy), (cx, cy)]
+        })
+        shader.bind()
+        shader.uniform_float("color", (1, 1, 1, 1))
+        batch.draw(shader)
+
+        # 2) draw a small red square as the “dot”
+        size = 6
+        verts = [
+            (sx - size, sy - size),
+            (sx + size, sy - size),
+            (sx + size, sy + size),
+            (sx - size, sy + size),
+        ]
+        batch = batch_for_shader(shader, 'TRI_FAN', {"pos": verts})
+        shader.bind()
+        shader.uniform_float("color", (1, 0, 0, 1))
+        batch.draw(shader)
+
+        # draw threshold text just below the dot
+        font_id = 0
+        blf.position(font_id, sx, sy - 18, 0)
+        blf.size(font_id, 14)
+        blf.draw(font_id, f"Thr: {self.threshold:.3f}")
+
+        # draw current sim_type below the threshold
+        blf.position(font_id, sx, sy - 36, 0)
+        blf.size(font_id, 12)
+        blf.draw(font_id, f"Mode: {self.sim_type}")
 
     def modal(self, context, event):
-        if event.type == 'MOUSEMOVE':
-            # 5️⃣ Compute new threshold from original click distance
-            dist = abs(event.mouse_region_x - self.start_x)
-            self.threshold = min(dist * self.sensitivity, 1.0)
+        wm = context.window_manager
+        
+        # ——— scroll wheel switches sim_type ——
+        if event.type == 'WHEELUPMOUSE' and event.value == 'PRESS':
+            self.type_index = (self.type_index + 1) % len(self.SIM_TYPES)
+        elif event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS':
+            self.type_index = (self.type_index - 1) % len(self.SIM_TYPES)
+        else:
+            self.type_index = self.type_index  # no change
 
-            # 6️⃣ Restore seed + reapply select_similar
+        if event.type in {'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            # update sim_type
+            self.sim_type = self.SIM_TYPES[self.type_index]
+            # reapply from seeds with same threshold
             self._restore_and_select(context)
-
-            # 7️⃣ Force a redraw so you see it live
+            # force redraw for overlay & viewport
             if context.area:
                 context.area.tag_redraw()
-
             return {'RUNNING_MODAL'}
 
-        # ✅ Finish on left-click
+        if event.type == 'MOUSEMOVE':
+            # update current mouse and threshold
+            self.current_mouse = (event.mouse_region_x, event.mouse_region_y)
+            dist = abs(self.current_mouse[0] - self.start_mouse[0])
+            self.threshold = min(dist * self.sensitivity, 1.0)
+
+            # reapply selection base-on-seed
+            self._restore_and_select(context)
+
+            # force redraw so overlay and viewport update
+            if context.area:
+                context.area.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        # finish: remove handler, keep selection, then chain region_to_loop
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            # optional: call next operator
             bpy.ops.mesh.region_to_loop()
-            bpy.ops.mesh.mark_seam(clear=False)
             return {'FINISHED'}
 
-        # ❌ Cancel on right-click or Esc
+        # cancel: remove handler and abort
         if event.type in {'RIGHTMOUSE', 'ESC'}:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
+
+    # … _register / _unregister not needed if you use auto_load.py …

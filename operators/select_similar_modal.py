@@ -75,12 +75,29 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
 
         # Draw info block
         od.draw_info_block(
-            x=sx, y=sy,
+            x=sx,
+            y=sy,
+            title="Fuse",
             lines=[
-                ("Threshold", f"{self.threshold:.3f}", "scroll"),
+                ("Threshold", (self.threshold, 0.0, 1.0), "scroll"),
                 ("Type", self.sim_type, "wheel up/down"),
             ]
         )
+
+
+        # Draw progress bar
+        od.draw_progress_bar(
+            x=20,
+            y=100,
+            width=200,
+            height=20,
+            value=self.threshold,
+            min_value=0.0,
+            max_value=1.0,
+            label=" "
+        )
+
+
 
 
     def modal(self, context, event):

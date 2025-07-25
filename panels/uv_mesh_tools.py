@@ -19,5 +19,5 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         wm = context.window_manager
         
         layout.separator()
-        layout.operator("rextools3.select_similar_modal", text="Boundary By normal")
-        layout.prop(wm, "select_similar_threshold", text="Threshold", slider=True)
+        layout.operator("rextools3.uv_seam_area_by_angle_modal", text="Area Seam by angle")
+        

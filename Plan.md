@@ -61,10 +61,10 @@
 
 # Delete Ops: Mesh
 
-* [ ] Delete, merge, split, seperate
-* [ ] Linked delete
-* [ ] Checker dissolve
-* [ ] Loop dissolve
+* [X] Delete, merge, split, seperate
+* [X] Linked delete
+* [X] Checker dissolve
+* [X] Loop dissolve
 
 # Delete Ops: Object
 

@@ -82,7 +82,11 @@ class VIEW3D_MT_delete_ops_pie(Menu):
         col_c = pie.column(align=True)
         
         box_c = col_c.box()
-        box_c.operator("mesh.select_all", text="Deselect All").action = 'DESELECT'
+        row_c = box_c.row(align=True)
+        row_c.operator("rextools3.delete_linked_ex", text="Delete Linked")
+        row_c.operator("rextools3.checker_dissolve", text="Checker Dissolve")
+        row_c.operator("rextools3.checker_dissolve_selected", text="Checker Dissolve Selected")
+        row_c.operator("rextools3.loop_dissolve_ex", text="Loop Dissolve")
 
         # NW, NE, SW, SE left empty
 

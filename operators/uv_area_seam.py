@@ -9,6 +9,16 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
     def execute(self, context):
         wm = context.window_manager
         
+        obj = context.object
+        # store original seeds
+        bm = bmesh.from_edit_mesh(obj.data) 
+        self.seed_indices = [f.index for f in bm.faces if f.select]
+        
+        # **VALIDATION**: require at least one face selected
+        if not self.seed_indices:
+            self.report({'WARNING'}, "Please select at least one face to start.") 
+            return {'CANCELLED'}
+        
         # 1) Clear Inner: wipe all seams, then region→loop, then mark loop
         if wm.clear_inner_uv_area_seam:
             bpy.ops.mesh.mark_seam(clear=True)

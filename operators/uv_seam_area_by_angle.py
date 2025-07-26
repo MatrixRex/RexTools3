@@ -21,6 +21,11 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
         # store original seeds
         bm = bmesh.from_edit_mesh(obj.data)
         self.seed_indices = [f.index for f in bm.faces if f.select]
+        
+        # **VALIDATION**: require at least one face selected
+        if not self.seed_indices:
+            self.report({'WARNING'}, "Please select at least one face to start.") 
+            return {'CANCELLED'}
 
         # initial state
         self.start_mouse        = (event.mouse_region_x, event.mouse_region_y)

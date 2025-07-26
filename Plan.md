@@ -2,9 +2,9 @@
 
 * [ ] Area UV
 * [ ] Area UV add mode, subtract mode.
-* [ ] coplanner modal
-* [ ] by angle modal
-* [ ] linked flat faced modal
+* [X] coplanner modal
+* [X] by angle modal
+* [X] linked flat faced modal
 * [ ] seams from islan
 * [ ] checker preview
 * [ ] follow active quad
@@ -81,10 +81,15 @@
 - [ ] Clear custom normals
 - [ ] make quad
 
-# Warning 
+# Warning
 
 * [ ] Join warning on two seperate UV maps
 
 # Rename tools
 
 * [ ] Auto high low rename(based on vert cout)
+
+Overlay
+
+* [ ] Confirmation toast
+* [ ]

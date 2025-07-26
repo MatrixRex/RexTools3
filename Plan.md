@@ -1,14 +1,14 @@
 # UV tools
 
-* [ ] Area UV
-* [ ] Area UV add mode, subtract mode.
+* [X] Area UV
+* [X] Area UV add mode, subtract mode.
 * [X] coplanner modal
 * [X] by angle modal
 * [X] linked flat faced modal
-* [ ] seams from islan
+* [X] seams from islan
 * [ ] checker preview
 * [ ] follow active quad
-* [ ] mark seam mode
+* [X] mark seam mode
 
 # Material tool
 

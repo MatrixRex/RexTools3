@@ -20,7 +20,6 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         tool = context.scene.tool_settings
         live_unwrap = tool.use_edge_path_live_unwrap
         
-        layout.separator()
         layout.operator("rextools3.uv_area_seam", text="Area Seam")
         layout.prop(wm, "clear_inner_uv_area_seam", text="Clear Inner")
         layout.prop(wm, "reseam_uv_area_seam",      text="Reseam")
@@ -31,7 +30,8 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
             text="Live Unwrap",
             depress=live_unwrap
         )
-
         layout.separator()
-        
+        layout.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
+        layout.operator_context = 'EXEC_DEFAULT'
+        layout.operator("uv.follow_active_quads", text="Quad Follow").mode = 'LENGTH_AVERAGE'
         

@@ -15,9 +15,7 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
         self.seed_indices = [f.index for f in bm.faces if f.select]
         
         # **VALIDATION**: require at least one face selected
-        if not self.seed_indices:
-            self.report({'WARNING'}, "Please select at least one face to start.") 
-            return {'CANCELLED'}
+        
         
         # 1) Clear Inner: wipe all seams, then region→loop, then mark loop
         if wm.clear_inner_uv_area_seam:
@@ -25,8 +23,8 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
             bpy.ops.mesh.region_to_loop()
             bpy.ops.mesh.mark_seam(clear=False)
             
-        # 2) Reseam: region→loop, then unmark any already-seamed edges
         elif wm.reseam_uv_area_seam:
+            # 1) mark/unmark seams on selected edges
             bpy.ops.mesh.region_to_loop()
             obj = context.object
             me  = obj.data
@@ -35,6 +33,26 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
                 if e.select:
                     e.seam = not e.seam
             bmesh.update_edit_mesh(me)
+
+            # 2) only do an explicit unwrap if Live-Unwrap is enabled
+            if context.scene.tool_settings.use_edge_path_live_unwrap:
+                # select all faces so unwrap uses every island
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.uv.unwrap(
+                    method='MINIMUM_STRETCH',
+                    fill_holes=True,
+                    correct_aspect=True,
+                    use_subsurf_data=False,
+                    margin=0,
+                    no_flip=False,
+                    iterations=10,
+                    use_weights=False,
+                    weight_group="uv_importance",
+                    weight_factor=1
+                )
+                bpy.ops.mesh.select_all(action='DESELECT')
+
+
             
          # 3) Normal: region→loop, then mark seam on loop
         else:

@@ -17,8 +17,8 @@ class REX_OT_toggle_live_unwrap(bpy.types.Operator):
         try:
             area.type = 'IMAGE_EDITOR'
             space = area.spaces.active
-            uv = space.uv_editor            # SpaceImageEditor.uv_editor :contentReference[oaicite:0]{index=0}
-            uv.use_live_unwrap = new_state  # SpaceUVEditor.use_live_unwrap :contentReference[oaicite:1]{index=1}
+            uv = space.uv_editor            
+            uv.use_live_unwrap = new_state  
         finally:
             # 2) restore original area type
             area.type = orig_type

@@ -9,8 +9,8 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
     bl_label = "Area Seam by Angle (drag mouse to adjust)"
     bl_options = {'REGISTER', 'UNDO', 'GRAB_CURSOR', 'BLOCKING'}
 
-    sensitivity = 0.0001
-    MODES = ['Linked Flat', 'Coplanar', 'Normal']
+    sensitivity = 0.0005
+    MODES = ['Angle', 'Coplanar', 'Normal']
 
     def invoke(self, context, event):
         obj = context.object

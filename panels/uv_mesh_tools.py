@@ -16,8 +16,12 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        wm = context.window_manager
+        wm = context.window_manager 
         
         layout.separator()
+        layout.operator("rextools3.uv_area_seam", text="Area Seam")
+        layout.prop(wm, "clear_inner_uv_area_seam", text="Clear Inner")
+        layout.prop(wm, "reseam_uv_area_seam",      text="Reseam")
         layout.operator("rextools3.uv_seam_area_by_angle_modal", text="Area Seam by angle")
+        
         

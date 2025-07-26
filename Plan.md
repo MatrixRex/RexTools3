@@ -7,7 +7,7 @@
 * [X] linked flat faced modal
 * [X] seams from islan
 * [ ] checker preview
-* [ ] follow active quad
+* [X] follow active quad
 * [X] mark seam mode
 
 # Material tool

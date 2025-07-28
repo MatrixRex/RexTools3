@@ -87,7 +87,7 @@
 
 # Rename tools
 
-* [ ] Auto high low rename(based on vert cout)
+* [X] Auto high low rename(based on vert cout)
 
 Overlay
 

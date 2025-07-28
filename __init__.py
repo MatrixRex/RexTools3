@@ -28,10 +28,12 @@ auto_load.init()
 
 
 def register():
-    properties.register_properties()
     auto_load.register()
+    properties.register_properties()
+    
 
 
 def unregister():
-    auto_load.unregister()
+   
     properties.unregister_properties()
+    auto_load.unregister()

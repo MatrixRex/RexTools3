@@ -8,7 +8,10 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
     bl_region_type = 'UI'  # sidebar
     bl_category = "RexTools3"  # tab name
     
-    
+    @classmethod
+    def poll(cls, context):
+        
+        return context.mode == 'OBJECT'
     
     
     def draw(self, context):

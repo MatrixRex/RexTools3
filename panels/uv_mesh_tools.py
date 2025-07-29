@@ -35,3 +35,13 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         layout.operator_context = 'EXEC_DEFAULT'
         layout.operator("uv.follow_active_quads", text="Quad Follow").mode = 'LENGTH_AVERAGE'
         
+        col = layout.column(align=True)
+        col.operator("mesh.select_edge_loop_until_seam", text="Select Loop Until Seam")
+
+        # Toggle button styled with depress state
+        row = layout.row(align=True)
+        row.operator(
+            "wm.toggle_stop_at_seam",
+            depress=wm.stop_loop_at_seam
+        )
+            

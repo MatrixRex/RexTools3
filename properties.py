@@ -43,6 +43,12 @@ def register_properties():
         description="Deselect seams on the selected loop instead of marking",
         default=False
     )
+    
+    wm.stop_loop_at_seam = BoolProperty(
+        name="Stop at Seam",
+        description="Stop edge loop selection when a seam is encountered",
+        default=True
+    )
 
 def unregister_properties():
     wm = bpy.types.WindowManager
@@ -54,3 +60,5 @@ def unregister_properties():
     del wm.select_similar_threshold
     del wm.clear_inner_uv_area_seam
     del wm.reseam_uv_area_seam
+    del wm.stop_loop_at_seam
+

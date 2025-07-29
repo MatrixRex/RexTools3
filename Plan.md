@@ -9,6 +9,7 @@
 * [ ] checker preview
 * [X] follow active quad
 * [X] mark seam mode
+* [ ] loop seam
 
 # Material tool
 
@@ -72,8 +73,8 @@
 
 # Common tools
 
-* [ ] Open Folder
-* [ ] Clean Up(purge)
+* [X] Open Folder
+* [X] Clean Up(purge)
 * [ ] Extract textures
 
 # Cleanup: Object

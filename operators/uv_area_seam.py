@@ -3,7 +3,7 @@ import bpy, bmesh
 class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
     bl_idname = "rextools3.uv_area_seam"
     bl_label = "UV Area Seam"
-    bl_description = "Toggle seam on the boundary loop of the current face region"
+    bl_description = "Mark seam around the selection border"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -61,4 +61,25 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
 
         # return to face-select mode
         bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='FACE')
+        return {'FINISHED'}
+
+
+class WM_OT_toggle_clear_inner_seam(bpy.types.Operator):
+    """Clear all inner seams before marking the loop seam"""
+    bl_idname = "wm.toggle_clear_inner_seam"
+    bl_label = "Toggle Clear Inner Seams"
+
+    def execute(self, context):
+        wm = context.window_manager
+        wm.clear_inner_uv_area_seam = not wm.clear_inner_uv_area_seam
+        return {'FINISHED'}
+
+class WM_OT_toggle_reseam_loop(bpy.types.Operator):
+    """Mark seam where no seam is marked, unmark where a seam is marked"""
+    bl_idname = "wm.toggle_reseam_loop"
+    bl_label = "Toggle Reseam Instead of Mark"
+
+    def execute(self, context):
+        wm = context.window_manager
+        wm.reseam_uv_area_seam = not wm.reseam_uv_area_seam
         return {'FINISHED'}

@@ -20,28 +20,47 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         tool = context.scene.tool_settings
         live_unwrap = tool.use_edge_path_live_unwrap
         
-        layout.operator("rextools3.uv_area_seam", text="Area Seam")
-        layout.prop(wm, "clear_inner_uv_area_seam", text="Clear Inner")
-        layout.prop(wm, "reseam_uv_area_seam",      text="Reseam")
+        box = layout.box()
+        box.label(text="Seam", icon='OPTIONS')
+        
+        box2 = box.box()
+        
+        
+        box2.operator("rextools3.uv_area_seam", text="Area Seam")
+        row = box2.row(align=True)
+        
+        
+        row.operator("wm.toggle_clear_inner_seam", depress=wm.clear_inner_uv_area_seam, text="Clear Inner")
+        row.operator("wm.toggle_reseam_loop", depress=wm.reseam_uv_area_seam, text="Reseam")
+        
+        
+        box3 = box.box()
+        col = box3.column(align=True)
+        col.operator("mesh.select_edge_loop_until_seam", text="Loop Seam")
+
+        # Toggle button styled with depress state
+        row = box3.row(align=True)
+        row.operator(
+            "wm.toggle_stop_at_seam",
+            depress=wm.stop_loop_at_seam
+        )
+        
         layout.operator("rextools3.uv_seam_area_by_angle_modal", text="Area Seam by angle")
-        row = layout.row()
+        
+        box = layout.box()
+        box.label(text="Unwrap", icon='OPTIONS')
+        
+        row = box.row()
         row.operator(
             "rextools3.toggle_live_unwrap",
             text="Live Unwrap",
             depress=live_unwrap
         )
-        layout.separator()
-        layout.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
-        layout.operator_context = 'EXEC_DEFAULT'
-        layout.operator("uv.follow_active_quads", text="Quad Follow").mode = 'LENGTH_AVERAGE'
+        box.operator_context = 'EXEC_DEFAULT'
+        box.operator("uv.follow_active_quads", text="Quad Follow").mode = 'LENGTH_AVERAGE'
+        box.separator()
+        box.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
         
-        col = layout.column(align=True)
-        col.operator("mesh.select_edge_loop_until_seam", text="Select Loop Until Seam")
-
-        # Toggle button styled with depress state
-        row = layout.row(align=True)
-        row.operator(
-            "wm.toggle_stop_at_seam",
-            depress=wm.stop_loop_at_seam
-        )
+        
+        
             

@@ -9,7 +9,7 @@
 * [ ] checker preview
 * [X] follow active quad
 * [X] mark seam mode
-* [ ] loop seam
+* [X] loop seam
 
 # Material tool
 

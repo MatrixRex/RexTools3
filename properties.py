@@ -18,6 +18,38 @@ class HighLowRenamerProperties(PropertyGroup):
         description="Prefix for low poly mesh",
         default="_low"
     )
+    
+def update_use_sep_alpha(self, context):
+        mat = self.id_data
+        if not mat.use_nodes:
+            return
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
+            return
+
+        alpha_inp = principled.inputs.get('Alpha')
+        # remove any existing alpha links
+        for link in list(alpha_inp.links):
+            links.remove(link)
+
+        # if we're falling back to Base Color alpha, reconnect it
+        if not self.use_separate_alpha_map:
+            base_inp = principled.inputs.get('Base Color')
+            if base_inp and base_inp.is_linked:
+                base_node = base_inp.links[0].from_node
+                if base_node.type == 'TEX_IMAGE':
+                    links.new(base_node.outputs['Alpha'], alpha_inp)
+                    mat.blend_method = 'HASHED'
+    
+class PBRMaterialSettings(PropertyGroup):
+    use_separate_alpha_map: BoolProperty(
+        name="Use Separate Alpha Map",
+        description="Use a separate alpha map instead of Base Color’s alpha channel",
+        default=False,
+        update=update_use_sep_alpha
+    )
 
 def register_properties():
     wm = bpy.types.WindowManager
@@ -49,6 +81,8 @@ def register_properties():
         description="Stop edge loop selection when a seam is encountered",
         default=True
     )
+   
+    bpy.types.Material.pbr_settings = PointerProperty(type=PBRMaterialSettings)
 
 def unregister_properties():
     wm = bpy.types.WindowManager
@@ -61,4 +95,7 @@ def unregister_properties():
     del wm.clear_inner_uv_area_seam
     del wm.reseam_uv_area_seam
     del wm.stop_loop_at_seam
+    
+    del bpy.types.Material.pbr_settings
+    
 

@@ -20,7 +20,7 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", icon='ADD')
             return
 
-        # Toggle: use separate alpha map or base-color alpha
+        # toggle: separate alpha map
         box = layout.box()
         box.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
         layout.separator()
@@ -29,8 +29,8 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Enable Nodes", icon='NODETREE')
             return
 
-        principled = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
-        if not principled:
+        princ = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not princ:
             layout.label(text="No Principled BSDF found")
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
@@ -52,24 +52,35 @@ class PBR_PT_MaterialPanel(Panel):
             row = box.row()
             row.label(text=label, icon='TEXTURE')
 
-            inp = principled.inputs.get(socket)
+            inp = princ.inputs.get(socket)
             linked = inp and inp.is_linked
 
             if linked:
                 row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
                 node = inp.links[0].from_node
-                img = getattr(node, 'image', None)
-                name = img.name if img else node.type
+
+                # determine source image name
+                if socket == "Base Color" and node.type == 'MIX_RGB':
+                    tex_node = node.inputs['Color1'].links[0].from_node
+                    name = tex_node.image.name if tex_node.image else "No Image"
+                elif node.type == 'TEX_IMAGE':
+                    name = node.image.name if node.image else "No Image"
+                elif node.type == 'NORMAL_MAP':
+                    name = "Normal Map"
+                else:
+                    name = node.type
+
                 box.label(text=f"Texture: {name}")
 
-                if socket == "Base Color":
-                    box.prop(principled.inputs['Base Color'], "default_value", text="Tint")
+                # sliders target Mix/Math node inputs
+                if socket == "Base Color" and node.type == 'MIX_RGB':
+                    box.prop(node.inputs['Color2'], "default_value", text="Tint")
                 elif socket == "Normal" and node.type == 'NORMAL_MAP':
                     box.prop(node.inputs['Strength'], "default_value", text="Strength")
-                elif socket in ("Roughness", "Metallic"):
-                    box.prop(principled.inputs[socket], "default_value", text="Strength")
+                elif socket in ("Roughness", "Metallic") and node.type == 'MATH':
+                    box.prop(node.inputs[1], "default_value", text="Strength")
                 elif socket == "Alpha":
-                    box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")
+                    box.prop(princ.inputs['Alpha'], "default_value", text="Alpha")
 
             else:
                 op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
@@ -77,19 +88,16 @@ class PBR_PT_MaterialPanel(Panel):
                 op.colorspace = cs
                 if socket != "Normal":
                     if socket == "Base Color":
-                        box.prop(principled.inputs[socket], "default_value", text="Color")
+                        box.prop(princ.inputs[socket], "default_value", text="Color")
                     else:
-                        box.prop(principled.inputs[socket], "default_value", text="Value")
+                        box.prop(princ.inputs[socket], "default_value", text="Value")
 
         layout.separator()
 
-        # Material Settings (Blender 4.5 API)
         ms = layout.box()
         ms.label(text="Material Settings", icon='MATERIAL')
-
         row = ms.row(align=True)
         row.label(text="Blend Mode")
         row.prop_enum(mat, "blend_method", 'BLEND', text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
-
         ms.prop(mat, "use_backface_culling", text="Backface Culling")

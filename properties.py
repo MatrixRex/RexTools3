@@ -2,22 +2,7 @@ import bpy
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, PointerProperty
 from bpy.types import PropertyGroup
 
-class HighLowRenamerProperties(PropertyGroup):
-    obj_name: StringProperty(
-        name="Object Name",
-        description="Base name for the objects",
-        default="Asset"
-    )
-    high_prefix: StringProperty(
-        name="High Prefix",
-        description="Prefix for high poly mesh",
-        default="_high"
-    )
-    low_prefix: StringProperty(
-        name="Low Prefix",
-        description="Prefix for low poly mesh",
-        default="_low"
-    )
+
     
 def update_use_sep_alpha(self, context):
         mat = self.id_data
@@ -42,6 +27,97 @@ def update_use_sep_alpha(self, context):
                 if base_node.type == 'TEX_IMAGE':
                     links.new(base_node.outputs['Alpha'], alpha_inp)
                     mat.blend_method = 'HASHED'
+                       
+def get_roughness_strength(self):
+    """Get roughness strength from the actual node"""
+    try:
+        mat = bpy.context.active_object.active_material
+        if not mat or not mat.use_nodes:
+            return 1.0
+        
+        nodes = mat.node_tree.nodes
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
+            return 1.0
+            
+        inp = principled.inputs.get("Roughness")
+        if inp and inp.is_linked and inp.links[0].from_node.type == 'MATH':
+            return inp.links[0].from_node.inputs[1].default_value
+    except:
+        pass
+    return 1.0
+
+def set_roughness_strength(self, value):
+    """Set roughness strength to the actual node"""
+    try:
+        mat = bpy.context.active_object.active_material
+        if not mat or not mat.use_nodes:
+            return
+        
+        nodes = mat.node_tree.nodes
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
+            return
+            
+        inp = principled.inputs.get("Roughness")
+        if inp and inp.is_linked and inp.links[0].from_node.type == 'MATH':
+            inp.links[0].from_node.inputs[1].default_value = max(0.0, min(value, 1.0))
+    except:
+        pass
+
+def get_metallic_strength(self):
+    """Get metallic strength from the actual node"""
+    try:
+        mat = bpy.context.active_object.active_material
+        if not mat or not mat.use_nodes:
+            return 1.0
+        
+        nodes = mat.node_tree.nodes
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
+            return 1.0
+            
+        inp = principled.inputs.get("Metallic")
+        if inp and inp.is_linked and inp.links[0].from_node.type == 'MATH':
+            return inp.links[0].from_node.inputs[1].default_value
+    except:
+        pass
+    return 1.0
+
+def set_metallic_strength(self, value):
+    """Set metallic strength to the actual node"""
+    try:
+        mat = bpy.context.active_object.active_material
+        if not mat or not mat.use_nodes:
+            return
+        
+        nodes = mat.node_tree.nodes
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
+            return
+            
+        inp = principled.inputs.get("Metallic")
+        if inp and inp.is_linked and inp.links[0].from_node.type == 'MATH':
+            inp.links[0].from_node.inputs[1].default_value = max(0.0, min(value, 1.0))
+    except:
+        pass
+                    
+class HighLowRenamerProperties(PropertyGroup):
+    obj_name: StringProperty(
+        name="Object Name",
+        description="Base name for the objects",
+        default="Asset"
+    )
+    high_prefix: StringProperty(
+        name="High Prefix",
+        description="Prefix for high poly mesh",
+        default="_high"
+    )
+    low_prefix: StringProperty(
+        name="Low Prefix",
+        description="Prefix for low poly mesh",
+        default="_low"
+    )
     
 class PBRMaterialSettings(PropertyGroup):
     use_separate_alpha_map: BoolProperty(
@@ -49,6 +125,22 @@ class PBRMaterialSettings(PropertyGroup):
         description="Use a separate alpha map instead of Base Color’s alpha channel",
         default=False,
         update=update_use_sep_alpha
+    )
+    
+    roughness_strength: FloatProperty(
+        name="Roughness Strength",
+        default=1.0,
+        min=0.0,
+        max=1.0,
+        update=update_strength
+    )
+    
+    metallic_strength: FloatProperty(
+        name="Metallic Strength", 
+        default=1.0,
+        min=0.0,
+        max=1.0,
+        update=update_strength
     )
 
 def register_properties():

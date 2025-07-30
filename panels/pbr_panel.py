@@ -76,7 +76,10 @@ class PBR_PT_MaterialPanel(Panel):
                     box.prop(node.inputs['Strength'], "default_value", text="Strength")
 
                 elif socket in ("Roughness", "Metallic") and node.type == 'MATH':
-                    box.prop(node.inputs[1], "default_value", text="Strength", slider=True)
+                    if socket == "Roughness":
+                        box.prop(mat.pbr_settings, "roughness_strength", text="Strength", slider=True)
+                    elif socket == "Metallic":
+                        box.prop(mat.pbr_settings, "metallic_strength", text="Strength", slider=True)
 
                 elif socket == "Alpha":
                     box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")

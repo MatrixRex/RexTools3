@@ -1,3 +1,4 @@
+# panels/pbr_panel.py
 import bpy
 from bpy.types import Panel
 
@@ -20,7 +21,6 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", icon='ADD')
             return
 
-        # toggle: separate alpha map
         box = layout.box()
         box.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
         layout.separator()
@@ -29,8 +29,9 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Enable Nodes", icon='NODETREE')
             return
 
-        princ = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
-        if not princ:
+        nodes = mat.node_tree.nodes
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if not principled:
             layout.label(text="No Principled BSDF found")
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
@@ -52,35 +53,33 @@ class PBR_PT_MaterialPanel(Panel):
             row = box.row()
             row.label(text=label, icon='TEXTURE')
 
-            inp = princ.inputs.get(socket)
-            linked = inp and inp.is_linked
-
-            if linked:
+            inp = principled.inputs[socket]
+            if inp.is_linked:
                 row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
                 node = inp.links[0].from_node
 
-                # determine source image name
                 if socket == "Base Color" and node.type == 'MIX_RGB':
-                    tex_node = node.inputs['Color1'].links[0].from_node
-                    name = tex_node.image.name if tex_node.image else "No Image"
+                    tex = node.inputs['Color1'].links[0].from_node
+                    name = tex.image.name if tex.image else "No Image"
                 elif node.type == 'TEX_IMAGE':
                     name = node.image.name if node.image else "No Image"
-                elif node.type == 'NORMAL_MAP':
-                    name = "Normal Map"
                 else:
                     name = node.type
-
                 box.label(text=f"Texture: {name}")
 
-                # sliders target Mix/Math node inputs
                 if socket == "Base Color" and node.type == 'MIX_RGB':
-                    box.prop(node.inputs['Color2'], "default_value", text="Tint")
+                    row = box.row(align=True)
+                    row.prop(node.inputs['Color2'], "default_value", text="Tint")
+                    row.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
+
                 elif socket == "Normal" and node.type == 'NORMAL_MAP':
                     box.prop(node.inputs['Strength'], "default_value", text="Strength")
+
                 elif socket in ("Roughness", "Metallic") and node.type == 'MATH':
-                    box.prop(node.inputs[1], "default_value", text="Strength")
+                    box.prop(node.inputs[1], "default_value", text="Strength", slider=True)
+
                 elif socket == "Alpha":
-                    box.prop(princ.inputs['Alpha'], "default_value", text="Alpha")
+                    box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")
 
             else:
                 op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
@@ -88,9 +87,9 @@ class PBR_PT_MaterialPanel(Panel):
                 op.colorspace = cs
                 if socket != "Normal":
                     if socket == "Base Color":
-                        box.prop(princ.inputs[socket], "default_value", text="Color")
+                        box.prop(principled.inputs['Base Color'], "default_value", text="Color")
                     else:
-                        box.prop(princ.inputs[socket], "default_value", text="Value")
+                        box.prop(principled.inputs[socket], "default_value", text="Value")
 
         layout.separator()
 

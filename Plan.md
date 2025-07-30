@@ -16,13 +16,14 @@
 * [ ] Easy PBR mat creation
 
   * [ ] Auto tex assign by name
-  * [ ] assign, delete, replace per texture
+  * [X] assign, delete, replace per texture
   * [ ] packed texture.
   * [ ] AO map
-  * [ ] Smoothness, AO, mettalic, normal scale param
+  * [X] Smoothness, AO, mettalic, normal scale param
   * [ ] UV channel select
   * [ ] Tilling
-  * [ ] Transparent channel setup, from albedo/seperate texture
+  * [ ] 
+  * [X] Transparent channel setup, from albedo/seperate texture
 * [ ] Varient materials by name(eg mat001, mat002)
 
   * [ ] Create varient

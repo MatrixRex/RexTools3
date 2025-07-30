@@ -132,7 +132,8 @@ class PBRMaterialSettings(PropertyGroup):
         default=1.0,
         min=0.0,
         max=1.0,
-        update=update_strength
+        get=get_roughness_strength,
+        set=set_roughness_strength
     )
     
     metallic_strength: FloatProperty(
@@ -140,7 +141,8 @@ class PBRMaterialSettings(PropertyGroup):
         default=1.0,
         min=0.0,
         max=1.0,
-        update=update_strength
+        get=get_metallic_strength,
+        set=set_metallic_strength
     )
 
 def register_properties():

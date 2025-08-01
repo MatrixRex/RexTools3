@@ -112,7 +112,7 @@ class PBR_OT_AssignTexture(Operator):
             links.new(mix.outputs['Color'], principled.inputs['Base Color'])
             if not use_sep:
                 links.new(tex_node.outputs['Alpha'], principled.inputs['Alpha'])
-                material.blend_method = 'BLEND'
+                material.blend_method = 'HASHED'
 
         else:  # Roughness or Metallic
             math = nodes.new('ShaderNodeMath')

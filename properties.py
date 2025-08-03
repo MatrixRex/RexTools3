@@ -101,6 +101,33 @@ def set_metallic_strength(self, value):
             inp.links[0].from_node.inputs[1].default_value = max(0.0, min(value, 1.0))
     except:
         pass
+
+class BoneRenameProperties(PropertyGroup):
+    find_text: StringProperty(
+        name="Find",
+        description="Text to find in bone names",
+        default=""
+    )
+    replace_text: StringProperty(
+        name="Replace",
+        description="Text to replace with",
+        default=""
+    )
+    prefix_text: StringProperty(
+        name="Prefix",
+        description="Text to add before bone names",
+        default=""
+    )
+    suffix_text: StringProperty(
+        name="Suffix",
+        description="Text to add after bone names",
+        default=""
+    )
+    apply_prefix_suffix_to_matches_only: BoolProperty(
+        name="Apply to Find/Replace matches only",
+        description="Only apply prefix/suffix to bones matching the find string",
+        default=False
+    )
                     
 class HighLowRenamerProperties(PropertyGroup):
     obj_name: StringProperty(
@@ -122,7 +149,7 @@ class HighLowRenamerProperties(PropertyGroup):
 class PBRMaterialSettings(PropertyGroup):
     use_separate_alpha_map: BoolProperty(
         name="Use Separate Alpha Map",
-        description="Use a separate alpha map instead of Base Color’s alpha channel",
+        description="Use a separate alpha map instead of Base Color's alpha channel",
         default=False,
         update=update_use_sep_alpha
     )
@@ -151,6 +178,7 @@ def register_properties():
     wm.modal_y = IntProperty(name="Mouse Y", default=0)
 
     bpy.types.Scene.highlow_renamer_props = PointerProperty(type=HighLowRenamerProperties)
+    bpy.types.Scene.bone_rename_props = PointerProperty(type=BoneRenameProperties)
 
     wm.select_similar_threshold = FloatProperty(
         name="Threshold",
@@ -184,6 +212,7 @@ def unregister_properties():
     del wm.modal_y
 
     del bpy.types.Scene.highlow_renamer_props
+    del bpy.types.Scene.bone_rename_props
 
     del wm.select_similar_threshold
     del wm.clear_inner_uv_area_seam
@@ -191,5 +220,3 @@ def unregister_properties():
     del wm.stop_loop_at_seam
     
     del bpy.types.Material.pbr_settings
-    
-

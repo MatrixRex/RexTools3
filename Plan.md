@@ -24,7 +24,7 @@
   * [ ] Tilling
   * [ ] Preview texture
   * [X] Transparent channel setup, from albedo/seperate texture
-  * [ ] default opacity mode change when assigning diffuse texture
+  * [X] default opacity mode change when assigning diffuse texture
 * [ ] Varient materials by name(eg mat001, mat002)
 
   * [ ] Create varient

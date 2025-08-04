@@ -54,6 +54,7 @@
 * [ ] Apply current pose to rest pose(apply rig pose to rest, apply armeture mod on related mesh, rebind mesh to armeture)
 * [ ] reset pose from obj mode
 * [ ] rig armeture view(infront)(set infront and wireframe)
+* [X] bone batch rename
 
 # Mesh tools
 

@@ -36,7 +36,11 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
-        layout.prop(mat, "name", text="Material")
+        # Material name and utility buttons
+        row = layout.row()
+        row.prop(mat, "name", text="Material")
+        row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
+        
         layout.separator()
 
         inputs = [
@@ -103,3 +107,7 @@ class PBR_PT_MaterialPanel(Panel):
         row.prop_enum(mat, "blend_method", 'BLEND', text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
         ms.prop(mat, "use_backface_culling", text="Backface Culling")
+        
+        # Add a manual arrange button at the bottom
+        layout.separator()
+        layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')

@@ -26,6 +26,10 @@ class PBR_OT_AssignTexture(Operator):
         if not success:
             self.report({'ERROR'}, "Failed to assign texture")
             return {'CANCELLED'}
+        
+        # Auto-arrange nodes after assignment
+        bpy.ops.pbr.arrange_nodes()
+        
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -79,14 +83,25 @@ class PBR_OT_AssignTexture(Operator):
 
         use_sep = getattr(material.pbr_settings, 'use_separate_alpha_map', False)
 
+        # Calculate initial position based on input type
+        base_positions = {
+            'Base Color': (-400, 200),
+            'Metallic': (-400, 100),  
+            'Roughness': (-400, 0),
+            'Normal': (-400, -100),
+            'Alpha': (-400, -200),
+        }
+        
+        tex_pos = base_positions.get(input_name, (-400, 0))
+
         # Create Image Texture node
         tex_node = nodes.new('ShaderNodeTexImage')
         tex_node.image = image
-        tex_node.location = (-400, 0)
+        tex_node.location = tex_pos
 
         if input_name == 'Normal':
             nm = nodes.new('ShaderNodeNormalMap')
-            nm.location = (-200, 0)
+            nm.location = (tex_pos[0] + 250, tex_pos[1])
             links.new(tex_node.outputs['Color'], nm.inputs['Color'])
             links.new(nm.outputs['Normal'], principled.inputs['Normal'])
 
@@ -98,7 +113,7 @@ class PBR_OT_AssignTexture(Operator):
             mix = nodes.new('ShaderNodeMixRGB')
             mix.blend_type = 'MULTIPLY'
             mix.inputs['Fac'].default_value = 1.0
-            mix.location = (-200, 0)
+            mix.location = (tex_pos[0] + 250, tex_pos[1])
             # Texture → Mix Color1
             links.new(tex_node.outputs['Color'], mix.inputs['Color1'])
             # Tint → Mix Color2 (clamped)
@@ -117,7 +132,7 @@ class PBR_OT_AssignTexture(Operator):
         else:  # Roughness or Metallic
             math = nodes.new('ShaderNodeMath')
             math.operation = 'MULTIPLY'
-            math.location = (-200, 0)
+            math.location = (tex_pos[0] + 250, tex_pos[1])
             # Texture → Math input 0
             links.new(tex_node.outputs['Color'], math.inputs[0])
             # Clamp the slider default to [0,1]

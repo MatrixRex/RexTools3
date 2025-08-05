@@ -22,10 +22,12 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", icon='ADD')
             return
 
+        # Header: separate-alpha toggle
         box = layout.box()
         box.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
         layout.separator()
 
+        # Ensure nodes
         if not mat.use_nodes:
             layout.operator("pbr.create_material", text="Enable Nodes", icon='NODETREE')
             return
@@ -37,11 +39,13 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
+        # Top row: material name + arrange button
         row = layout.row()
         row.prop(mat, "name", text="Material")
         row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
         layout.separator()
 
+        # Build our list of sockets
         inputs = [
             ("Base Color", "Base Color", "sRGB"),
             ("Normal",     "Normal",     "Non-Color"),
@@ -51,60 +55,68 @@ class PBR_PT_MaterialPanel(Panel):
         if mat.pbr_settings.use_separate_alpha_map:
             inputs.append(("Alpha", "Alpha", "Non-Color"))
 
-        for label, socket, cs in inputs:
+        # Draw each socket block
+        for label, socket, colorspace in inputs:
             box = layout.box()
             row = box.row()
             row.label(text=label, icon='TEXTURE')
             inp = principled.inputs[socket]
 
+            # If already linked, show remove + controls
             if inp.is_linked:
                 row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
-                node = inp.links[0].from_node
-                # (existing display logic unchanged) …
-                if socket == "Base Color" and node.type == 'MIX_RGB':
-                    tex = node.inputs['Color1'].links[0].from_node
+                src_node = inp.links[0].from_node
+
+                # Display the texture name
+                if socket == "Base Color" and src_node.type == 'MIX_RGB':
+                    tex = src_node.inputs['Color1'].links[0].from_node
                     name = tex.image.name if tex.image else "No Image"
-                elif node.type == 'TEX_IMAGE':
-                    name = node.image.name if node.image else "No Image"
+                elif src_node.type == 'TEX_IMAGE':
+                    name = src_node.image.name if src_node.image else "No Image"
                 else:
-                    name = node.type
+                    name = src_node.type
                 box.label(text=f"Texture: {name}")
 
-                if socket == "Base Color" and node.type == 'MIX_RGB':
-                    row = box.row(align=True)
-                    row.prop(node.inputs['Color2'], "default_value", text="Tint")
-                    row.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
-                elif socket == "Normal" and node.type == 'NORMAL_MAP':
-                    box.prop(node.inputs['Strength'], "default_value", text="Strength")
-                elif socket in ("Roughness", "Metallic") and node.type == 'MATH':
+                # Per-socket extra controls
+                if socket == "Base Color" and src_node.type == 'MIX_RGB':
+                    r = box.row(align=True)
+                    r.prop(src_node.inputs['Color2'], "default_value", text="Tint")
+                    r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
+                elif socket == "Normal" and src_node.type == 'NORMAL_MAP':
+                    box.prop(src_node.inputs['Strength'], "default_value", text="Strength")
+                elif socket in ("Roughness", "Metallic") and src_node.type == 'MATH':
                     key = socket.lower() + "_strength"
                     box.prop(mat.pbr_settings, key, text="Strength", slider=True)
                 elif socket == "Alpha":
                     box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")
 
+            # If not linked, show assign UI
             else:
                 op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
                 op.input_name = socket
-                op.colorspace = cs
+                op.colorspace = colorspace
 
-                # default-value slider
                 if socket != "Normal":
                     if socket == "Base Color":
                         box.prop(principled.inputs['Base Color'], "default_value", text="Color")
                     else:
                         box.prop(principled.inputs[socket], "default_value", text="Value")
 
-                # **channel dropdown for packing support**
-                if socket != "Base Color":
-                    prop_name = socket.lower() + "_channel"
-                    box.prop(mat.pbr_settings, prop_name, text="Channel")
+            # ─── Channel dropdown (always shown for non-BaseColor, non-Normal) ───
+            if socket not in ("Base Color", "Normal"):
+                box.prop(
+                    mat.pbr_settings,
+                    f"{socket.lower()}_channel",
+                    text="Channel"
+                )
 
+        # Material settings footer
         layout.separator()
         ms = layout.box()
         ms.label(text="Material Settings", icon='MATERIAL')
         row = ms.row(align=True)
         row.label(text="Blend Mode")
-        row.prop_enum(mat, "blend_method", 'BLEND', text="Blend")
+        row.prop_enum(mat, "blend_method", 'BLEND',  text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
         ms.prop(mat, "use_backface_culling", text="Backface Culling")
 

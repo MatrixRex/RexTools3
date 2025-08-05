@@ -1,4 +1,5 @@
 # panels/pbr_panel.py
+
 import bpy
 from bpy.types import Panel
 
@@ -36,11 +37,9 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
-        # Material name and utility buttons
         row = layout.row()
         row.prop(mat, "name", text="Material")
         row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
-        
         layout.separator()
 
         inputs = [
@@ -56,12 +55,12 @@ class PBR_PT_MaterialPanel(Panel):
             box = layout.box()
             row = box.row()
             row.label(text=label, icon='TEXTURE')
-
             inp = principled.inputs[socket]
+
             if inp.is_linked:
                 row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
                 node = inp.links[0].from_node
-
+                # (existing display logic unchanged) …
                 if socket == "Base Color" and node.type == 'MIX_RGB':
                     tex = node.inputs['Color1'].links[0].from_node
                     name = tex.image.name if tex.image else "No Image"
@@ -75,16 +74,11 @@ class PBR_PT_MaterialPanel(Panel):
                     row = box.row(align=True)
                     row.prop(node.inputs['Color2'], "default_value", text="Tint")
                     row.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
-
                 elif socket == "Normal" and node.type == 'NORMAL_MAP':
                     box.prop(node.inputs['Strength'], "default_value", text="Strength")
-
                 elif socket in ("Roughness", "Metallic") and node.type == 'MATH':
-                    if socket == "Roughness":
-                        box.prop(mat.pbr_settings, "roughness_strength", text="Strength", slider=True)
-                    elif socket == "Metallic":
-                        box.prop(mat.pbr_settings, "metallic_strength", text="Strength", slider=True)
-
+                    key = socket.lower() + "_strength"
+                    box.prop(mat.pbr_settings, key, text="Strength", slider=True)
                 elif socket == "Alpha":
                     box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")
 
@@ -92,14 +86,20 @@ class PBR_PT_MaterialPanel(Panel):
                 op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
                 op.input_name = socket
                 op.colorspace = cs
+
+                # default-value slider
                 if socket != "Normal":
                     if socket == "Base Color":
                         box.prop(principled.inputs['Base Color'], "default_value", text="Color")
                     else:
                         box.prop(principled.inputs[socket], "default_value", text="Value")
 
-        layout.separator()
+                # **channel dropdown for packing support**
+                if socket != "Base Color":
+                    prop_name = socket.lower() + "_channel"
+                    box.prop(mat.pbr_settings, prop_name, text="Channel")
 
+        layout.separator()
         ms = layout.box()
         ms.label(text="Material Settings", icon='MATERIAL')
         row = ms.row(align=True)
@@ -107,7 +107,6 @@ class PBR_PT_MaterialPanel(Panel):
         row.prop_enum(mat, "blend_method", 'BLEND', text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
         ms.prop(mat, "use_backface_culling", text="Backface Culling")
-        
-        # Add a manual arrange button at the bottom
+
         layout.separator()
         layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')

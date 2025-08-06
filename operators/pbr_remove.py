@@ -56,6 +56,16 @@ class PBR_OT_RemoveTexture(Operator):
             try:
                 nodes.remove(node)
             except RuntimeError:
-                pass  # node already removed or never existed in this tree
+                pass
+
+        # ─── Cleanup any leftover channel-packing nodes ───────────────────
+        # Remove our named SeparateRGB and Math nodes if they remain
+        for node_name in (f"PBR Sep {self.input_name}", f"PBR Math {self.input_name}"):
+            leftover = nodes.get(node_name)
+            if leftover:
+                try:
+                    nodes.remove(leftover)
+                except RuntimeError:
+                    pass
 
         return {'FINISHED'}

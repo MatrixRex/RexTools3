@@ -17,7 +17,7 @@
 
   * [ ] Auto tex assign by name
   * [X] assign, delete, replace per texture
-  * [ ] packed texture.
+  * [X] packed texture.
   * [ ] AO map
   * [X] Smoothness, AO, mettalic, normal scale param
   * [ ] UV channel select

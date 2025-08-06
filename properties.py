@@ -168,9 +168,35 @@ class PBRMaterialSettings(PropertyGroup):
     )
 
 def register_properties():
+    wm = bpy.types.WindowManager
+    wm.modal_x = IntProperty(name="Mouse X", default=0)
+    wm.modal_y = IntProperty(name="Mouse Y", default=0)
+
+   
+    bpy.types.Scene.bone_rename_props     = PointerProperty(type=BoneRenameProperties)
+    bpy.types.Scene.highlow_renamer_props = PointerProperty(type=HighLowRenamerProperties)
+
+   
+    wm.select_similar_threshold   = FloatProperty(name="Threshold", default=0.0, min=0.0, max=1.0)
+    wm.clear_inner_uv_area_seam   = BoolProperty(name="Clear Inner", default=False)
+    wm.reseam_uv_area_seam        = BoolProperty(name="Reseam", default=False)
+    wm.stop_loop_at_seam          = BoolProperty(name="Stop at Seam", default=True)
     bpy.types.Material.pbr_settings = PointerProperty(type=PBRMaterialSettings)
-    # … other props …
+ 
 
 def unregister_properties():
+    wm = bpy.types.WindowManager
+    del wm.modal_x
+    del wm.modal_y
+
+    del bpy.types.Scene.bone_rename_props
+    del bpy.types.Scene.highlow_renamer_props
+
+
+    del wm.select_similar_threshold
+    del wm.clear_inner_uv_area_seam
+    del wm.reseam_uv_area_seam
+    del wm.stop_loop_at_seam
+    
     del bpy.types.Material.pbr_settings
-    # … other cleanup …
+

@@ -1,7 +1,7 @@
 import bpy
 import bmesh
 from bpy.types import Operator, Panel
-from bpy.props import IntProperty
+from bpy.props import IntProperty, BoolProperty
 
 
 def _bm_from_context(context):
@@ -14,19 +14,24 @@ def _bm_from_context(context):
 
 
 class MESH_OT_checker_dissolve(Operator):
-    """Ring → Checker → Loop → Dissolve Edges (with verts). Redo uses the original seed selection."""
+    """(Optional Ring) → Checker → Loop → Dissolve Edges (with verts).
+    Redo uses the original seed selection."""
     bl_idname = "mesh.checker_dissolve"
     bl_label = "Checker Dissolve"
-    bl_options = {'REGISTER', 'UNDO'}  # keep redo panel on OUR operator
+    bl_options = {'REGISTER', 'UNDO'}
 
-    # Redo props (match Checker Deselect UI)
+    # Redo props
     deselected: IntProperty(name="Deselected", default=1, min=0)
     selected:   IntProperty(name="Selected",   default=1, min=1)
     offset:     IntProperty(name="Offset",     default=0)
+    only_selected: BoolProperty(
+        name="Only Selected",
+        description="Skip the initial edge ring selection; use the current selection instead",
+        default=False
+    )
 
-    # persistent seed captured at invoke-time
     _seed_edge_indices: list[int] | None = None
-    _seed_edge_keys: list[tuple[int, int]] | None = None  # sorted (v0_idx, v1_idx) per edge
+    _seed_edge_keys: list[tuple[int, int]] | None = None  # (v0_idx, v1_idx) per edge
 
     @classmethod
     def poll(cls, context):
@@ -45,13 +50,11 @@ class MESH_OT_checker_dissolve(Operator):
             return False
 
         self._seed_edge_indices = [e.index for e in sel_edges]
-        # Back up with stable-ish keys = pairs of vertex indices
         self._seed_edge_keys = [tuple(sorted((e.verts[0].index, e.verts[1].index))) for e in sel_edges]
         return True
 
     def _restore_seed(self, context):
-        """Try to restore the original seed selection. Prefer original indices; if those
-        are invalid after topology changes, fall back to edge keys (pairs of vert indices)."""
+        """Restore original seed selection. Prefer indices; fall back to edge keys."""
         bm, me = _bm_from_context(context)
         if not bm:
             return False
@@ -59,13 +62,12 @@ class MESH_OT_checker_dissolve(Operator):
         bm.edges.ensure_lookup_table()
         bm.verts.ensure_lookup_table()
 
-        # clear current selection
         for e in bm.edges:
             e.select_set(False)
 
         restored = 0
 
-        # 1) Try via indices (fast path)
+        # Try indices
         if self._seed_edge_indices:
             for idx in self._seed_edge_indices:
                 if 0 <= idx < len(bm.edges):
@@ -73,25 +75,21 @@ class MESH_OT_checker_dissolve(Operator):
                         bm.edges[idx].select_set(True)
                         restored += 1
                     except IndexError:
-                        # table might still be stale; ensure and skip
                         bm.edges.ensure_lookup_table()
 
-        # 2) If nothing restored, try via edge keys (pairs of vert indices)
+        # Fallback to keys
         if restored == 0 and self._seed_edge_keys:
             for a, b in self._seed_edge_keys:
                 if 0 <= a < len(bm.verts) and 0 <= b < len(bm.verts):
                     va = bm.verts[a]
                     vb = bm.verts[b]
-                    # find an edge connecting va-vb if it still exists
-                    found = None
+                    # find an edge va-vb
                     for e in va.link_edges:
                         v0, v1 = e.verts
                         if (v0 == va and v1 == vb) or (v0 == vb and v1 == va):
-                            found = e
+                            e.select_set(True)
+                            restored += 1
                             break
-                    if found:
-                        found.select_set(True)
-                        restored += 1
 
         bmesh.update_edit_mesh(me, loop_triangles=False, destructive=False)
         return restored > 0
@@ -106,7 +104,6 @@ class MESH_OT_checker_dissolve(Operator):
         return self.execute(context)
 
     def execute(self, context):
-        # Ensure edge select and we have a seed to replay from
         if not context.tool_settings.mesh_select_mode[1]:
             self.report({'WARNING'}, "Switch to Edge Select mode first.")
             return {'CANCELLED'}
@@ -115,9 +112,10 @@ class MESH_OT_checker_dissolve(Operator):
             self.report({'WARNING'}, "Could not restore original selection. Re-select an edge and run again.")
             return {'CANCELLED'}
 
-        # === exact Blender sequence (operators) ===
-        # 1) edge ring from the seed
-        bpy.ops.mesh.loop_multi_select(ring=True)
+        # === sequence ===
+        # (optional) 1) ring from seed
+        if not self.only_selected:
+            bpy.ops.mesh.loop_multi_select(ring=True)
 
         # 2) checker deselect with our redo-able props
         bpy.ops.mesh.select_nth(skip=self.deselected, nth=self.selected, offset=self.offset)
@@ -125,11 +123,9 @@ class MESH_OT_checker_dissolve(Operator):
         # 3) loop select (perpendicular)
         bpy.ops.mesh.loop_multi_select(ring=False)
 
-        # 4) dissolve edges — now with verts (matches "regular" dissolve)
+        # 4) dissolve edges — with verts (matches regular dissolve)
         bpy.ops.mesh.dissolve_edges(use_verts=True, use_face_split=False)
 
-        # IMPORTANT: do not call any other registered operator after this point.
-        # Returning FINISHED keeps *this* operator ("Checker Dissolve") active in the redo panel.
         return {'FINISHED'}
 
 

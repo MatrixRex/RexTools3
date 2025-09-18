@@ -242,9 +242,7 @@ class PBR_OT_AutoLoadTextures(Operator):
     bl_label = "Auto Load PBR Textures"
     bl_options = {'REGISTER', 'UNDO'}
 
-    # (Optional) operator-level props are not required; we read from mat.pbr_settings
-    # common_name: StringProperty(name="Common Name", default="")
-    # use_auto_common_name: BoolProperty(name="Use Auto-Detected Name", default=True)
+    
 
     @classmethod
     def poll(cls, context):
@@ -271,38 +269,49 @@ class PBR_OT_AutoLoadTextures(Operator):
             self.report({'ERROR'}, "Assign Base Color first")
             return {'CANCELLED'}
 
-        base_path = bpy.path.abspath(base_img.filepath, library=getattr(base_img, 'library', None))
+        base_path = bpy.path.abspath(base_img.filepath, library=base_img.library) if hasattr(base_img, 'library') else bpy.path.abspath(base_img.filepath)
         if not base_path or not os.path.exists(base_path):
             self.report({'ERROR'}, "Base Color image path not found on disk")
             return {'CANCELLED'}
 
         base_path = Path(base_path)
         folder = base_path.parent
-
-        # Read user preference from material properties
+        # Read the toggle + custom name from the material settings, not the operator
         use_auto = getattr(mat.pbr_settings, "use_auto_common_name", True)
-        custom = (getattr(mat.pbr_settings, "common_name", "") or "").strip().lower()
+        custom  = (getattr(mat.pbr_settings, "common_name", "") or "").strip().lower()
 
-        stem_lower = _derive_stem_from_base(base_path.stem.lower()) if use_auto else (custom if custom else base_path.stem.lower())
+        stem_lower = (
+            _derive_stem_from_base(base_path.stem.lower())
+            if use_auto
+            else (custom if custom else base_path.stem.lower())
+        )
 
+
+        # Slot -> acceptable suffix tokens (lowercase)
         suffix_map = {
-            'Roughness': ['_roughness', '_rough', '_rgh'],
-            'Metallic':  ['_metallic', '_metal', '_metalness', '_mtl'],
-            'Normal':    ['_normal', '_norm', '_nrm', '_normalgl', '_normal_dx', '_normal_ogl'],
+            'Roughness': ['_roughness', '_rough', '_rgh', '_r','_smoothness'],
+            'Metallic':  ['_metallic', '_metal', '_metalness', '_mtl', '_m', '_metalSmoothness'],
+            'Normal':    ['_normal', '_norm', '_nrm', '_normalgl', '_normal_dx', '_normal_ogl','_n'],
             'Alpha':     ['_alpha', '_opacity', '_transparency'],
         }
 
         matches = _find_matches_in_dir(stem_lower, folder, suffix_map)
 
+        assigned_slots = []  # List to keep track of assigned texture slots
+
+        # Assign found textures
         any_assigned = False
         for slot, file_path in matches.items():
             colorspace = 'Non-Color' if slot in ('Roughness', 'Metallic', 'Normal', 'Alpha') else 'sRGB'
             ok = PBR_OT_AssignTexture.assign_texture_to_input(mat, slot, str(file_path), colorspace)
-            any_assigned = any_assigned or ok
+            if ok:
+                assigned_slots.append(f"{slot}")
+                any_assigned = True
 
         if any_assigned:
+            # Reporting which slots were filled
+            self.report({'INFO'}, f"Textures assigned: {', '.join(assigned_slots)}")
             bpy.ops.pbr.arrange_nodes()
-            self.report({'INFO'}, "Auto-loaded available PBR maps.")
             return {'FINISHED'}
         else:
             self.report({'INFO'}, "No matching textures found in folder.")

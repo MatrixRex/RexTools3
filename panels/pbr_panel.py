@@ -1,14 +1,14 @@
-# panels/pbr_panel.py
-
 import bpy
 from bpy.types import Panel
 
+# Define the panel class
 class PBR_PT_MaterialPanel(Panel):
     bl_label = "Easy PBR"
     bl_idname = "PBR_PT_material_panel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "material"
+    bl_category = "PBR Tools"  # This ensures the panel appears under the "PBR Tools" tab
 
     def draw(self, context):
         layout = self.layout
@@ -39,10 +39,19 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
-        # Top row: material name + arrange button
-        row = layout.row()
+        # Top row: material name + arrange button + auto-load button
+        row = layout.row(align=True)
         row.prop(mat, "name", text="Material")
         row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
+
+        # Auto Load toggle and input field
+        row = layout.row(align=True)
+        row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
+
+        auto_load_toggle = layout.prop(mat.pbr_settings, "use_auto_common_name", text="Use Auto-Detected Name", toggle=True)
+        if not mat.pbr_settings.use_auto_common_name:
+            layout.prop(mat.pbr_settings, "common_name", text="Common Name")
+
         layout.separator()
 
         # Build our list of sockets
@@ -93,7 +102,7 @@ class PBR_PT_MaterialPanel(Panel):
             # If not linked, show assign UI
             else:
                 op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
-                op.input_name = socket
+                op.input_name = socket  # Ensure the input_name is correctly assigned
                 op.colorspace = colorspace
 
                 if socket != "Normal":
@@ -122,3 +131,7 @@ class PBR_PT_MaterialPanel(Panel):
 
         layout.separator()
         layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')
+
+
+
+

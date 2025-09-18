@@ -1,5 +1,3 @@
-# properties.py  (full replacement) :contentReference[oaicite:2]{index=2}
-
 import bpy
 from bpy.props import (
     IntProperty, FloatProperty,
@@ -7,6 +5,7 @@ from bpy.props import (
     PointerProperty, EnumProperty
 )
 from bpy.types import PropertyGroup
+
 
 def update_use_sep_alpha(self, context):
     mat = self.id_data
@@ -30,21 +29,10 @@ def update_use_sep_alpha(self, context):
                 links.new(base_node.outputs['Alpha'], alpha_inp)
                 mat.blend_method = 'HASHED'
 
-def update_strength(self, context, input_name):
-    mat = self.id_data
-    if not mat or not mat.use_nodes:
-        return
-    nodes = mat.node_tree.nodes
-    # Math node created in assign step is named "PBR Math {input_name}"
-    math = nodes.get(f"PBR Math {input_name}")
-    if not math:
-        return
-    value = getattr(self, f"{input_name.lower()}_strength", 1.0)
-    try:
-        math.inputs[1].default_value = float(value)
-    except Exception:
-        pass
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Channel mapping updates
+# ─────────────────────────────────────────────────────────────────────────────
 
 def update_channel_map(self, context, input_name):
     mat = self.id_data
@@ -118,14 +106,37 @@ def update_channel_map(self, context, input_name):
         links.new(tex_node.outputs['Color'], sep.inputs['Image'])
         links.new(sep.outputs[chan], math.inputs[0])
 
+
 def update_roughness_channel(self, context):
     update_channel_map(self, context, 'Roughness')
+
 
 def update_metallic_channel(self, context):
     update_channel_map(self, context, 'Metallic')
 
+
 def update_alpha_channel(self, context):
     update_channel_map(self, context, 'Alpha')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Strength updates (Roughness/Metallic)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def update_strength(self, context, input_name):
+    mat = self.id_data
+    if not mat or not mat.use_nodes:
+        return
+    nodes = mat.node_tree.nodes
+    math = nodes.get(f"PBR Math {input_name}")
+    if not math:
+        return
+    value = getattr(self, f"{input_name.lower()}_strength", 1.0)
+    try:
+        math.inputs[1].default_value = float(value)
+    except Exception:
+        pass
+
 
 class BoneRenameProperties(PropertyGroup):
     find_text: StringProperty(name="Find", default="")
@@ -134,29 +145,37 @@ class BoneRenameProperties(PropertyGroup):
     suffix_text: StringProperty(name="Suffix", default="")
     apply_prefix_suffix_to_matches_only: BoolProperty(default=False)
 
+
 class HighLowRenamerProperties(PropertyGroup):
     obj_name: StringProperty(name="Object Name", default="Asset")
     high_prefix: StringProperty(name="High Prefix", default="_high")
     low_prefix: StringProperty(name="Low Prefix", default="_low")
 
+
 class PBRMaterialSettings(PropertyGroup):
+    use_auto_common_name: BoolProperty(
+        name="Use Auto-Detected Name",
+        default=True,
+    )
+    common_name: StringProperty(
+        name="Common Name",
+        default="",
+    )
     use_separate_alpha_map: BoolProperty(
         name="Use Separate Alpha Map",
         default=False,
         update=update_use_sep_alpha
-    ) # type: ignore
+    )
     roughness_strength: FloatProperty(
         name="Roughness Strength",
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'Roughness')
-    ) # type: ignore
-
+    )
     metallic_strength: FloatProperty(
         name="Metallic Strength",
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'Metallic')
-    ) # type: ignore
-
+    )
 
     channel_items = [
         ('FULL', "Full", "Use full RGBA"),
@@ -184,22 +203,21 @@ class PBRMaterialSettings(PropertyGroup):
         update=update_alpha_channel
     )
 
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
     wm.modal_y = IntProperty(name="Mouse Y", default=0)
 
-   
     bpy.types.Scene.bone_rename_props     = PointerProperty(type=BoneRenameProperties)
     bpy.types.Scene.highlow_renamer_props = PointerProperty(type=HighLowRenamerProperties)
 
-   
     wm.select_similar_threshold   = FloatProperty(name="Threshold", default=0.0, min=0.0, max=1.0)
     wm.clear_inner_uv_area_seam   = BoolProperty(name="Clear Inner", default=False)
     wm.reseam_uv_area_seam        = BoolProperty(name="Reseam", default=False)
     wm.stop_loop_at_seam          = BoolProperty(name="Stop at Seam", default=True)
     bpy.types.Material.pbr_settings = PointerProperty(type=PBRMaterialSettings)
- 
+
 
 def unregister_properties():
     wm = bpy.types.WindowManager
@@ -209,11 +227,9 @@ def unregister_properties():
     del bpy.types.Scene.bone_rename_props
     del bpy.types.Scene.highlow_renamer_props
 
-
     del wm.select_similar_threshold
     del wm.clear_inner_uv_area_seam
     del wm.reseam_uv_area_seam
     del wm.stop_loop_at_seam
     
     del bpy.types.Material.pbr_settings
-

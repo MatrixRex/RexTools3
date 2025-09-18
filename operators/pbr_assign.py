@@ -1,8 +1,100 @@
-# operators/pbr_assign.py  (full replacement) :contentReference[oaicite:3]{index=3}
-
 import bpy
+import os
+import re
+from pathlib import Path
 from bpy.types import Operator
-from bpy.props import StringProperty
+from bpy.props import StringProperty, BoolProperty
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_principled_and_base_tex(material):
+    """Return (principled_node, base_texture_node, base_image) or (None,None,None)."""
+    if not material or not material.use_nodes:
+        return None, None, None
+    nodes = material.node_tree.nodes
+    principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not principled:
+        return None, None, None
+
+    base_inp = principled.inputs.get('Base Color')
+    if not base_inp or not base_inp.is_linked:
+        return principled, None, None
+
+    src = base_inp.links[0].from_node
+    tex = None
+    # In our setup Base Color may be: MixRGB(Multiply)->Color1 == Texture, or Texture directly
+    if src.type == 'MIX_RGB':
+        c1 = src.inputs.get('Color1')
+        if c1 and c1.is_linked and c1.links[0].from_node.type == 'TEX_IMAGE':
+            tex = c1.links[0].from_node
+    elif src.type == 'TEX_IMAGE':
+        tex = src
+
+    img = tex.image if tex else None
+    return principled, tex, img
+
+
+def _derive_stem_from_base(filename_no_ext_lower: str) -> str:
+    """
+    Try to peel off common base-color suffixes (and combos) from the end
+    to derive a 'stem' for matching. Handles cases like:
+      MCX_Mat_AlbedoTransparency -> mcx_mat
+      bullet_albedo               -> bullet
+    """
+    # allow compound endings like "albedotransparency"
+    suffixes = [
+        'albedo', 'basecolor', 'base_color', 'base-colour', 'basecolour',
+        'diffuse', 'color', 'colour', 'col',
+        'opacity', 'transparency'
+    ]
+    # Try compound endings first (albedo+opacity/transparency)
+    patt_combo = r'(.+?)(?:[_\-]?(?:albedo|basecolor|base_color|base\-colour|basecolour|diffuse|color|colour|col))' \
+                 r'(?:[_\-]?(?:opacity|transparency))$'
+    m = re.match(patt_combo, filename_no_ext_lower, re.IGNORECASE)
+    if m:
+        return m.group(1)
+
+    # Then single endings
+    patt_single = r'(.+?)(?:[_\-]?(?:' + '|'.join(suffixes) + r'))$'
+    m = re.match(patt_single, filename_no_ext_lower, re.IGNORECASE)
+    if m:
+        return m.group(1)
+
+    return filename_no_ext_lower
+
+
+def _find_matches_in_dir(stem_lower: str, folder: Path, mapping: dict) -> dict:
+    """Return dict slot->Path for first found match per slot."""
+    exts = {'.png', '.jpg', '.jpeg', '.tga', '.tif', '.tiff', '.exr', '.bmp', '.webp'}
+    results = {}
+    if not folder.exists() or not folder.is_dir():
+        return results
+
+    files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in exts]
+    names = [(p, p.stem.lower()) for p in files]
+
+    for slot, suffixes in mapping.items():
+        found = None
+        # prefer longer suffix tokens
+        for suf in sorted(suffixes, key=len, reverse=True):
+            for p, n in names:
+                # common pattern in studios: "{stem}_[...]_{suffix}" or "{stem}_{suffix}[...]"
+                if n.startswith(stem_lower) and suf in n:
+                    found = p
+                    break
+            if found:
+                break
+        if found:
+            results[slot] = found
+    return results
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Assign Texture Operator (existing)
+# ─────────────────────────────────────────────────────────────────────────────
 
 class PBR_OT_AssignTexture(Operator):
     bl_idname = "pbr.assign_texture"
@@ -42,7 +134,7 @@ class PBR_OT_AssignTexture(Operator):
 
         try:
             image = bpy.data.images.load(image_path)
-        except:
+        except Exception:
             return False
 
         if input_name == 'Base Color':
@@ -56,6 +148,7 @@ class PBR_OT_AssignTexture(Operator):
             for i in n.inputs:
                 if i.is_linked:
                     gather(i.links[0].from_node, out)
+
         inp_sock = principled.inputs[input_name]
         if inp_sock.is_linked:
             to_del = set()
@@ -63,8 +156,10 @@ class PBR_OT_AssignTexture(Operator):
             for l in list(inp_sock.links):
                 links.remove(l)
             for n in to_del:
-                try: nodes.remove(n)
-                except: pass
+                try:
+                    nodes.remove(n)
+                except Exception:
+                    pass
 
         base_pos = {
             'Base Color': 200,
@@ -79,7 +174,6 @@ class PBR_OT_AssignTexture(Operator):
         tex_node.location = (-400, y)
         tex_node.name = f"PBR Tex {input_name}"
 
-        # Handle each socket
         settings = material.pbr_settings
 
         if input_name == 'Normal':
@@ -116,9 +210,10 @@ class PBR_OT_AssignTexture(Operator):
         # Roughness / Metallic (always via Math node)
         math = nodes.new('ShaderNodeMath')
         math.operation = 'MULTIPLY'
+        math.use_clamp = True  # keep outputs within 0..1
         math.location = (-150, y)
         math.name = f"PBR Math {input_name}"
-        # decide channel now or later on update
+
         chan = getattr(settings, f"{input_name.lower()}_channel")
         if chan == 'FULL':
             links.new(tex_node.outputs['Color'], math.inputs[0])
@@ -132,6 +227,83 @@ class PBR_OT_AssignTexture(Operator):
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]
             links.new(src, math.inputs[0])
+
         math.inputs[1].default_value = getattr(settings, f"{input_name.lower()}_strength")
         links.new(math.outputs['Value'], principled.inputs[input_name])
         return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Auto Load Operator
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PBR_OT_AutoLoadTextures(Operator):
+    bl_idname = "pbr.auto_load_textures"
+    bl_label = "Auto Load PBR Textures"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # (Optional) operator-level props are not required; we read from mat.pbr_settings
+    # common_name: StringProperty(name="Common Name", default="")
+    # use_auto_common_name: BoolProperty(name="Use Auto-Detected Name", default=True)
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        if not obj or not obj.active_material:
+            return False
+        mat = obj.active_material
+        principled, tex_node, img = _get_principled_and_base_tex(mat)
+        if not img:
+            return False
+        # Ensure it has a resolvable filepath (not purely packed)
+        fp = bpy.path.abspath(img.filepath, library=img.library) if hasattr(img, 'library') else bpy.path.abspath(img.filepath)
+        return bool(fp)
+
+    def execute(self, context):
+        obj = context.active_object
+        mat = obj.active_material
+        if not mat:
+            self.report({'ERROR'}, "No active material")
+            return {'CANCELLED'}
+
+        principled, base_tex, base_img = _get_principled_and_base_tex(mat)
+        if not base_img:
+            self.report({'ERROR'}, "Assign Base Color first")
+            return {'CANCELLED'}
+
+        base_path = bpy.path.abspath(base_img.filepath, library=getattr(base_img, 'library', None))
+        if not base_path or not os.path.exists(base_path):
+            self.report({'ERROR'}, "Base Color image path not found on disk")
+            return {'CANCELLED'}
+
+        base_path = Path(base_path)
+        folder = base_path.parent
+
+        # Read user preference from material properties
+        use_auto = getattr(mat.pbr_settings, "use_auto_common_name", True)
+        custom = (getattr(mat.pbr_settings, "common_name", "") or "").strip().lower()
+
+        stem_lower = _derive_stem_from_base(base_path.stem.lower()) if use_auto else (custom if custom else base_path.stem.lower())
+
+        suffix_map = {
+            'Roughness': ['_roughness', '_rough', '_rgh'],
+            'Metallic':  ['_metallic', '_metal', '_metalness', '_mtl'],
+            'Normal':    ['_normal', '_norm', '_nrm', '_normalgl', '_normal_dx', '_normal_ogl'],
+            'Alpha':     ['_alpha', '_opacity', '_transparency'],
+        }
+
+        matches = _find_matches_in_dir(stem_lower, folder, suffix_map)
+
+        any_assigned = False
+        for slot, file_path in matches.items():
+            colorspace = 'Non-Color' if slot in ('Roughness', 'Metallic', 'Normal', 'Alpha') else 'sRGB'
+            ok = PBR_OT_AssignTexture.assign_texture_to_input(mat, slot, str(file_path), colorspace)
+            any_assigned = any_assigned or ok
+
+        if any_assigned:
+            bpy.ops.pbr.arrange_nodes()
+            self.report({'INFO'}, "Auto-loaded available PBR maps.")
+            return {'FINISHED'}
+        else:
+            self.report({'INFO'}, "No matching textures found in folder.")
+            return {'CANCELLED'}

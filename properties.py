@@ -30,7 +30,22 @@ def update_use_sep_alpha(self, context):
                 links.new(base_node.outputs['Alpha'], alpha_inp)
                 mat.blend_method = 'HASHED'
 
-# ─── ADD THIS FUNCTION INSTEAD ────────────────────────────────────────────────
+def update_strength(self, context, input_name):
+    mat = self.id_data
+    if not mat or not mat.use_nodes:
+        return
+    nodes = mat.node_tree.nodes
+    # Math node created in assign step is named "PBR Math {input_name}"
+    math = nodes.get(f"PBR Math {input_name}")
+    if not math:
+        return
+    value = getattr(self, f"{input_name.lower()}_strength", 1.0)
+    try:
+        math.inputs[1].default_value = float(value)
+    except Exception:
+        pass
+
+
 def update_channel_map(self, context, input_name):
     mat = self.id_data
     if not mat.use_nodes:
@@ -129,17 +144,19 @@ class PBRMaterialSettings(PropertyGroup):
         name="Use Separate Alpha Map",
         default=False,
         update=update_use_sep_alpha
-    )
+    ) # type: ignore
     roughness_strength: FloatProperty(
-        name="Roughness Strength", default=1.0,
-        min=0.0, max=1.0,
-        get=lambda self: 1.0, set=lambda self, v: None
-    )
+        name="Roughness Strength",
+        default=1.0, min=0.0, max=1.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'Roughness')
+    ) # type: ignore
+
     metallic_strength: FloatProperty(
-        name="Metallic Strength", default=1.0,
-        min=0.0, max=1.0,
-        get=lambda self: 1.0, set=lambda self, v: None
-    )
+        name="Metallic Strength",
+        default=1.0, min=0.0, max=1.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'Metallic')
+    ) # type: ignore
+
 
     channel_items = [
         ('FULL', "Full", "Use full RGBA"),

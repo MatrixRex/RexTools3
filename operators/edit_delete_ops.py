@@ -87,6 +87,7 @@ class VIEW3D_MT_delete_ops_pie(Menu):
         row_c.operator("rextools3.checker_dissolve", text="Checker Dissolve")
         row_c.operator("rextools3.checker_dissolve_selected", text="Checker Dissolve Selected")
         row_c.operator("rextools3.loop_dissolve_ex", text="Loop Dissolve")
+        row_c.operator("rextools3.fill_loop_inner_region", text="Fill Loop")
 
         # NW, NE, SW, SE left empty
 

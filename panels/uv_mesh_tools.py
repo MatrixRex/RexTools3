@@ -61,6 +61,11 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         box.separator()
         box.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
         
-        
+        # Added: mark sharp edges as seams and clear seams
+        row = box.row(align=True)
+        row.operator("rextools3.uv_from_sharp", text="From Sharp", icon='MOD_EDGESPLIT')
+        row.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')
         
             
+
+

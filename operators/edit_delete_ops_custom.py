@@ -47,3 +47,29 @@ class REXTOOLS3_OT_loop_dissolve_ex(Operator):
         bpy.ops.mesh.loop_multi_select(ring=False)
         bpy.ops.mesh.dissolve_edges()
         return {'FINISHED'}
+
+class REXTOOLS3_OT_fill_loop_inner_region(Operator):
+    bl_idname = "rextools3.fill_loop_inner_region"
+    bl_label = "Fill Loop Inner Region"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return obj and obj.type == 'MESH' and obj.mode == 'EDIT'
+
+    def execute(self, context):
+        loop_to_region = bpy.ops.mesh.loop_to_region()
+        if 'CANCELLED' in loop_to_region:
+            self.report({'WARNING'}, 'Select a complete edge loop.')
+            return {'CANCELLED'}
+
+        face_add = bpy.ops.mesh.edge_face_add()
+        if 'FINISHED' not in face_add:
+            fill_result = bpy.ops.mesh.fill()
+            if 'FINISHED' not in fill_result:
+                self.report({'WARNING'}, 'Could not create faces from selection.')
+                return {'CANCELLED'}
+
+        context.tool_settings.mesh_select_mode = (False, True, False)
+        return {'FINISHED'}

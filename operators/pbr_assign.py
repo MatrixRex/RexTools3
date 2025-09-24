@@ -104,6 +104,8 @@ class PBR_OT_AssignTexture(Operator):
     input_name: StringProperty()
     colorspace: StringProperty(default='sRGB')
     filepath: StringProperty(subtype='FILE_PATH')
+    filter_glob: StringProperty(default='*.png;*.jpg;*.jpeg;*.tga;*.tif;*.tiff;*.exr;*.bmp;*.webp', options={'HIDDEN'})
+    filter_image: BoolProperty(default=True, options={'HIDDEN'})
 
     def execute(self, context):
         mat = context.active_object.active_material
@@ -120,6 +122,8 @@ class PBR_OT_AssignTexture(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        self.filter_image = True
+        self.filter_glob = '*.png;*.jpg;*.jpeg;*.tga;*.tif;*.tiff;*.exr;*.bmp;*.webp'
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -316,3 +320,4 @@ class PBR_OT_AutoLoadTextures(Operator):
         else:
             self.report({'INFO'}, "No matching textures found in folder.")
             return {'CANCELLED'}
+

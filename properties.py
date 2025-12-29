@@ -204,6 +204,78 @@ class PBRMaterialSettings(PropertyGroup):
     )
 
 
+class RexExportSettings(PropertyGroup):
+    export_path: StringProperty(
+        name="Export Path",
+        description="Global directory for exports",
+        default="",
+        subtype='DIR_PATH'
+    )
+    export_mode: EnumProperty(
+        name="Export Mode",
+        items=[
+            ('OBJECTS', "Objects", "Each object as 1 mesh"),
+            ('PARENTS', "Parents", "Each top most parent as 1 mesh"),
+            ('COLLECTIONS', "Collections", "Each collection as 1 mesh"),
+        ],
+        default='OBJECTS'
+    )
+    export_limit: EnumProperty(
+        name="Limit",
+        items=[
+            ('VISIBLE', "Visible", "All scene visible objects"),
+            ('SELECTED', "Selected", "Only selected objects"),
+            ('RENDER', "Render Visible", "Only objects visible for render"),
+        ],
+        default='SELECTED'
+    )
+    export_format: EnumProperty(
+        name="Format",
+        items=[
+            ('FBX', "FBX", "Export as FBX"),
+            ('GLTF', "GLTF", "Export as GLTF"),
+            ('OBJ', "OBJ", "Export as OBJ"),
+        ],
+        default='FBX'
+    )
+    
+    def get_presets(self, context):
+        import os
+        import bpy
+        
+        presets = [('NONE', "No Preset", "")]
+        
+        # Determine preset folder based on format
+        fmt = self.export_format.lower()
+        if fmt == 'fbx':
+            folder = "export_scene.fbx"
+        elif fmt == 'gltf':
+            folder = "export_scene.gltf"
+        elif fmt == 'obj':
+            folder = "export_scene.obj"
+        else:
+            return presets
+
+        paths = bpy.utils.preset_paths(os.path.join("operator", folder))
+        for p in paths:
+            for f in os.listdir(p):
+                if f.endswith(".py"):
+                    name = f[:-3]
+                    presets.append((name, name.replace("_", " ").title(), ""))
+        
+        return presets
+
+    export_preset: EnumProperty(
+        name="Preset",
+        items=get_presets,
+    )
+    last_export_path: StringProperty(
+        name="Last Export Path",
+        default="",
+        subtype='DIR_PATH'
+    )
+
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
@@ -217,6 +289,16 @@ def register_properties():
     wm.reseam_uv_area_seam        = BoolProperty(name="Reseam", default=False)
     wm.stop_loop_at_seam          = BoolProperty(name="Stop at Seam", default=True)
     bpy.types.Material.pbr_settings = PointerProperty(type=PBRMaterialSettings)
+
+    bpy.types.Scene.rex_export_settings = PointerProperty(type=RexExportSettings)
+    bpy.types.Collection.export_location = StringProperty(
+        name="Export Location",
+        subtype='DIR_PATH'
+    )
+    bpy.types.Object.export_location = StringProperty(
+        name="Export Location",
+        subtype='DIR_PATH'
+    )
 
 
 def unregister_properties():
@@ -233,3 +315,7 @@ def unregister_properties():
     del wm.stop_loop_at_seam
     
     del bpy.types.Material.pbr_settings
+    
+    del bpy.types.Scene.rex_export_settings
+    del bpy.types.Collection.export_location
+    del bpy.types.Object.export_location

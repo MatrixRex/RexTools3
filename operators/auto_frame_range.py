@@ -2,21 +2,73 @@ import bpy
 from bpy.app.handlers import persistent
 
 def update_frame_range(scene):
-    if not scene.rex_auto_frame_range:
+    if not getattr(scene, "rex_auto_frame_range", False):
         return
 
-    obj = bpy.context.active_object
-    if not (obj and obj.animation_data and obj.animation_data.action):
-        return
+    # In handlers, context can be fragile. We gather actions from both 
+    # the active object and all selected objects to match user expectations.
+    target_objs = set()
+    active = bpy.context.view_layer.objects.active
+    if active:
+        target_objs.add(active)
+    
+    for obj in bpy.context.selected_objects:
+        target_objs.add(obj)
+            
+    all_min = []
+    all_max = []
+    
+    for obj in target_objs:
+        if not (obj.animation_data and obj.animation_data.action):
+            continue
+            
+        action = obj.animation_data.action
+        anim_data = obj.animation_data
+        
+        # Determine NLA offset and scale if in tweak mode
+        offset = 0.0
+        scale = 1.0
+        if anim_data.use_tweak_mode:
+            for track in anim_data.nla_tracks:
+                for strip in track.strips:
+                    if strip.active and strip.action == action:
+                        # Calculation for scene time from action time:
+                        # scene_time = (action_time - action_frame_start) * scale + frame_start
+                        # Thus, the offset to add to action_time is:
+                        # -action_frame_start * scale + frame_start
+                        # And we must multiply the relative action time by scale.
+                        offset = strip.frame_start - (strip.action_frame_start * strip.scale)
+                        scale = strip.scale
+                        break
+                else: continue
+                break
 
-    action = obj.animation_data.action
-    frame_range = action.frame_range
+        # Gathering keyframes from all fcurves in the action
+        found_in_action = False
+        for fcurve in action.fcurves:
+            if fcurve.keyframe_points:
+                found_in_action = True
+                # Keyframes are ordered by frame number
+                kp_min = fcurve.keyframe_points[0].co[0]
+                kp_max = fcurve.keyframe_points[-1].co[0]
+                
+                # Apply NLA transform
+                all_min.append((kp_min * scale) + offset)
+                all_max.append((kp_max * scale) + offset)
+        
+        # Fallback to action.frame_range if fcurves iteration didn't yield results
+        if not found_in_action:
+            all_min.append((action.frame_range[0] * scale) + offset)
+            all_max.append((action.frame_range[1] * scale) + offset)
+
+    if not all_min:
+        return
+        
+    # Use round() to avoid truncation issues (e.g., 139.999 becoming 139)
+    start = int(round(min(all_min)))
+    end = int(round(max(all_max)))
     
-    # Calculate start and end frames from action frame range
-    start = int(frame_range[0])
-    end = int(frame_range[1])
-    
-    # Only update if values have changed to avoid unnecessary updates
+    # Only update if values have changed to avoid unnecessary scene updates
     if scene.frame_start != start:
         scene.frame_start = start
     if scene.frame_end != end:

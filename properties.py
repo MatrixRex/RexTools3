@@ -204,6 +204,98 @@ class PBRMaterialSettings(PropertyGroup):
     )
 
 
+def update_constraint_type(self, context):
+    if not (context.active_object and context.active_object.type == 'ARMATURE' and context.mode == 'POSE'):
+        return
+    
+    pb = context.active_pose_bone
+    if not pb:
+        return
+        
+    con_name = "REX_TEMPLATE"
+    con = pb.constraints.get(con_name)
+    
+    if con:
+        if con.type != self.constraint_type:
+            # Replace existing template with new type
+            pb.constraints.remove(con)
+            con = pb.constraints.new(type=self.constraint_type)
+            con.name = con_name
+            con.mute = True
+
+
+class ChainConstraintsAdderProperties(PropertyGroup):
+    constraint_type: EnumProperty(
+        name="Constraint Type",
+        items=[
+            ('COPY_LOCATION', "Copy Location", ""),
+            ('COPY_ROTATION', "Copy Rotation", ""),
+            ('COPY_SCALE', "Copy Scale", ""),
+            ('COPY_TRANSFORMS', "Copy Transforms", ""),
+            ('LIMIT_DISTANCE', "Limit Distance", ""),
+            ('LIMIT_LOCATION', "Limit Location", ""),
+            ('LIMIT_ROTATION', "Limit Rotation", ""),
+            ('LIMIT_SCALE', "Limit Scale", ""),
+            ('MAINTAIN_VOLUME', "Maintain Volume", ""),
+            ('TRANSFORM_CACHE', "Transform Cache", ""),
+            ('CLAMP_TO', "Clamp To", ""),
+            ('DAMPED_TRACK', "Damped Track", ""),
+            ('IK', "IK", ""),
+            ('LOCKED_TRACK', "Locked Track", ""),
+            ('SPLINE_IK', "Spline IK", ""),
+            ('STRETCH_TO', "Stretch To", ""),
+            ('TRACK_TO', "Track To", ""),
+            ('ACTION', "Action", ""),
+            ('ARMATURE', "Armature", ""),
+            ('CHILD_OF', "Child Of", ""),
+            ('FLOOR', "Floor", ""),
+            ('FOLLOW_PATH', "Follow Path", ""),
+            ('FOLLOW_TRACK', "Follow Track", ""),
+            ('KINEMATIC', "Kinematic", ""),
+            ('OBJECT_SOLVER', "Object Solver", ""),
+            ('PIVOT', "Pivot", ""),
+            ('SHRINKWRAP', "Shrinkwrap", ""),
+        ],
+        default='COPY_ROTATION',
+        update=update_constraint_type
+    )
+    mode: EnumProperty(
+        name="Mode",
+        items=[
+            ('INCREASE', "Increase", ""),
+            ('DECREASE', "Decrease", ""),
+            ('FROM_TO', "From and To", ""),
+        ],
+        default='DECREASE'
+    )
+    influence_value: FloatProperty(
+        name="Value",
+        default=0.1,
+        min=0.0,
+        max=1.0
+    )
+    influence_from: FloatProperty(
+        name="From",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    )
+    influence_to: FloatProperty(
+        name="To",
+        default=1.0,
+        min=0.0,
+        max=1.0
+    )
+    direction: EnumProperty(
+        name="Direction",
+        items=[
+            ('FROM_ROOT', "From Root", ""),
+            ('FROM_TIP', "From Tip", ""),
+        ],
+        default='FROM_TIP'
+    )
+
+
 class RexExportSettings(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
@@ -299,6 +391,7 @@ def register_properties():
         name="Export Location",
         subtype='DIR_PATH'
     )
+    bpy.types.Scene.chain_constraints_props = PointerProperty(type=ChainConstraintsAdderProperties)
 
 
 def unregister_properties():
@@ -319,3 +412,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_export_settings
     del bpy.types.Collection.export_location
     del bpy.types.Object.export_location
+    del bpy.types.Scene.chain_constraints_props

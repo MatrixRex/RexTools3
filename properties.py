@@ -392,6 +392,11 @@ def register_properties():
         subtype='DIR_PATH'
     )
     bpy.types.Scene.chain_constraints_props = PointerProperty(type=ChainConstraintsAdderProperties)
+    bpy.types.Scene.rex_auto_frame_range = BoolProperty(
+        name="Auto Frame Range",
+        description="Auto calculate start and end frame based on active action",
+        default=False
+    )
 
 
 def unregister_properties():
@@ -413,3 +418,4 @@ def unregister_properties():
     del bpy.types.Collection.export_location
     del bpy.types.Object.export_location
     del bpy.types.Scene.chain_constraints_props
+    del bpy.types.Scene.rex_auto_frame_range

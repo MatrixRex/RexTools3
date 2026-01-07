@@ -302,6 +302,11 @@ class RexCommonSettings(PropertyGroup):
         description="Operate on all visible objects, selected or not",
         default=False
     )
+    clean_modifiers_hidden: BoolProperty(
+        name="Hidden",
+        description="Also remove modifiers that are hidden in the viewport",
+        default=False
+    )
 
 
 class RexExportSettings(PropertyGroup):

@@ -296,6 +296,12 @@ class ChainConstraintsAdderProperties(PropertyGroup):
     )
 
 
+class CleanupProperties(PropertyGroup):
+    normals: BoolProperty(name="Normals", default=True)
+    quad: BoolProperty(name="Quad", default=True)
+    mats: BoolProperty(name="Mats", default=True)
+
+
 class RexCommonSettings(PropertyGroup):
     clean_modifiers_all: BoolProperty(
         name="All",
@@ -416,6 +422,7 @@ def register_properties():
         description="Auto calculate start and end frame based on active action",
         default=False
     )
+    bpy.types.Scene.rex_cleanup_props = PointerProperty(type=CleanupProperties)
 
 
 def unregister_properties():
@@ -439,3 +446,4 @@ def unregister_properties():
     del bpy.types.Scene.chain_constraints_props
     del bpy.types.Scene.rex_common_settings
     del bpy.types.Scene.rex_auto_frame_range
+    del bpy.types.Scene.rex_cleanup_props

@@ -29,6 +29,28 @@ class REXTOOLS3_PT_ExportManager(Panel):
         col.prop(settings, "export_preset")
         
         layout.separator()
+        
+        # Preview list
+        from ..operators.export_operators import get_export_groups
+        groups = get_export_groups(context, settings)
+        
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, "show_preview", 
+                 icon='TRIA_DOWN' if settings.show_preview else 'TRIA_RIGHT', 
+                 text=f"Export Preview ({len(groups)})",
+                 emboss=False)
+        
+        if settings.show_preview:
+            if groups:
+                col = box.column(align=True)
+                for name in sorted(groups.keys()):
+                    item_row = col.row()
+                    item_row.label(text=name, icon='OBJECT_DATA')
+            else:
+                box.label(text="No items to export", icon='ERROR')
+
+        layout.separator()
         layout.operator("rextools3.export", text="Batch Export", icon='EXPORT')
 
         if settings.last_export_path:

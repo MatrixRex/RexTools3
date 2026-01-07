@@ -3,6 +3,97 @@ import os
 from bpy.types import Operator
 from bpy.props import StringProperty
 
+def get_export_groups(context, settings):
+    mode = settings.export_mode
+    limit = settings.export_limit
+    global_path = bpy.path.abspath(settings.export_path)
+    
+    # Determine items based on limit
+    objs_to_check = []
+    if limit == 'VISIBLE':
+        objs_to_check = [obj for obj in context.view_layer.objects if obj.visible_get()]
+    elif limit == 'SELECTED':
+        objs_to_check = [obj for obj in context.selected_objects]
+    elif limit == 'RENDER':
+        objs_to_check = [obj for obj in context.view_layer.objects if not obj.hide_render]
+        
+    if not objs_to_check:
+        return {}
+
+    # Grouping
+    export_groups = {} # { name: {'objects': [], 'path': ""} }
+
+    if mode == 'OBJECTS':
+        for obj in objs_to_check:
+            if obj.type != 'MESH': continue
+            path = bpy.path.abspath(obj.export_location) if obj.export_location else global_path
+            if not path: continue
+            export_groups[obj.name] = {'objects': [obj], 'path': path}
+            
+    elif mode == 'PARENTS':
+        for obj in objs_to_check:
+            root = obj
+            while root.parent:
+                root = root.parent
+            
+            if root.name not in export_groups:
+                path = bpy.path.abspath(root.export_location) if root.export_location else global_path
+                if not path: continue
+                export_groups[root.name] = {'objects': [], 'path': path}
+            
+            if obj not in export_groups[root.name]['objects']:
+                export_groups[root.name]['objects'].append(obj)
+        
+        # Fill in the rest of the children for root groups
+        for r_name in export_groups:
+            root_obj = bpy.data.objects.get(r_name)
+            if root_obj:
+                for child in root_obj.children_recursive:
+                    if child.type == 'MESH' and child not in export_groups[r_name]['objects']:
+                         if child not in context.view_layer.objects.values(): continue
+                         if limit == 'VISIBLE' and not child.visible_get(): continue
+                         if limit == 'RENDER' and child.hide_render: continue
+                         export_groups[r_name]['objects'].append(child)
+                
+                if root_obj.type == 'MESH' and root_obj not in export_groups[r_name]['objects']:
+                    if root_obj in context.view_layer.objects.values():
+                        if limit == 'VISIBLE' and not root_obj.visible_get(): pass
+                        elif limit == 'RENDER' and root_obj.hide_render: pass
+                        else:
+                            export_groups[r_name]['objects'].append(root_obj)
+
+    elif mode == 'COLLECTIONS':
+        for obj in objs_to_check:
+            colls = obj.users_collection
+            for coll in colls:
+                # Check collection level limits
+                if limit == 'RENDER' and coll.hide_render: continue
+                if limit == 'VISIBLE' and coll.hide_viewport: continue
+                
+                if coll.name not in export_groups:
+                    path = bpy.path.abspath(coll.export_location) if coll.export_location else global_path
+                    if not path: continue
+                    export_groups[coll.name] = {'objects': [], 'path': path}
+                
+                if obj not in export_groups[coll.name]['objects']:
+                    export_groups[coll.name]['objects'].append(obj)
+        
+        # Fill in the rest of collection items
+        for c_name in export_groups:
+            coll = bpy.data.collections.get(c_name)
+            if coll:
+                for c_obj in coll.all_objects:
+                    if c_obj.type == 'MESH' and c_obj not in export_groups[c_name]['objects']:
+                         if c_obj not in context.view_layer.objects.values(): continue
+                         if limit == 'VISIBLE' and not c_obj.visible_get(): continue
+                         if limit == 'RENDER' and c_obj.hide_render: continue
+                         export_groups[c_name]['objects'].append(c_obj)
+                         
+    # Remove empty groups (e.g. empty collections or collections with no valid meshes)
+    export_groups = {k: v for k, v in export_groups.items() if v['objects']}
+    
+    return export_groups
+
 class REXTOOLS3_OT_Export(Operator):
     bl_idname = "rextools3.export"
     bl_label = "Export"
@@ -10,101 +101,26 @@ class REXTOOLS3_OT_Export(Operator):
     
     def execute(self, context):
         settings = context.scene.rex_export_settings
-        mode = settings.export_mode
-        limit = settings.export_limit
         fmt = settings.export_format
         preset_name = settings.export_preset
-        global_path = bpy.path.abspath(settings.export_path)
         
-        # Determine items based on limit
-        objs_to_check = []
-        if limit == 'VISIBLE':
-            objs_to_check = [obj for obj in context.scene.objects if obj.visible_get()]
-        elif limit == 'SELECTED':
-            objs_to_check = [obj for obj in context.selected_objects]
-        elif limit == 'RENDER':
-            objs_to_check = [obj for obj in context.scene.objects if not obj.hide_render]
+        export_groups = get_export_groups(context, settings)
             
-        if not objs_to_check:
-            self.report({'ERROR'}, f"No objects found to export (Limit: {limit.title()})")
+        if not export_groups:
+            self.report({'ERROR'}, "No objects found to export with current settings.")
             return {'CANCELLED'}
 
         # Fetch preset arguments
         preset_args = self.get_preset_args(fmt, preset_name)
 
-        # Grouping
-        export_groups = {} # { name: {'objects': [], 'path': ""} }
-
-        if mode == 'OBJECTS':
-            for obj in objs_to_check:
-                if obj.type != 'MESH': continue
-                path = bpy.path.abspath(obj.export_location) if obj.export_location else global_path
-                if not path: continue
-                export_groups[obj.name] = {'objects': [obj], 'path': path}
-                
-        elif mode == 'PARENTS':
-            for obj in objs_to_check:
-                root = obj
-                while root.parent:
-                    root = root.parent
-                
-                if root.name not in export_groups:
-                    path = bpy.path.abspath(root.export_location) if root.export_location else global_path
-                    if not path: continue
-                    export_groups[root.name] = {'objects': [], 'path': path}
-                
-                if obj not in export_groups[root.name]['objects']:
-                    export_groups[root.name]['objects'].append(obj)
-            
-            # Fill in the rest of the children for root groups
-            for r_name in export_groups:
-                root_obj = bpy.data.objects.get(r_name)
-                if root_obj:
-                    for child in root_obj.children_recursive:
-                        if child.type == 'MESH' and child not in export_groups[r_name]['objects']:
-                             if limit == 'VISIBLE' and not child.visible_get(): continue
-                             if limit == 'RENDER' and child.hide_render: continue
-                             export_groups[r_name]['objects'].append(child)
-                    if root_obj.type == 'MESH' and root_obj not in export_groups[r_name]['objects']:
-                        export_groups[r_name]['objects'].append(root_obj)
-
-        elif mode == 'COLLECTIONS':
-            for obj in objs_to_check:
-                colls = obj.users_collection
-                for coll in colls:
-                    if coll.name not in export_groups:
-                        path = bpy.path.abspath(coll.export_location) if coll.export_location else global_path
-                        if not path: continue
-                        export_groups[coll.name] = {'objects': [], 'path': path}
-                    
-                    if obj not in export_groups[coll.name]['objects']:
-                        export_groups[coll.name]['objects'].append(obj)
-            
-            # Fill in the rest of collection items
-            for c_name in export_groups:
-                coll = bpy.data.collections.get(c_name)
-                if coll:
-                    for c_obj in coll.all_objects:
-                        if c_obj.type == 'MESH' and c_obj not in export_groups[c_name]['objects']:
-                             if limit == 'VISIBLE' and not c_obj.visible_get(): continue
-                             if limit == 'RENDER' and c_obj.hide_render: continue
-                             export_groups[c_name]['objects'].append(c_obj)
-
-        if not export_groups:
-            msg = f"Mode set to {mode.title()} but "
-            if mode == 'OBJECTS':
-                msg += "no objects have a local path and global path is missing."
-            elif mode == 'PARENTS':
-                msg += "neither roots nor global path have an export location."
-            elif mode == 'COLLECTIONS':
-                msg += "no collections have a local path and global path is missing."
-            
-            self.report({'ERROR'}, msg)
-            return {'CANCELLED'}
-
         # Execution
         orig_active = context.view_layer.objects.active
         orig_selection = context.selected_objects[:]
+        orig_mode = context.active_object.mode if context.active_object else 'OBJECT'
+
+        # Switch to object mode if needed
+        if orig_mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
 
         for name, data in export_groups.items():
             objs = data['objects']
@@ -117,9 +133,17 @@ class REXTOOLS3_OT_Export(Operator):
             filepath = os.path.join(dest_dir, f"{name}.{fmt.lower()}")
             
             bpy.ops.object.select_all(action='DESELECT')
+            valid_objs = []
             for o in objs:
-                o.select_set(True)
-            context.view_layer.objects.active = objs[0]
+                try:
+                    o.select_set(True)
+                    valid_objs.append(o)
+                except Exception as e:
+                    print(f"Skipping selection for {o.name}: {e}")
+            
+            if not valid_objs:
+                continue
+            context.view_layer.objects.active = valid_objs[0]
             
             # Prepare export arguments
             op_args = {'filepath': filepath, 'use_selection': True}
@@ -149,6 +173,12 @@ class REXTOOLS3_OT_Export(Operator):
             try: o.select_set(True)
             except: pass
         context.view_layer.objects.active = orig_active
+        
+        if orig_mode != 'OBJECT':
+            try:
+                bpy.ops.object.mode_set(mode=orig_mode)
+            except Exception as e:
+                print(f"Failed to restore mode {orig_mode}: {e}")
 
         # Detailed console output
         print("\n--- RexTools3 Export Summary ---")

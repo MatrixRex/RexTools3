@@ -296,6 +296,14 @@ class ChainConstraintsAdderProperties(PropertyGroup):
     )
 
 
+class RexCommonSettings(PropertyGroup):
+    clean_modifiers_all: BoolProperty(
+        name="All",
+        description="Operate on all visible objects, selected or not",
+        default=False
+    )
+
+
 class RexExportSettings(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
@@ -366,6 +374,11 @@ class RexExportSettings(PropertyGroup):
         default="",
         subtype='DIR_PATH'
     )
+    show_preview: BoolProperty(
+        name="Show Export Preview",
+        description="Show a list of unique models that will be exported",
+        default=False
+    )
 
 
 def register_properties():
@@ -392,6 +405,7 @@ def register_properties():
         subtype='DIR_PATH'
     )
     bpy.types.Scene.chain_constraints_props = PointerProperty(type=ChainConstraintsAdderProperties)
+    bpy.types.Scene.rex_common_settings = PointerProperty(type=RexCommonSettings)
     bpy.types.Scene.rex_auto_frame_range = BoolProperty(
         name="Auto Frame Range",
         description="Auto calculate start and end frame based on active action",
@@ -418,4 +432,5 @@ def unregister_properties():
     del bpy.types.Collection.export_location
     del bpy.types.Object.export_location
     del bpy.types.Scene.chain_constraints_props
+    del bpy.types.Scene.rex_common_settings
     del bpy.types.Scene.rex_auto_frame_range

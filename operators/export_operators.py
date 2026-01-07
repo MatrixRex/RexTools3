@@ -162,7 +162,7 @@ class REXTOOLS3_OT_Export(Operator):
                     err_ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
                     err_ov.show_bg = False
                     err_ov.padding = 0
-                    err_ov.timeout = 5
+                    err_ov.timeout = 3
                     err_ov.add(MessageBox(
                         text="Error: Shape keys wont be exported. Modifier found in object.",
                         type='ERROR',

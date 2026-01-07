@@ -12,14 +12,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 bl_info = {
-    "name": "Rextools3",
-    "author": "matrix rex",
-    "description": "",
-    "blender": (4, 50, 0),
+    "name": "RexTools3",
+    "author": "MatrixRex",
+    "description": "A set of production tools for Blender",
+    "blender": (4, 5, 0),
     "version": (0, 0, 1),
-    "location": "",
+    "location": "View3D > Sidebar > RexTools3",
     "warning": "",
-    "category": "Generic",
+    "category": "Mesh",
 }
 
 from . import auto_load , properties

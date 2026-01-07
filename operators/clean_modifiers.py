@@ -80,30 +80,16 @@ class REXTOOLS3_OT_CleanModifiers(Operator):
                     if mod.type in {
                         'BOOLEAN', 'SHRINKWRAP', 'ARMATURE', 'HOOK', 
                         'DATA_TRANSFER', 'MESH_DEFORM', 'LATTICE', 
-                        'SURFACE_DEFORM', 'WARP', 'CURVE', 'CAST',
-                        'MIRROR' # Mirror without object is fine (uses local axis), but if it's set to use an object and it's missing...
+                        'SURFACE_DEFORM', 'WARP', 'CURVE', 'CAST'
                     }:
-                        # For mirror, only if 'mirror_object' is expected but missing? 
-                        # Actually 'mirror_object' is the prop name.
-                        if prop == 'mirror_object' and val is None:
-                            # Mirror can work without object, so we don't necessarily return True here 
-                            # unless we know they intended to use one.
-                            pass
                         return True
-
+                    if mod.type == 'MIRROR' and prop == 'mirror_object' and val is None:
+                        pass
         # 2. Check for zeroed out influence/levels (Useless modifiers)
         if mod.type == 'SUBSURF' and mod.levels == 0 and mod.render_levels == 0:
             return True
-        
         if mod.type == 'BEVEL' and mod.width == 0.0:
             return True
-        
         if mod.type == 'SOLIDIFY' and mod.thickness == 0.0:
             return True
-
-        # 3. Muted modifiers? 
-        # The user said "unused", which could mean muted. 
-        # But usually people mute them temporarily. 
-        # Let's stick to "dead" or "pointless" ones for now to be safe.
-        
         return False

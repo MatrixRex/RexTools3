@@ -153,6 +153,25 @@ class REXTOOLS3_OT_Export(Operator):
             # Update with preset args
             op_args.update(preset_args)
             
+            # Check for Modifiers + Shape Keys conflict
+            for o in valid_objs:
+                if (o.type == 'MESH' and o.data.shape_keys and 
+                    any(m.show_viewport for m in o.modifiers)):
+                    
+                    from ..overlay_drawer import ViewportOverlay, MessageBox
+                    err_ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
+                    err_ov.show_bg = False
+                    err_ov.padding = 0
+                    err_ov.timeout = 5
+                    err_ov.add(MessageBox(
+                        text="Error: Shape keys wont be exported. Modifier found in object.",
+                        type='ERROR',
+                        width=320,
+                        show_icon=True
+                    ))
+                    err_ov.show()
+                    break
+
             try:
                 if fmt == 'FBX':
                     bpy.ops.export_scene.fbx(**op_args)

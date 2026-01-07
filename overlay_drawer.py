@@ -3,8 +3,16 @@ from gpu_extras.batch import batch_for_shader
 import blf
 import time
 import bpy
+import math
 
 # ---------- Shaders & Constants ----------
+# We use UNIFORM_COLOR as the fallback, but for high-quality rounded shapes,
+# we'll try to use the POLY_2D_SDF shader if available (Blender 4.0+).
+try:
+    _shader_sdf = gpu.shader.from_builtin('2D_POLY_SDF')
+except:
+    _shader_sdf = None
+
 _shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
 
 class Theme:
@@ -20,6 +28,7 @@ class Theme:
     PADDING = 15
     FONT_SIZE_NORMAL = 14
     FONT_SIZE_HEADER = 18
+    CORNER_RADIUS = 10
 
 # ---------- Base UI Classes ----------
 
@@ -141,8 +150,10 @@ class Group(Container):
         if not self.visible: return
         
         if self.show_bg:
-            draw_rect_filled(self.x, self.y, self.width, self.height, color=Theme.COLOR_BG)
-            draw_rect_outline(self.x, self.y, self.width, self.height, color=Theme.COLOR_BORDER)
+            draw_rounded_rect(self.x, self.y, self.width, self.height, 
+                              color_bg=Theme.COLOR_BG, 
+                              color_border=Theme.COLOR_BORDER, 
+                              radius=Theme.CORNER_RADIUS)
             
         if self.title:
             draw_text(self.title, self.x + self.padding, self.y - self.padding - Theme.FONT_SIZE_HEADER, size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
@@ -188,13 +199,24 @@ class ProgressBar(UIElement):
 
     def draw(self):
         if not self.visible: return
-        draw_rect_filled(self.x, self.y, self.width, self.height, color=self.color_bg)
+        radius = self.height / 2
         
+        # Background
+        draw_rounded_rect(self.x, self.y, self.width, self.height, 
+                          color_bg=self.color_bg, 
+                          color_border=Theme.COLOR_BORDER, 
+                          radius=radius)
+        
+        # Fill
         fill_w = self.width * max(0, min(1, self.value))
-        if fill_w > 1:
-            draw_rect_filled(self.x, self.y, fill_w, self.height, color=self.color_fill)
-            
-        draw_rect_outline(self.x, self.y, self.width, self.height, color=Theme.COLOR_BORDER)
+        if fill_w > 2: # Don't draw tiny slivers
+             # For the fill, we draw it without a border
+             # We clip the radius to the fill width if needed
+             f_radius = min(radius, fill_w / 2)
+             draw_rounded_rect(self.x, self.y, fill_w, self.height, 
+                               color_bg=self.color_fill, 
+                               color_border=(0,0,0,0), 
+                               radius=f_radius)
         
         val_text = f"{self.label}: {int(self.value * 100)}%" if self.label else f"{int(self.value * 100)}%"
         size = Theme.FONT_SIZE_NORMAL - 1
@@ -203,11 +225,12 @@ class ProgressBar(UIElement):
         draw_text(val_text, self.x + (self.width - tw)/2, self.y - self.height/2 - th/2 + 2, size=size)
 
 class MessageBox(UIElement):
-    def __init__(self, text="", type='INFO', width=300):
+    def __init__(self, text="", type='INFO', width=300, show_icon=True):
         super().__init__()
         self.text = text
         self.type = type
         self.width = width
+        self.show_icon = show_icon
         self.padding = Theme.PADDING
         self.lines = []
         self._wrap_text()
@@ -238,17 +261,103 @@ class MessageBox(UIElement):
 
     def draw(self):
         if not self.visible: return
-        col = Theme.COLOR_INFO if self.type == 'INFO' else Theme.COLOR_WARNING
-        bg_col = (col[0], col[1], col[2], 0.25)
         
-        draw_rect_filled(self.x, self.y, self.width, self.height, color=bg_col)
-        draw_rect_outline(self.x, self.y, self.width, self.height, color=col)
+        if self.type == 'ERROR':
+            col = (1.0, 0.2, 0.2, 1.0)
+        else:
+            col = Theme.COLOR_INFO if self.type == 'INFO' else Theme.COLOR_WARNING
+            
+        bg_col = (col[0], col[1], col[2], 0.22)
         
+        draw_rounded_rect(self.x, self.y, self.width, self.height, 
+                          color_bg=bg_col, 
+                          color_border=col, 
+                          radius=Theme.CORNER_RADIUS)
+        
+        # Room for icon
+        text_x_offset = self.padding
+        if self.show_icon:
+            icon_size = 20
+            draw_icon_warning(self.x + self.padding, self.y - self.padding - icon_size/2 - 2, icon_size, col)
+            text_x_offset += icon_size + 10
+
         for i, line in enumerate(self.lines):
             ly = self.y - self.padding - (i+1) * Theme.FONT_SIZE_NORMAL - i * Theme.SPACING
-            draw_text(line, self.x + self.padding, ly, color=Theme.COLOR_TEXT)
+            draw_text(line, self.x + text_x_offset, ly, color=Theme.COLOR_TEXT)
 
 # ---------- Drawing Primitives ----------
+
+def draw_rounded_rect(x, y, w, h, color_bg, color_border, radius):
+    """Draw an anti-aliased rounded rectangle with an optional border."""
+    gpu.state.blend_set('ALPHA')
+    
+    # Try using the high-quality SDF shader if available
+    if _shader_sdf:
+        # SDF shader expects: x, y, width, height, radius (4 values for each corner), outline_thickness, outline_color
+        # vertices for the quad
+        verts = [(x, y), (x+w, y), (x+w, y-h), (x, y-h)]
+        batch = batch_for_shader(_shader_sdf, 'TRI_FAN', {"pos": verts})
+        _shader_sdf.bind()
+        
+        # Shader Uniforms (Blender 4.0+ style)
+        _shader_sdf.uniform_float("color", color_bg)
+        _shader_sdf.uniform_float("outline_color", color_border)
+        _shader_sdf.uniform_float("outline_thickness", 1.2)
+        _shader_sdf.uniform_float("radius", [radius] * 4)
+        _shader_sdf.uniform_float("rect", (x, y-h, w, h)) # x, y, w, h
+        
+        batch.draw(_shader_sdf)
+    else:
+        # Fallback for older Blender versions using manual vertex arcs
+        verts = get_rounded_rect_verts(x, y, w, h, radius)
+        # Background
+        batch_bg = batch_for_shader(_shader_2d, 'TRI_FAN', {"pos": verts})
+        _shader_2d.bind()
+        _shader_2d.uniform_float("color", color_bg)
+        batch_bg.draw(_shader_2d)
+        
+        # Border (aliased fallback)
+        if color_border[3] > 0:
+            verts_border = verts + [verts[0]]
+            batch_border = batch_for_shader(_shader_2d, 'LINE_STRIP', {"pos": verts_border})
+            _shader_2d.bind()
+            _shader_2d.uniform_float("color", color_border)
+            batch_border.draw(_shader_2d)
+
+def get_rounded_rect_verts(x, y, w, h, rounding):
+    """Generate vertices for a rounded rectangle. y is top."""
+    if rounding <= 0:
+        return [(x, y), (x+w, y), (x+w, y-h), (x, y-h)]
+    
+    rounding = min(rounding, w/2, h/2)
+    verts = []
+    steps = 12 # Higher steps for smoother manual arcs
+    
+    # Corner Top-Right
+    for i in range(steps + 1):
+        angle = math.radians(90 - (90 * i / steps))
+        verts.append((x + w - rounding + math.cos(angle) * rounding, 
+                      y - rounding + math.sin(angle) * rounding))
+    
+    # Corner Bottom-Right
+    for i in range(steps + 1):
+        angle = math.radians(0 - (90 * i / steps))
+        verts.append((x + w - rounding + math.cos(angle) * rounding, 
+                      y - h + rounding + math.sin(angle) * rounding))
+
+    # Corner Bottom-Left
+    for i in range(steps + 1):
+        angle = math.radians(270 - (90 * i / steps))
+        verts.append((x + rounding + math.cos(angle) * rounding, 
+                      y - h + rounding + math.sin(angle) * rounding))
+
+    # Corner Top-Left
+    for i in range(steps + 1):
+        angle = math.radians(180 - (90 * i / steps))
+        verts.append((x + rounding + math.cos(angle) * rounding, 
+                      y - rounding + math.sin(angle) * rounding))
+                      
+    return verts
 
 def draw_text(text, x, y, size=14, color=(1, 1, 1, 1)):
     gpu.state.blend_set('ALPHA')
@@ -257,23 +366,21 @@ def draw_text(text, x, y, size=14, color=(1, 1, 1, 1)):
     blf.position(0, x, y, 0)
     blf.draw(0, text)
 
-def draw_rect_filled(x, y, w, h, color=(1, 1, 1, 1)):
-    gpu.state.blend_set('ALPHA')
-    x, y, w, h = int(x), int(y), int(w), int(h)
-    verts = [(x, y), (x + w, y), (x + w, y - h), (x, y - h)]
-    batch = batch_for_shader(_shader_2d, 'TRI_FAN', {"pos": verts})
+def draw_icon_warning(x, y, size, color):
+    """Draw a stylized warning triangle."""
+    padding = size * 0.1
+    pts = [
+        (x + size/2, y + size/2 - padding), # Top
+        (x + padding, y - size/2 + padding), # Bottom Left
+        (x + size - padding, y - size/2 + padding) # Bottom Right
+    ]
+    batch = batch_for_shader(_shader_2d, 'TRI_FAN', {"pos": pts})
     _shader_2d.bind()
     _shader_2d.uniform_float("color", color)
     batch.draw(_shader_2d)
-
-def draw_rect_outline(x, y, w, h, color=(1, 1, 1, 1)):
-    gpu.state.blend_set('ALPHA')
-    x, y, w, h = int(x), int(y), int(w), int(h)
-    verts = [(x, y), (x + w, y), (x + w, y - h), (x, y - h), (x, y)]
-    batch = batch_for_shader(_shader_2d, 'LINE_STRIP', {"pos": verts})
-    _shader_2d.bind()
-    _shader_2d.uniform_float("color", color)
-    batch.draw(_shader_2d)
+    
+    # Exclamation mark
+    draw_text("!", x + size/2 - 3, y - size/2 + 5, size=int(size * 0.8), color=(0,0,0,1))
 
 # ---------- Management ----------
 
@@ -285,10 +392,10 @@ class OverlayManager:
             cls._instance = super(OverlayManager, cls).__new__(cls)
             cls._instance.overlays = []
             cls._instance.handle = None
+            cls._instance.mouse_pos = (0, 0)
         return cls._instance
 
     def _force_redraw(self):
-        """Trigger a redraw of all 3D View areas."""
         if not bpy.context.screen: return
         for area in bpy.context.screen.areas:
             if area.type == 'VIEW_3D':
@@ -300,31 +407,23 @@ class OverlayManager:
         if not self.handle:
             self.handle = bpy.types.SpaceView3D.draw_handler_add(self.draw, (), 'WINDOW', 'POST_PIXEL')
         
-        # Start background timer for timeouts if not already running
         if not bpy.app.timers.is_registered(self._check_timeouts):
             bpy.app.timers.register(self._check_timeouts, first_interval=0.1)
 
-        # Start event watcher if needed
-        if any(ov.close_on_click for ov in self.overlays):
+        if any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in self.overlays):
             bpy.ops.rextools3.overlay_event_watcher('INVOKE_DEFAULT')
             
         self._force_redraw()
         return overlay
 
     def _check_timeouts(self):
-        """Background timer to handle timeouts even when idle."""
-        if not self.overlays:
-            return None # Stop timer
-            
+        if not self.overlays: return None
         now = time.time()
         to_remove = [ov for ov in self.overlays if ov.timeout and (now - ov.start_time) > ov.timeout]
-        
         if to_remove:
-            for ov in to_remove:
-                self.remove_overlay(ov)
+            for ov in to_remove: self.remove_overlay(ov)
             self._force_redraw()
-            
-        return 0.1 # Run every 0.1s
+        return 0.1
 
     def remove_overlay(self, overlay):
         if overlay in self.overlays:
@@ -343,53 +442,51 @@ class OverlayManager:
 
     def draw(self):
         if not self.overlays: return
-        
         gpu.state.blend_set('ALPHA')
         for overlay in self.overlays:
             overlay.draw()
         gpu.state.blend_set('NONE')
 
-# Event watcher for 'click anywhere' functionality
 class REXTOOLS3_OT_OverlayEventWatcher(bpy.types.Operator):
     bl_idname = "rextools3.overlay_event_watcher"
     bl_label = "Overlay Event Watcher"
     
     def modal(self, context, event):
         manager = OverlayManager()
-        if not manager.overlays:
-            return {'FINISHED'}
-            
+        if not manager.overlays: return {'FINISHED'}
+        
+        # Track mouse position
+        manager.mouse_pos = (event.mouse_region_x, event.mouse_region_y)
+        
+        if any(ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in manager.overlays):
+            self._force_redraw_areas(context)
+
         if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE'} and event.value == 'PRESS':
             to_remove = [ov for ov in manager.overlays if ov.close_on_click]
-            for ov in to_remove:
-                ov.hide()
-            
-            # Redraw to clear immediately
-            for area in context.screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-                    
-            if not any(ov.close_on_click for ov in manager.overlays):
-                return {'FINISHED'}
-                
+            for ov in to_remove: ov.hide()
+            self._force_redraw_areas(context)
+            if not any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in manager.overlays): return {'FINISHED'}
         return {'PASS_THROUGH'}
+
+    def _force_redraw_areas(self, context):
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D': area.tag_redraw()
 
     def invoke(self, context, event):
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
-# Helper to create a standalone root overlay
 class ViewportOverlay(Group):
     def __init__(self, title="RexTools Overlay", x=50, y=None):
         super().__init__(title=title)
         self.anchor_x = x
         self.anchor_y = y
         self.start_time = time.time()
-        self.timeout = None # Seconds
+        self.timeout = None
         self.close_on_click = False
 
     def show(self):
-        self.start_time = time.time() # Reset clock on show
+        self.start_time = time.time()
         OverlayManager().add_overlay(self)
 
     def hide(self):
@@ -397,14 +494,19 @@ class ViewportOverlay(Group):
 
     def draw(self):
         region = bpy.context.region
+        manager = OverlayManager()
+        
         self.update_layout(0, 0)
+        tx, ty = self.anchor_x, self.anchor_y
         
-        tx = self.anchor_x
-        ty = self.anchor_y
+        mx, my = manager.mouse_pos
         
-        if tx == 'CENTER': tx = (region.width - self.width) / 2
+        if tx == 'MOUSE': tx = mx + 15
+        elif tx == 'CENTER': tx = (region.width - self.width) / 2
         
-        if ty == 'CENTER': ty = (region.height + self.height) / 2
+        if ty == 'MOUSE': ty = my - 15
+        elif ty == 'CENTER': ty = (region.height + self.height) / 2
+        elif ty == 'BOTTOM': ty = self.height + 50
         elif ty is None: ty = region.height - 50
         
         self.update_layout(tx, ty)

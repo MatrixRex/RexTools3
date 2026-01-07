@@ -27,4 +27,9 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         row.prop(common, "clean_modifiers_all", text="All", toggle=True)
         row.prop(common, "clean_modifiers_hidden", text="Hidden", toggle=True)
         
+        layout.separator()
+        layout.label(text="Debug / Test")
+        layout.operator("rextools3.test_overlay", text="Test Overlay System")
+        layout.operator("rextools3.test_overlay_progress", text="Test Progress Animation")
+        
         

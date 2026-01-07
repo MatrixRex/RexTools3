@@ -5,7 +5,6 @@ import time
 import bpy
 
 # ---------- Shaders & Constants ----------
-# In newer Blender, 'UNIFORM_COLOR' is for 3D/2D both, but we ensure 2D-friendly drawing.
 _shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
 
 class Theme:
@@ -27,7 +26,7 @@ class Theme:
 class UIElement:
     def __init__(self):
         self.x = 0
-        self.y = 0 # Top anchor
+        self.y = 0 
         self.width = 0
         self.height = 0
         self.visible = True
@@ -35,7 +34,6 @@ class UIElement:
         self.spacing = Theme.SPACING
 
     def update_layout(self, x, y):
-        """Standard top-down layout update."""
         self.x = x
         self.y = y
 
@@ -66,8 +64,6 @@ class Column(Container):
         total_h = 0
         
         for child in self.children:
-            # Ensure child dimensions are known before spacing out
-            # For some children like Label, we might need a dimensions update
             if hasattr(child, 'update_dimensions'):
                 child.update_dimensions()
                 
@@ -149,7 +145,6 @@ class Group(Container):
             draw_rect_outline(self.x, self.y, self.width, self.height, color=Theme.COLOR_BORDER)
             
         if self.title:
-            # Anchor baseline for title
             draw_text(self.title, self.x + self.padding, self.y - self.padding - Theme.FONT_SIZE_HEADER, size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
             
         self.layout.draw()
@@ -176,7 +171,6 @@ class Label(UIElement):
 
     def draw(self):
         if not self.visible: return
-        # Draw text baseline at y - height so it sits within [y-h, y]
         draw_text(self.text, self.x, self.y - self.height, size=self.size, color=self.color)
 
 class ProgressBar(UIElement):
@@ -190,7 +184,7 @@ class ProgressBar(UIElement):
         self.color_bg = (0.2, 0.2, 0.2, 0.95)
 
     def update_dimensions(self):
-        pass # Fixed size usually
+        pass
 
     def draw(self):
         if not self.visible: return
@@ -239,7 +233,6 @@ class MessageBox(UIElement):
         if curr_line: lines.append(curr_line)
             
         self.lines = lines
-        # messagebox height: (lines * text_height) + (gaps) + (paddings)
         th = Theme.FONT_SIZE_NORMAL
         self.height = len(lines) * th + (len(lines)-1) * Theme.SPACING + 2 * self.padding
 
@@ -265,11 +258,8 @@ def draw_text(text, x, y, size=14, color=(1, 1, 1, 1)):
     blf.draw(0, text)
 
 def draw_rect_filled(x, y, w, h, color=(1, 1, 1, 1)):
-    """Draw a filled rect. x, y is top-left, h is positive height downwards."""
     gpu.state.blend_set('ALPHA')
-    # Rounding for pixel-perfect alignment
     x, y, w, h = int(x), int(y), int(w), int(h)
-    
     verts = [(x, y), (x + w, y), (x + w, y - h), (x, y - h)]
     batch = batch_for_shader(_shader_2d, 'TRI_FAN', {"pos": verts})
     _shader_2d.bind()
@@ -277,11 +267,8 @@ def draw_rect_filled(x, y, w, h, color=(1, 1, 1, 1)):
     batch.draw(_shader_2d)
 
 def draw_rect_outline(x, y, w, h, color=(1, 1, 1, 1)):
-    """Draw an outlined rect. x, y is top-left, h is positive height downwards."""
     gpu.state.blend_set('ALPHA')
     x, y, w, h = int(x), int(y), int(w), int(h)
-    
-    # We use 5 points for LINE_STRIP to ensure left side closing and corners
     verts = [(x, y), (x + w, y), (x + w, y - h), (x, y - h), (x, y)]
     batch = batch_for_shader(_shader_2d, 'LINE_STRIP', {"pos": verts})
     _shader_2d.bind()
@@ -300,12 +287,44 @@ class OverlayManager:
             cls._instance.handle = None
         return cls._instance
 
+    def _force_redraw(self):
+        """Trigger a redraw of all 3D View areas."""
+        if not bpy.context.screen: return
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
     def add_overlay(self, overlay):
         if overlay not in self.overlays:
             self.overlays.append(overlay)
         if not self.handle:
             self.handle = bpy.types.SpaceView3D.draw_handler_add(self.draw, (), 'WINDOW', 'POST_PIXEL')
+        
+        # Start background timer for timeouts if not already running
+        if not bpy.app.timers.is_registered(self._check_timeouts):
+            bpy.app.timers.register(self._check_timeouts, first_interval=0.1)
+
+        # Start event watcher if needed
+        if any(ov.close_on_click for ov in self.overlays):
+            bpy.ops.rextools3.overlay_event_watcher('INVOKE_DEFAULT')
+            
+        self._force_redraw()
         return overlay
+
+    def _check_timeouts(self):
+        """Background timer to handle timeouts even when idle."""
+        if not self.overlays:
+            return None # Stop timer
+            
+        now = time.time()
+        to_remove = [ov for ov in self.overlays if ov.timeout and (now - ov.start_time) > ov.timeout]
+        
+        if to_remove:
+            for ov in to_remove:
+                self.remove_overlay(ov)
+            self._force_redraw()
+            
+        return 0.1 # Run every 0.1s
 
     def remove_overlay(self, overlay):
         if overlay in self.overlays:
@@ -313,20 +332,51 @@ class OverlayManager:
         if not self.overlays and self.handle:
             bpy.types.SpaceView3D.draw_handler_remove(self.handle, 'WINDOW')
             self.handle = None
+        self._force_redraw()
 
     def clear(self):
         self.overlays.clear()
         if self.handle:
             bpy.types.SpaceView3D.draw_handler_remove(self.handle, 'WINDOW')
             self.handle = None
+        self._force_redraw()
 
     def draw(self):
-        # Master blend state for all overlays
+        if not self.overlays: return
+        
         gpu.state.blend_set('ALPHA')
         for overlay in self.overlays:
             overlay.draw()
-        # Clean up at the very end
         gpu.state.blend_set('NONE')
+
+# Event watcher for 'click anywhere' functionality
+class REXTOOLS3_OT_OverlayEventWatcher(bpy.types.Operator):
+    bl_idname = "rextools3.overlay_event_watcher"
+    bl_label = "Overlay Event Watcher"
+    
+    def modal(self, context, event):
+        manager = OverlayManager()
+        if not manager.overlays:
+            return {'FINISHED'}
+            
+        if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE'} and event.value == 'PRESS':
+            to_remove = [ov for ov in manager.overlays if ov.close_on_click]
+            for ov in to_remove:
+                ov.hide()
+            
+            # Redraw to clear immediately
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+                    
+            if not any(ov.close_on_click for ov in manager.overlays):
+                return {'FINISHED'}
+                
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
 # Helper to create a standalone root overlay
 class ViewportOverlay(Group):
@@ -334,8 +384,12 @@ class ViewportOverlay(Group):
         super().__init__(title=title)
         self.anchor_x = x
         self.anchor_y = y
+        self.start_time = time.time()
+        self.timeout = None # Seconds
+        self.close_on_click = False
 
     def show(self):
+        self.start_time = time.time() # Reset clock on show
         OverlayManager().add_overlay(self)
 
     def hide(self):
@@ -343,8 +397,6 @@ class ViewportOverlay(Group):
 
     def draw(self):
         region = bpy.context.region
-        
-        # Calculate size first
         self.update_layout(0, 0)
         
         tx = self.anchor_x
@@ -355,6 +407,5 @@ class ViewportOverlay(Group):
         if ty == 'CENTER': ty = (region.height + self.height) / 2
         elif ty is None: ty = region.height - 50
         
-        # Final update with true coordinates
         self.update_layout(tx, ty)
         super().draw()

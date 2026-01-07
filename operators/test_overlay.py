@@ -4,7 +4,7 @@ from ..overlay_drawer import ViewportOverlay, Label, Row, Column, ProgressBar, M
 class REXTOOLS3_OT_TestOverlay(bpy.types.Operator):
     bl_idname = "rextools3.test_overlay"
     bl_label = "Test Overlay System"
-    bl_description = "Show a test overlay with various components"
+    bl_description = "Show a test overlay with various closing features"
     
     _overlay = None
 
@@ -15,34 +15,36 @@ class REXTOOLS3_OT_TestOverlay(bpy.types.Operator):
             return {'FINISHED'}
 
         # Create a new overlay
-        ov = ViewportOverlay(title="RexTools System Test", x='CENTER', y=None)
+        ov = ViewportOverlay(title="Modular System Test", x='CENTER', y=None)
         
-        # Section 1: Labels and Rows
+        # Closing features setup
+        ov.timeout = 10 # Auto close in 10s
+        ov.close_on_click = False # Disabled for timing test
+        
+        # Section: Description
         sec1 = ov.add(Column())
-        row1 = sec1.add(Row())
-        row1.add(Label("Status:", color=Theme.COLOR_INFO))
-        row1.add(Label("Ready", color=Theme.COLOR_SUCCESS))
+        sec1.add(Label("CLOSE MODES ENABLED:", color=Theme.COLOR_INFO))
+        row = sec1.add(Row())
+        row.add(Label("1. Timeout (10s)", size=12, color=Theme.COLOR_WARNING))
         
-        sec1.add(Label("This is a modular layout system.", size=12, color=Theme.COLOR_SUBTEXT))
+        sec1.add(Label("----------------------------------", color=Theme.COLOR_SUBTEXT))
         
-        # Section 2: Progress Bars
+        # Section: Progress
         sec2 = ov.add(Column())
-        sec2.add(Label("Operation Progress", size=14))
-        pbar = sec2.add(ProgressBar(label="Exporting", width=250))
-        pbar.value = 0.75
+        pbar = sec2.add(ProgressBar(label="Loading System", width=250))
+        pbar.value = 0.42
         
-        # Section 3: Messages
+        # Section: Messages
         sec3 = ov.add(Column())
-        sec3.add(MessageBox(text="Export finished successfully! All files are in the target directory.", type='INFO', width=250))
-        sec3.add(MessageBox(text="Warning: Some objects have missing UV maps and were skipped.", type='WARNING', width=250))
+        sec3.add(MessageBox(text="This box will disappear automatically after 10 seconds. Click-to-close is disabled for this test.", type='INFO', width=250))
 
         ov.show()
         REXTOOLS3_OT_TestOverlay._overlay = ov
         
-        self.report({'INFO'}, "Overlay test started. Run again to hide.")
+        self.report({'INFO'}, "Overlay started. Will auto-close in 10s.")
         return {'FINISHED'}
 
-# Test for progress updates (Complex test)
+
 class REXTOOLS3_OT_TestOverlayProgress(bpy.types.Operator):
     bl_idname = "rextools3.test_overlay_progress"
     bl_label = "Test Overlay Progress"
@@ -54,11 +56,13 @@ class REXTOOLS3_OT_TestOverlayProgress(bpy.types.Operator):
     def modal(self, context, event):
         if event.type == 'TIMER':
             if self._pbar.value >= 1.0:
+                self._pbar.value = 1.0
+                # Auto-hide on completion after a small delay
+                self._overlay.hide()
                 self.cancel(context)
                 return {'FINISHED'}
             
-            self._pbar.value += 0.01
-            # Redraw view
+            self._pbar.value += 0.02
             for area in context.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
@@ -66,16 +70,16 @@ class REXTOOLS3_OT_TestOverlayProgress(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        ov = ViewportOverlay(title="Animation Test", x='CENTER', y='CENTER')
-        self._pbar = ov.add(ProgressBar(label="Simulating", width=300))
+        ov = ViewportOverlay(title="Task completion", x='CENTER', y='CENTER')
+        self._pbar = ov.add(ProgressBar(label="Processing", width=300))
         self._pbar.value = 0
-        ov.add(Label("Testing modal updates...", color=Theme.COLOR_SUBTEXT))
+        ov.add(Label("Overlay will auto-close at 100%", color=Theme.COLOR_SUBTEXT))
         
         ov.show()
         self._overlay = ov
         
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.05, window=context.window)
+        self._timer = wm.event_timer_add(0.04, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

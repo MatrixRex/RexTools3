@@ -36,7 +36,7 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         
         box3 = box.box()
         col = box3.column(align=True)
-        col.operator("mesh.select_edge_loop_until_seam", text="Loop Seam")
+        col.operator("mesh.uv_angle_loop_seam", text="Angle Loop Seam", icon='ORIENTATION_NORMAL')
 
         # Toggle button styled with depress state
         row = box3.row(align=True)

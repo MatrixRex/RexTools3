@@ -18,3 +18,7 @@ class REXTools3EditToolsPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Selection", icon='RESTRICT_SELECT_OFF')
         box.operator("mesh.angle_loop_select", text="Angle Loop Select", icon='ORIENTATION_NORMAL')
+        
+        box = layout.box()
+        box.label(text="Tube Tools", icon='MOD_SCREW')
+        box.operator("mesh.subdivide_tube", text="Subdivide Tube", icon='MESH_CYLINDER')

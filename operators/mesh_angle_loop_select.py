@@ -1,12 +1,11 @@
 import bpy
 import bmesh
 import math
-from mathutils import Vector
 
-class MESH_OT_uv_angle_loop_seam(bpy.types.Operator):
-    """Angle-based loop crawling for seams. Works on ngons by following geometric direction."""
-    bl_idname = "mesh.uv_angle_loop_seam"
-    bl_label = "Angle Based Loop Seam"
+class MESH_OT_angle_loop_select(bpy.types.Operator):
+    """Select edges based on geometric direction and dihedral angle."""
+    bl_idname = "mesh.angle_loop_select"
+    bl_label = "Angle Loop Select"
     bl_options = {'REGISTER', 'UNDO'}
 
     angle_threshold: bpy.props.FloatProperty(
@@ -43,43 +42,27 @@ class MESH_OT_uv_angle_loop_seam(bpy.types.Operator):
         bm.edges.ensure_lookup_table()
         bm.verts.ensure_lookup_table()
 
-        # Identify external seeds (explicitly selected by user)
-        # and existing seams to avoid jumping over them in the first step
         selected_seeds = [e for e in bm.edges if e.select]
         if not selected_seeds:
             self.report({'WARNING'}, "No edge selected to start crawling")
             return {'CANCELLED'}
 
-        # We'll build a set of edges that SHOULD be selected/marked
         edges_to_select = set(selected_seeds)
         
-        # Convert thresholds to radians
         angle_tol = math.radians(self.angle_threshold)
         straight_tol = math.radians(self.straightness_threshold)
         
-        stop_at_seam = context.window_manager.stop_loop_at_seam
-
         for start_edge in selected_seeds:
-            # Initial dihedral angle
             try:
                 ref_angle = start_edge.calc_face_angle()
             except ValueError:
                 ref_angle = 0.0
 
-            # Crawl both directions from the start edge
             for start_vert in start_edge.verts:
-                # We pass 'selected_seeds' to crawl logic as "already visited" 
-                # to prevent immediate backtracking or jumping within the seed selection.
-                # However, the crawl core needs to know which edges it just added.
-                crawl(start_edge, start_vert, ref_angle, edges_to_select, angle_tol, straight_tol, stop_at_seam, self.max_steps)
+                crawl(start_edge, start_vert, ref_angle, edges_to_select, angle_tol, straight_tol, False, self.max_steps)
 
-        # Apply results
-        # NOTE: When the redo panel updates, Blender resets the mesh to the state 
-        # BEFORE the first execute. So we just need to set our calculated set.
         for e in edges_to_select:
             e.select = True
-            e.seam = True
 
         bmesh.update_edit_mesh(obj.data)
         return {'FINISHED'}
-

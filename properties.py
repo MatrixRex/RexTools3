@@ -390,6 +390,11 @@ class RexExportSettings(PropertyGroup):
         description="Show a list of unique models that will be exported",
         default=False
     )
+    show_custom_locations: BoolProperty(
+        name="Show Custom Locations",
+        description="Show a list of objects/collections with custom export paths",
+        default=False
+    )
 
 
 def register_properties():

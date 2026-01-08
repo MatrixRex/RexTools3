@@ -267,16 +267,29 @@ class REXTOOLS3_OT_BrowseExportPath(Operator):
     bl_idname = "rextools3.browse_export_path"
     bl_label = "Browse"
     
-    path: StringProperty(subtype='DIR_PATH')
+    directory: StringProperty(subtype='DIR_PATH')
     target: StringProperty() # 'SCENE', 'COLLECTION', 'OBJECT'
+    target_name: StringProperty() # Name of the object or collection
     
     def execute(self, context):
         if self.target == 'SCENE':
-            context.scene.rex_export_settings.export_path = self.path
+            context.scene.rex_export_settings.export_path = self.directory
         elif self.target == 'COLLECTION':
-            context.collection.export_location = self.path
+            name = self.target_name
+            coll = bpy.data.collections.get(name) or context.view_layer.active_layer_collection.collection
+            if coll:
+                coll.export_location = self.directory
+            else:
+                self.report({'ERROR'}, "No valid collection found.")
+                return {'CANCELLED'}
         elif self.target == 'OBJECT':
-            context.object.export_location = self.path
+            name = self.target_name
+            obj = bpy.data.objects.get(name) or context.active_object
+            if obj:
+                obj.export_location = self.directory
+            else:
+                self.report({'ERROR'}, "No valid object found.")
+                return {'CANCELLED'}
         return {'FINISHED'}
 
     def invoke(self, context, event):

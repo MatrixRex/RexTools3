@@ -10,6 +10,7 @@ class RexTools3ObjectToolsPanel(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
+        # Only show in Object Mode
         return context.mode == 'OBJECT'
     
     def draw(self, context):

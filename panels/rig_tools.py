@@ -7,19 +7,15 @@ class VIEW3D_PT_bone_batch_rename(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "RexTools3"
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object and 
+                context.active_object.type == 'ARMATURE' and 
+                context.mode == 'OBJECT')
 
     def draw(self, context):
         layout = self.layout
         props = context.scene.bone_rename_props
-
-        if not (context.active_object and context.active_object.type == 'ARMATURE'):
-            layout.label(text="Select an Armature", icon='ERROR')
-            return
-
-        if context.mode != 'OBJECT':
-            layout.label(text="Switch to Object Mode", icon='ERROR')
-            return
-
         armature = context.active_object
         layout.label(text=f"Armature: {armature.name}", icon='ARMATURE_DATA')
         layout.label(text=f"Bones: {len(armature.data.bones)}")

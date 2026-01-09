@@ -44,14 +44,23 @@ def update_channel_map(self, context, input_name):
     if not principled:
         return
 
-    inp = principled.inputs.get(input_name)
-    if not inp or not inp.is_linked:
-        return
+    # AO is not a direct socket on BSDF, so we skip the socket check for it
+    if input_name != 'AO':
+        inp = principled.inputs.get(input_name)
+        if not inp or not inp.is_linked:
+            return
 
     # Find the Image Texture node we created
-    tex_node = next((n for n in nodes 
-                     if n.type=='TEX_IMAGE' and n.name==f"PBR Tex {input_name}"), 
-                    None)
+    # Prioritize exact names like 'BaseTex', 'AOTex', or '{slot}Tex'
+    target_name = "BaseTex" if input_name == 'Base Color' else ("AOTex" if input_name == 'AO' else f"{input_name}Tex")
+    tex_node = nodes.get(target_name)
+    
+    # Fallback to older naming if exact match fails
+    if not tex_node:
+        tex_node = next((n for n in nodes 
+                         if n.type=='TEX_IMAGE' and (n.name==f"PBR Tex {input_name}" or (input_name == 'AO' and "AO" in n.name))), 
+                        None)
+    
     if not tex_node:
         return
 
@@ -63,15 +72,14 @@ def update_channel_map(self, context, input_name):
         for link in list(inp.links):
             links.remove(link)
 
-        # 2) full = Color output, A = direct Alpha output, else SeparateRGB
+        # 2) full = Color output, A = direct Alpha output, else AOSplit
         if chan == 'FULL':
             links.new(tex_node.outputs['Color'], inp)
         elif chan == 'A':
             links.new(tex_node.outputs['Alpha'], inp)
         else:
-            sep = nodes.get(f"PBR Sep {input_name}") \
-                  or nodes.new('ShaderNodeSeparateRGB')
-            sep.name = f"PBR Sep {input_name}"
+            sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
+            sep.name = f"{input_name}Split"
             sep.location = (tex_node.location.x + 150, tex_node.location.y)
             # reconnect its input
             if sep.inputs['Image'].is_linked:
@@ -82,15 +90,12 @@ def update_channel_map(self, context, input_name):
         mat.blend_method = 'BLEND'
         return
 
-    # — Roughness & Metallic use the Math node —
-    # AO uses the Mix node
+    # AO uses the AOMix node
     if input_name == 'AO':
-        mix = next((n for n in nodes if n.name == f"PBR AO Mix"), None)
+        mix = nodes.get("AOMix")
         if not mix: return
         
-        # Remove old connection into mix.inputs['B'] (slot B)
-        # Note: some Blender versions use 'B', others use 1 / 2 depending on Node type
-        target_sock = mix.inputs.get('B') or mix.inputs[2] # In modern Mix node, A=0, B=1, but RGBA is 2
+        target_sock = mix.inputs.get('B') or mix.inputs[2] 
         if target_sock.is_linked:
             links.remove(target_sock.links[0])
             
@@ -99,8 +104,8 @@ def update_channel_map(self, context, input_name):
         elif chan == 'A':
             links.new(tex_node.outputs['Alpha'], target_sock)
         else:
-            sep = nodes.get(f"PBR Sep AO") or nodes.new('ShaderNodeSeparateRGB')
-            sep.name = f"PBR Sep AO"
+            sep = nodes.get("AOSplit") or nodes.new('ShaderNodeSeparateRGB')
+            sep.name = "AOSplit"
             sep.location = (tex_node.location.x + 150, tex_node.location.y)
             if sep.inputs['Image'].is_linked:
                 links.remove(sep.inputs['Image'].links[0])
@@ -108,7 +113,8 @@ def update_channel_map(self, context, input_name):
             links.new(sep.outputs[chan], target_sock)
         return
 
-    math = next((n for n in nodes if n.name == f"PBR Math {input_name}"), None)
+    # Roughness & Metallic use the Math node
+    math = nodes.get(f"{input_name}Math")
     if not math:
         return
 
@@ -122,9 +128,8 @@ def update_channel_map(self, context, input_name):
     elif chan == 'A':
         links.new(tex_node.outputs['Alpha'], math.inputs[0])
     else:
-        sep = nodes.get(f"PBR Sep {input_name}") \
-              or nodes.new('ShaderNodeSeparateRGB')
-        sep.name = f"PBR Sep {input_name}"
+        sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
+        sep.name = f"{input_name}Split"
         sep.location = (tex_node.location.x + 150, tex_node.location.y)
         if sep.inputs['Image'].is_linked:
             links.remove(sep.inputs['Image'].links[0])

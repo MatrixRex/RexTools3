@@ -180,7 +180,7 @@ class PBR_OT_AssignTexture(Operator):
                     try: nodes.remove(n)
                     except: pass
                 # Clean up the specific named helper nodes too
-                for name in ["PBR Math AO", "PBR Sep AO", "PBR AO Mix"]:
+                for name in ["AOSplit", "AOMix", "AOTex"]:
                     node = nodes.get(name)
                     if node:
                         try: nodes.remove(node)
@@ -211,7 +211,14 @@ class PBR_OT_AssignTexture(Operator):
         tex_node = nodes.new('ShaderNodeTexImage')
         tex_node.image = image
         tex_node.location = (-400, y)
-        tex_node.name = f"PBR Tex {input_name}"
+        if input_name == 'Base Color':
+            tex_node.name = "BaseTex"
+        elif input_name == 'AO':
+            tex_node.name = "AOTex"
+        else:
+            tex_node.name = f"{input_name}Tex"
+            
+        settings = material.pbr_settings
 
         settings = material.pbr_settings
 
@@ -228,23 +235,24 @@ class PBR_OT_AssignTexture(Operator):
             return True
 
         if input_name == 'Base Color':
-            mix = nodes.new('ShaderNodeMixRGB')
+            mix = nodes.new('ShaderNodeMix')
+            mix.name = "BaseTintMix"
+            mix.data_type = 'RGBA'
             mix.blend_type = 'MULTIPLY'
-            mix.inputs['Fac'].default_value = 1.0
+            mix.inputs['Factor'].default_value = 1.0
             mix.location = (-150, y)
-            links.new(tex_node.outputs['Color'], mix.inputs['Color1'])
-            mix.inputs['Color2'].default_value = current_tint
-            links.new(mix.outputs['Color'], principled.inputs['Base Color'])
+            links.new(tex_node.outputs['Color'], mix.inputs['A'])
+            mix.inputs['B'].default_value = current_tint
+            links.new(mix.outputs['Result'], principled.inputs['Base Color'])
             if not settings.use_separate_alpha_map:
                 links.new(tex_node.outputs['Alpha'], principled.inputs['Alpha'])
                 material.blend_method = 'HASHED'
             return True
 
         if input_name == 'AO':
-            # Create a Mix node (MixRGBA in Blender 3.4+, ShaderNodeMix in 4.0+)
-            # Using 'ShaderNodeMix' which is the modern universal mix node
+            # Create the AOMix node
             ao_mix = nodes.new('ShaderNodeMix')
-            ao_mix.name = "PBR AO Mix"
+            ao_mix.name = "AOMix"
             ao_mix.data_type = 'RGBA'
             ao_mix.blend_type = 'MULTIPLY'
             ao_mix.location = (-50, y)
@@ -257,7 +265,7 @@ class PBR_OT_AssignTexture(Operator):
                 src = tex_node.outputs['Alpha']
             elif chan != 'FULL':
                 sep = nodes.new('ShaderNodeSeparateRGB')
-                sep.name = "PBR Sep AO"
+                sep.name = "AOSplit"
                 sep.location = (-250, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]
@@ -279,7 +287,7 @@ class PBR_OT_AssignTexture(Operator):
         math.operation = 'MULTIPLY'
         math.use_clamp = True  # keep outputs within 0..1
         math.location = (-150, y)
-        math.name = f"PBR Math {input_name}"
+        math.name = f"{input_name}Math"
 
         chan = getattr(settings, f"{input_name.lower()}_channel")
         if chan == 'FULL':
@@ -289,7 +297,7 @@ class PBR_OT_AssignTexture(Operator):
                 src = tex_node.outputs['Alpha']
             else:
                 sep = nodes.new('ShaderNodeSeparateRGB')
-                sep.name = f"PBR Sep {input_name}"
+                sep.name = f"{input_name}Split"
                 sep.location = (-250, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]

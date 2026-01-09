@@ -103,34 +103,58 @@ class PBR_PT_MaterialPanel(Panel):
             src_node = None
             
             if socket == "AO":
-                # AO is special: check if AO Mix node exists and is connected to Base Color chain
-                ao_mix = nodes.get("PBR AO Mix")
+                # AO is special: check for AOMix node
+                ao_mix = nodes.get("AOMix")
                 bc_inp = principled.inputs.get("Base Color")
                 if ao_mix and bc_inp and bc_inp.is_linked:
-                    # Check if ao_mix is in the chain starting from BSDF
+                    # Check if AOMix is in the chain starting from BSDF
                     curr = bc_inp.links[0].from_node
                     while curr:
                         if curr == ao_mix:
                             linked = True
-                            # AO texture/channel is connected to 'B' (Modern Mix node)
+                            # AO texture is connected to 'B'
                             b_sock = curr.inputs.get('B') or curr.inputs[2]
                             if b_sock and b_sock.is_linked:
                                 src_node = b_sock.links[0].from_node
                             break
                         
-                        # Move backwards through 'A' slot (or 'Color1' for old MixRGB)
-                        next_node = None
+                        # Move backwards through 'A' slot
                         a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
-                        if a_sock and a_sock.is_linked:
-                            next_node = a_sock.links[0].from_node
-                        curr = next_node
+                        curr = a_sock.links[0].from_node if a_sock and a_sock.is_linked else None
             else:
                 inp = principled.inputs.get(socket)
                 if not inp:
                     continue
                 if inp.is_linked:
-                    linked = True
-                    src_node = inp.links[0].from_node
+                    # Specific check for Base Color to avoid picking up AO texture
+                    if socket == "Base Color":
+                        # Look for BaseTex or BaseTintMix
+                        curr = inp.links[0].from_node
+                        while curr:
+                            if curr.name == "BaseTex":
+                                linked = True
+                                src_node = curr
+                                break
+                            if curr.name == "BaseTintMix":
+                                a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                                if a_sock and a_sock.is_linked:
+                                    # Behind the tint is either another mix (AO) or the texture
+                                    curr = a_sock.links[0].from_node
+                                    continue
+                            if curr.name == "AOMix":
+                                a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                                if a_sock and a_sock.is_linked:
+                                    curr = a_sock.links[0].from_node
+                                    continue
+                            # Fallback if no names match but we have a direct TexImage
+                            if curr.type == 'TEX_IMAGE' and curr.name != "AOTex":
+                                linked = True
+                                src_node = curr
+                                break
+                            break
+                    else:
+                        linked = True
+                        src_node = inp.links[0].from_node
 
             # If already linked, show remove + controls
             if linked:
@@ -148,25 +172,10 @@ class PBR_PT_MaterialPanel(Panel):
 
                 # Per-socket extra controls
                 if socket == "Base Color":
-                    # Find the MixRGB or ShaderNodeMix node used for tinting
-                    # It's usually the one right before the BSDF, or before the AO mix
-                    tint_node = None
-                    curr = principled.inputs['Base Color'].links[0].from_node
-                    while curr:
-                        if curr.name == "PBR AO Mix":
-                            # Skip AO mix, look further back
-                            a_sock = curr.inputs.get('A') or curr.inputs[1]
-                            curr = a_sock.links[0].from_node if a_sock.is_linked else None
-                            continue
-                        if curr.type in ('MIX_RGB', 'MIX'):
-                            tint_node = curr
-                            break
-                        break
-                    
+                    tint_node = nodes.get("BaseTintMix")
                     if tint_node:
                         r = box.row(align=True)
-                        # MixRGB uses 'Color2', ShaderNodeMix uses 'B'
-                        tint_sock = tint_node.inputs.get('Color2') or tint_node.inputs.get('B')
+                        tint_sock = tint_node.inputs.get('B') or tint_node.inputs.get('Color2')
                         if tint_sock:
                             r.prop(tint_sock, "default_value", text="Tint")
                             r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
@@ -174,8 +183,6 @@ class PBR_PT_MaterialPanel(Panel):
                 elif socket == "Normal" and src_node.type == 'NORMAL_MAP':
                     box.prop(src_node.inputs['Strength'], "default_value", text="Strength")
                 elif socket in ("Roughness", "Metallic", "AO"):
-                    # For AO, strength is on the 'PBR AO Mix' Factor
-                    # For others, it's the strength property updated via update_strength
                     key = socket.lower() + "_strength"
                     box.prop(mat.pbr_settings, key, text="Strength", slider=True)
                 elif socket == "Alpha":

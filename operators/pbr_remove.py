@@ -29,29 +29,41 @@ class PBR_OT_RemoveTexture(Operator):
             return {'CANCELLED'}
 
         if self.input_name == 'AO':
-            # AO is special: it's a MixRGB node in the Base Color chain
-            ao_mix = nodes.get("PBR AO Mix")
+            # AO is special: it's a Mix node in the Base Color chain
+            ao_mix = nodes.get("AOMix")
             if ao_mix:
-                # Find where it's connected (likely Principled BSDF or another MixRGB)
-                out_links = list(ao_mix.outputs['Color'].links)
-                c1_links = list(ao_mix.inputs['Color1'].links)
+                # Modern Mix node: Output is 'Result', Input chain is 'A'
+                out_sock = ao_mix.outputs.get('Result') or ao_mix.outputs[0]
+                a_sock = ao_mix.inputs.get('A') or ao_mix.inputs[1] 
+                b_sock = ao_mix.inputs.get('B') or ao_mix.inputs[2]
                 
-                # Reconnect Color1 directly to the target
-                if c1_links and out_links:
-                    upstream_socket = c1_links[0].from_socket
+                out_links = list(out_sock.links) if out_sock else []
+                a_links = list(a_sock.links) if a_sock else []
+                
+                # Reconnect A directly to the target (BSDF)
+                if a_links and out_links:
+                    upstream_socket = a_links[0].from_socket
                     for link in out_links:
                         links.new(upstream_socket, link.to_socket)
                 
-                # Now remove the AO chain
+                # Now remove the AO chain (Mix node + anything behind B)
                 to_remove = {ao_mix}
-                math_node = nodes.get("PBR Math AO")
-                if math_node:
-                    to_remove.add(math_node)
-                    if math_node.inputs[0].is_linked:
-                        gather(math_node.inputs[0].links[0].from_node, to_remove)
-                    sep_node = nodes.get("PBR Sep AO")
-                    if sep_node: to_remove.add(sep_node)
+                if b_sock and b_sock.is_linked:
+                    # Gather AO texture and helper nodes
+                    def gather_local(node, out):
+                        if node in out: return
+                        out.add(node)
+                        for i in node.inputs:
+                            if i.is_linked:
+                                gather_local(i.links[0].from_node, out)
+                    
+                    gather_local(b_sock.links[0].from_node, to_remove)
                 
+                # Clean up specifically named helper nodes if they weren't caught
+                for name in ["AOSplit", "AOMath"]:
+                    node = nodes.get(name)
+                    if node: to_remove.add(node)
+
                 for node in to_remove:
                     try: nodes.remove(node)
                     except: pass
@@ -89,7 +101,7 @@ class PBR_OT_RemoveTexture(Operator):
 
         # ─── Cleanup any leftover channel-packing nodes ───────────────────
         # Remove our named SeparateRGB and Math nodes if they remain
-        for node_name in (f"PBR Sep {self.input_name}", f"PBR Math {self.input_name}"):
+        for node_name in (f"{self.input_name}Split", f"{self.input_name}Math"):
             leftover = nodes.get(node_name)
             if leftover:
                 try:

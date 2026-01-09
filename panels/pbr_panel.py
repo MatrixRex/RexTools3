@@ -218,7 +218,7 @@ class PBR_PT_MaterialPanel(Panel):
         row.label(text="Blend Mode")
         row.prop_enum(mat, "blend_method", 'BLEND',  text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
-        ms.prop(mat, "use_backface_culling", text="Backface Culling")
+        ms.prop(mat, "use_backface_culling", text="Backface Culling", toggle=True)
 
         layout.separator()
         layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')

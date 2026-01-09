@@ -19,19 +19,37 @@ def _get_principled_and_base_tex(material):
     if not principled:
         return None, None, None
 
+    # 1. Easy check: Look for the named BaseTex directly
+    base_tex = nodes.get("BaseTex")
+    if base_tex and base_tex.type == 'TEX_IMAGE' and base_tex.image:
+        return principled, base_tex, base_tex.image
+
+    # 2. Fallback: Crawl back from BSDF
     base_inp = principled.inputs.get('Base Color')
     if not base_inp or not base_inp.is_linked:
         return principled, None, None
 
-    src = base_inp.links[0].from_node
+    curr = base_inp.links[0].from_node
     tex = None
-    # In our setup Base Color may be: MixRGB(Multiply)->Color1 == Texture, or Texture directly
-    if src.type == 'MIX_RGB':
-        c1 = src.inputs.get('Color1')
-        if c1 and c1.is_linked and c1.links[0].from_node.type == 'TEX_IMAGE':
-            tex = c1.links[0].from_node
-    elif src.type == 'TEX_IMAGE':
-        tex = src
+    
+    # Simple loop to step back through any Tint or AO mix nodes
+    # We follow the 'A' or 'Color1' slot back
+    while curr:
+        if curr.type == 'TEX_IMAGE':
+            tex = curr
+            break
+        
+        # Follow the chain backwards
+        next_node = None
+        # Handle BaseTintMix, AOMix, or generic Mix nodes
+        if curr.type in ('MIX', 'MIX_RGB'):
+            # Slot A for 'MIX', Slot Color1 for 'MIX_RGB'
+            a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+            if a_sock and a_sock.is_linked:
+                next_node = a_sock.links[0].from_node
+        
+        if not next_node: break
+        curr = next_node
 
     img = tex.image if tex else None
     return principled, tex, img

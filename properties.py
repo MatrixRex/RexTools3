@@ -82,7 +82,32 @@ def update_channel_map(self, context, input_name):
         mat.blend_method = 'BLEND'
         return
 
-    # — Roughness & Metallic use the Math node we named earlier —
+    # — Roughness & Metallic use the Math node —
+    # AO uses the Mix node
+    if input_name == 'AO':
+        mix = next((n for n in nodes if n.name == f"PBR AO Mix"), None)
+        if not mix: return
+        
+        # Remove old connection into mix.inputs['B'] (slot B)
+        # Note: some Blender versions use 'B', others use 1 / 2 depending on Node type
+        target_sock = mix.inputs.get('B') or mix.inputs[2] # In modern Mix node, A=0, B=1, but RGBA is 2
+        if target_sock.is_linked:
+            links.remove(target_sock.links[0])
+            
+        if chan == 'FULL':
+            links.new(tex_node.outputs['Color'], target_sock)
+        elif chan == 'A':
+            links.new(tex_node.outputs['Alpha'], target_sock)
+        else:
+            sep = nodes.get(f"PBR Sep AO") or nodes.new('ShaderNodeSeparateRGB')
+            sep.name = f"PBR Sep AO"
+            sep.location = (tex_node.location.x + 150, tex_node.location.y)
+            if sep.inputs['Image'].is_linked:
+                links.remove(sep.inputs['Image'].links[0])
+            links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+            links.new(sep.outputs[chan], target_sock)
+        return
+
     math = next((n for n in nodes if n.name == f"PBR Math {input_name}"), None)
     if not math:
         return
@@ -119,6 +144,10 @@ def update_alpha_channel(self, context):
     update_channel_map(self, context, 'Alpha')
 
 
+def update_ao_channel(self, context):
+    update_channel_map(self, context, 'AO')
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Strength updates (Roughness/Metallic)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -128,6 +157,16 @@ def update_strength(self, context, input_name):
     if not mat or not mat.use_nodes:
         return
     nodes = mat.node_tree.nodes
+
+    if input_name == 'AO':
+        node = nodes.get("PBR AO Mix")
+        if node:
+            # Modern Mix node stores Factor in inputs[0] or named 'Factor'
+            # Note: For MULTIPLY mode, Factor is the strength/influence
+            sock = node.inputs.get('Factor') or node.inputs[0]
+            sock.default_value = float(getattr(self, "ao_strength", 1.0))
+        return
+
     math = nodes.get(f"PBR Math {input_name}")
     if not math:
         return
@@ -176,6 +215,11 @@ class PBRMaterialSettings(PropertyGroup):
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'Metallic')
     )
+    ao_strength: FloatProperty(
+        name="AO Strength",
+        default=1.0, min=0.0, max=1.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'AO')
+    )
 
     channel_items = [
         ('FULL', "Full", "Use full RGBA"),
@@ -201,6 +245,12 @@ class PBRMaterialSettings(PropertyGroup):
         items=channel_items,
         default='FULL',
         update=update_alpha_channel
+    )
+    ao_channel: EnumProperty(
+        name="AO Channel",
+        items=channel_items,
+        default='FULL',
+        update=update_ao_channel
     )
 
 

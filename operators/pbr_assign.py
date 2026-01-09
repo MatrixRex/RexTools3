@@ -165,17 +165,39 @@ class PBR_OT_AssignTexture(Operator):
                 if i.is_linked:
                     gather(i.links[0].from_node, out)
 
-        inp_sock = principled.inputs[input_name]
-        if inp_sock.is_linked:
-            to_del = set()
-            gather(inp_sock.links[0].from_node, to_del)
-            for l in list(inp_sock.links):
-                links.remove(l)
-            for n in to_del:
-                try:
-                    nodes.remove(n)
-                except Exception:
-                    pass
+        if input_name == 'AO':
+            # For AO, we check our specific Mix node instead of a BSDF socket
+            ao_mix = nodes.get("PBR AO Mix")
+            if ao_mix:
+                to_del = set()
+                # Gather everything behind Color2 (which is the AO side)
+                ao_in = ao_mix.inputs.get('Color2')
+                if ao_in and ao_in.is_linked:
+                    gather(ao_in.links[0].from_node, to_del)
+                # Note: we don't remove the ao_mix itself here because we recreate it below
+                # or the logic below will handle it. Actually, easiest is to just delete if it exists.
+                for n in to_del:
+                    try: nodes.remove(n)
+                    except: pass
+                # Clean up the specific named helper nodes too
+                for name in ["PBR Math AO", "PBR Sep AO", "PBR AO Mix"]:
+                    node = nodes.get(name)
+                    if node:
+                        try: nodes.remove(node)
+                        except: pass
+        else:
+            # Standard BSDF socket logic
+            inp_sock = principled.inputs.get(input_name)
+            if inp_sock and inp_sock.is_linked:
+                to_del = set()
+                gather(inp_sock.links[0].from_node, to_del)
+                for l in list(inp_sock.links):
+                    links.remove(l)
+                for n in to_del:
+                    try:
+                        nodes.remove(n)
+                    except Exception:
+                        pass
 
         base_pos = {
             'Base Color': 200,
@@ -183,6 +205,7 @@ class PBR_OT_AssignTexture(Operator):
             'Roughness':    0,
             'Normal':     -100,
             'Alpha':      -200,
+            'AO':         250,
         }
         y = base_pos.get(input_name, 0)
         tex_node = nodes.new('ShaderNodeTexImage')
@@ -215,6 +238,40 @@ class PBR_OT_AssignTexture(Operator):
             if not settings.use_separate_alpha_map:
                 links.new(tex_node.outputs['Alpha'], principled.inputs['Alpha'])
                 material.blend_method = 'HASHED'
+            return True
+
+        if input_name == 'AO':
+            # Create a Mix node (MixRGBA in Blender 3.4+, ShaderNodeMix in 4.0+)
+            # Using 'ShaderNodeMix' which is the modern universal mix node
+            ao_mix = nodes.new('ShaderNodeMix')
+            ao_mix.name = "PBR AO Mix"
+            ao_mix.data_type = 'RGBA'
+            ao_mix.blend_type = 'MULTIPLY'
+            ao_mix.location = (-50, y)
+            ao_mix.inputs['Factor'].default_value = getattr(settings, "ao_strength")
+            
+            # AO source (channeled or full)
+            chan = getattr(settings, "ao_channel")
+            src = tex_node.outputs['Color']
+            if chan == 'A':
+                src = tex_node.outputs['Alpha']
+            elif chan != 'FULL':
+                sep = nodes.new('ShaderNodeSeparateRGB')
+                sep.name = "PBR Sep AO"
+                sep.location = (-250, y)
+                links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+                src = sep.outputs[chan]
+            
+            # Mix Setup: slot A (Base Color chain) * slot B (AO) -> BSDF
+            bc_inp = principled.inputs['Base Color']
+            if bc_inp.is_linked:
+                old_out = bc_inp.links[0].from_socket
+                links.new(old_out, ao_mix.inputs['A'])
+            else:
+                ao_mix.inputs['A'].default_value = bc_inp.default_value
+                
+            links.new(src, ao_mix.inputs['B'])
+            links.new(ao_mix.outputs['Result'], bc_inp)
             return True
 
         # Roughness / Metallic (always via Math node)
@@ -303,6 +360,7 @@ class PBR_OT_AutoLoadTextures(Operator):
             'Metallic':  ['_metallic', '_metal', '_metalness', '_mtl', '_m', '_metalSmoothness'],
             'Normal':    ['_normal', '_norm', '_nrm', '_normalgl', '_normal_dx', '_normal_ogl','_n'],
             'Alpha':     ['_alpha', '_opacity', '_transparency'],
+            'AO':        ['_ao', '_ambientocclusion', '_ambient_occlusion', '_occ'],
         }
 
         matches = _find_matches_in_dir(stem_lower, folder, suffix_map)

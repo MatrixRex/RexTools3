@@ -4,6 +4,7 @@ import blf
 import time
 import bpy
 import math
+from ..core.theme import Theme
 
 # ---------- Shaders & Constants ----------
 # We use UNIFORM_COLOR as the fallback, but for high-quality rounded shapes,
@@ -15,20 +16,7 @@ except:
 
 _shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
 
-class Theme:
-    COLOR_TEXT = (1.0, 1.0, 1.0, 1.0)
-    COLOR_SUBTEXT = (0.7, 0.7, 0.7, 1.0)
-    COLOR_BG = (0.08, 0.08, 0.08, 0.9)
-    COLOR_BORDER = (0.5, 0.5, 0.5, 0.8)
-    COLOR_INFO = (0.35, 0.65, 1.0, 1.0)
-    COLOR_WARNING = (1.0, 0.6, 0.2, 1.0)
-    COLOR_SUCCESS = (0.4, 0.8, 0.4, 1.0)
-    
-    SPACING = 8
-    PADDING = 15
-    FONT_SIZE_NORMAL = 14
-    FONT_SIZE_HEADER = 18
-    CORNER_RADIUS = 10
+
 
 # ---------- Base UI Classes ----------
 
@@ -511,3 +499,305 @@ class ViewportOverlay(Group):
         
         self.update_layout(tx, ty)
         super().draw()
+
+
+# ---------- Modal Overlay ----------
+
+class ModalOverlay(UIElement):
+    """
+    A specialized overlay for modal operators with a two-column layout.
+    Left: Label & Keymap
+    Right: Interactive Data Visualization
+    """
+    def __init__(self, title="Modal Action", x=100, y=100, width=350):
+        super().__init__()
+        self.title = title
+        self.x = x
+        self.y = y
+        self.width = width
+        self.items = [] # list of dicts
+        self.padding = Theme.PADDING
+        self.row_height = 30
+        
+    def add_mode_selector(self, label, shortcuts, options, current_index, interacting=False):
+        self.items.append({
+            'type': 'MODE',
+            'label': label,
+            'shortcuts': shortcuts,
+            'options': options,
+            'current_index': current_index,
+            'interacting': interacting
+        })
+        
+    def add_progress(self, label, shortcuts, value, min_val, max_val):
+        self.items.append({
+            'type': 'PROGRESS',
+            'label': label,
+            'shortcuts': shortcuts,
+            'value': value,
+            'min': min_val,
+            'max': max_val
+        })
+        
+    def add_bool(self, label, shortcuts, value):
+        self.items.append({
+            'type': 'BOOL',
+            'label': label,
+            'shortcuts': shortcuts,
+            'value': value
+        })
+        
+    def add_value(self, label, shortcuts, value):
+        self.items.append({
+            'type': 'VALUE',
+            'label': label,
+            'shortcuts': shortcuts,
+            'value': value
+        })
+        
+    def draw(self):
+        # 1. Calculate Layout
+        header_h = Theme.FONT_SIZE_HEADER + Theme.SPACING * 2
+        total_h = header_h + len(self.items) * (self.row_height + Theme.SPACING) + self.padding * 2
+        
+        # Draw Main BG
+        draw_rounded_rect(self.x, self.y, self.width, total_h, 
+                          Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
+        
+        # Draw Title
+        draw_text(self.title, self.x + self.padding, self.y - self.padding - Theme.FONT_SIZE_HEADER, 
+                  size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
+                  
+        # Draw Items
+        curr_y = self.y - self.padding - header_h
+        
+        popups = [] # Store popups to draw on top
+        
+        for item in self.items:
+            # Row BG (striped/highlight could go here)
+            
+            # --- Left Col (Label + Shortcuts) ---
+            # Label
+            draw_text(item['label'], self.x + self.padding, curr_y - 18, 
+                      size=14, color=Theme.COLOR_TEXT)
+            # Shortcut
+            draw_text(item['shortcuts'], self.x + self.padding, curr_y - 30, 
+                      size=10, color=Theme.COLOR_SUBTEXT)
+            
+            # --- Right Col (Data) ---
+            col_x = self.x + 120 # Split point
+            col_w = self.width - 120 - self.padding
+            
+            if item['type'] == 'MODE':
+                # Draw the static/current part
+                cur = item['options'][item['current_index']]
+                draw_text(cur, col_x, curr_y - 20, size=14, color=Theme.COLOR_SUCCESS)
+                
+                # If interacting, queue the popup
+                if item['interacting']:
+                    popups.append((col_x, curr_y, col_w, item))
+                    
+            elif item['type'] == 'PROGRESS':
+                self._draw_progress(col_x, curr_y, col_w, item)
+            elif item['type'] == 'BOOL':
+                self._draw_bool(col_x, curr_y, col_w, item)
+            elif item['type'] == 'VALUE':
+                self._draw_value(col_x, curr_y, col_w, item)
+                
+            curr_y -= (self.row_height + Theme.SPACING)
+            
+        # Draw Popups on top of everything
+        for px, py, pw, item in popups:
+            self._draw_mode_popup(px, py, pw, item)
+
+    def _draw_mode_popup(self, x, y, w, item):
+        opts = item['options']
+        
+        spacing = 8
+        horizontal_padding = 8
+        vertical_padding = 6
+        pill_height = 20
+        
+        # Measure all items
+        blf.size(0, 13)
+        dims = []
+        total_content_w = 0
+        for opt in opts:
+            tw, th = blf.dimensions(0, opt)
+            dims.append((tw, th))
+            total_content_w += tw + spacing
+        total_content_w -= spacing
+        
+        # Container dimensions
+        cont_w = total_content_w + horizontal_padding * 2
+        cont_h = pill_height + vertical_padding * 2
+        
+        # Position: start slightly left of the split line
+        pop_x = x - 20
+        pop_y = y + 10
+        
+        # Draw Drop Shadow / BG
+        draw_rounded_rect(pop_x, pop_y, cont_w, cont_h, (0.05, 0.05, 0.05, 1.0), Theme.COLOR_BORDER, 4)
+        
+        cur_x = pop_x + horizontal_padding
+        
+        # Vertical alignment
+        # Container Top is pop_y.
+        # Pill top is pop_y - vertical_padding
+        pill_top_y = pop_y - vertical_padding
+        
+        # Text baseline. Visual center of pill is pill_top_y - pill_height/2.
+        # Visual center of text (approx) is baseline + size/3.
+        # So baseline = pill_center - size/3
+        text_baseline_y = (pill_top_y - pill_height/2) - 4
+        
+        for i, opt in enumerate(opts):
+            tw, th = dims[i]
+            is_sel = (i == item['current_index'])
+            col = Theme.COLOR_SUCCESS if is_sel else Theme.COLOR_SUBTEXT
+            
+            # Highlight pill
+            if is_sel:
+                draw_rounded_rect(cur_x - 4, pill_top_y, tw + 8, pill_height, (0.25, 0.25, 0.25, 1), (0,0,0,0), 4)
+                
+            draw_text(opt, cur_x, text_baseline_y, size=13, color=col)
+            
+            cur_x += tw + spacing
+
+    def _draw_progress(self, x, y, w, item):
+        val = item['value']
+        mn, mx = item['min'], item['max']
+        factor = 0
+        if mx > mn: factor = (val - mn) / (mx - mn)
+        factor = max(0, min(1, factor))
+        
+        h = 10
+        py = y - 10
+        
+        # BG
+        draw_rounded_rect(x, py, w, h, (0.2,0.2,0.2,1), (0,0,0,0), 5)
+        # Fill
+        if factor > 0:
+            draw_rounded_rect(x, py, w * factor, h, Theme.COLOR_SUCCESS, (0,0,0,0), 5)
+            
+        # Text
+        txt = f"{val:.2f}"
+        tsize = 12
+        blf.size(0, tsize)
+        tw, _ = blf.dimensions(0, txt)
+        # Centered on bar
+        draw_text(txt, x + w/2 - tw/2, py - h/2 - 6, size=tsize, color=(1,1,1,1))
+
+    def _draw_bool(self, x, y, w, item):
+        val = item['value']
+        txt = "ON" if val else "OFF"
+        col = Theme.COLOR_SUCCESS if val else Theme.COLOR_SUBTEXT
+        draw_text(txt, x, y - 20, size=14, color=col)
+
+    def _draw_value(self, x, y, w, item):
+        val = item['value']
+        txt = str(val)
+        draw_text(txt, x, y - 20, size=14, color=Theme.COLOR_TEXT)
+
+# ---------- Legacy Support / Low Level Drawing ----------
+
+
+def draw_line(p1, p2, width=1, color=(1,1,1,1)):
+    gpu.state.blend_set('ALPHA')
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos": [p1, p2]})
+    shader.bind()
+    shader.uniform_float("color", color)
+    gpu.state.line_width_set(width)
+    batch.draw(shader)
+    gpu.state.line_width_set(1.0)
+
+def draw_point(p, radius=5, color=(1,1,1,1)):
+    # Draw as a small circle
+    draw_rounded_rect(p[0]-radius, p[1]+radius, radius*2, radius*2, color, (0,0,0,0), radius)
+
+def draw_info_block(x, y, title, lines, show_until_map=None):
+    """
+    Draws a floating information block at x, y.
+    lines: list of (label, value, hint)
+    """
+    padding = Theme.PADDING
+    line_h = Theme.FONT_SIZE_NORMAL + 4
+    
+    # Calculate dimensions
+    max_w = 0
+    blf.size(0, Theme.FONT_SIZE_HEADER)
+    w, _ = blf.dimensions(0, title)
+    max_w = w
+    
+    blf.size(0, Theme.FONT_SIZE_NORMAL)
+    for row in lines:
+        if len(row) == 3:
+            label, val, hint = row
+        else: 
+            label, val = row
+            hint = ""
+            
+        full_text = f"{label}: {str(val)} {hint}"
+        w, _ = blf.dimensions(0, full_text)
+        max_w = max(max_w, w + 20) # padding
+        
+    width = max_w + padding * 2
+    height = len(lines) * line_h + Theme.FONT_SIZE_HEADER + padding * 2 + 10
+    
+    # Draw BG
+    draw_rounded_rect(x, y, width, height, Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
+    
+    # Title
+    draw_text(title, x + padding, y - padding - Theme.FONT_SIZE_HEADER, size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
+    
+    curr_y = y - padding - Theme.FONT_SIZE_HEADER - 10
+    for row in lines:
+        if len(row) == 3:
+            label, val, hint = row
+        else:
+            label, val = row
+            hint = ""
+        
+        # Check flash
+        col = Theme.COLOR_TEXT
+        if show_until_map and label in show_until_map:
+            if time.time() < show_until_map[label]:
+                col = Theme.COLOR_WARNING
+        
+        # Parse value if tuple (for slider preview)
+        val_str = str(val)
+        if isinstance(val, tuple) and len(val) == 3:
+            # (current, min, max)
+            val_str = f"{val[0]:.2f}"
+            
+        txt = f"{label}: {val_str}"
+        draw_text(txt, x + padding, curr_y - Theme.FONT_SIZE_NORMAL, size=Theme.FONT_SIZE_NORMAL, color=col)
+        
+        if hint:
+            hint_txt = f"[{hint}]"
+            blf.size(0, 12)
+            hw, _ = blf.dimensions(0, hint_txt) # size 12
+            draw_text(hint_txt, x + width - padding - hw, curr_y - Theme.FONT_SIZE_NORMAL, size=12, color=Theme.COLOR_SUBTEXT)
+            
+        curr_y -= line_h
+
+def draw_option_set(x, y, options, current_option, show_until_time):
+    # Just draw a list, highlight current
+    padding = 10
+    line_h = 20
+    
+    # Only show if recently changed
+    if time.time() > show_until_time:
+        return
+
+    width = 150
+    height = len(options) * line_h + padding * 2
+    
+    draw_rounded_rect(x, y, width, height, Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
+    
+    curr_y = y - padding
+    for opt in options:
+        col = Theme.COLOR_SUCCESS if opt == current_option else Theme.COLOR_SUBTEXT
+        draw_text(opt, x + padding, curr_y - 14, size=14, color=col)
+        curr_y -= line_h

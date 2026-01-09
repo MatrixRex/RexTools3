@@ -158,7 +158,7 @@ class REXTOOLS3_OT_Export(Operator):
                 if (o.type == 'MESH' and o.data.shape_keys and 
                     any(m.show_viewport for m in o.modifiers)):
                     
-                    from ..overlay_drawer import ViewportOverlay, MessageBox
+                    from ..ui.overlay import ViewportOverlay, MessageBox
                     err_ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
                     err_ov.show_bg = False
                     err_ov.padding = 0

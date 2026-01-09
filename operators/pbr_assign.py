@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from bpy.types import Operator
 from bpy.props import StringProperty, BoolProperty
+from ..core import notify
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -404,10 +405,10 @@ class PBR_OT_AutoLoadTextures(Operator):
 
         if any_assigned:
             # Reporting which slots were filled
-            self.report({'INFO'}, f"Textures assigned: {', '.join(assigned_slots)}")
+            notify.success(f"Textures assigned: {', '.join(assigned_slots)}")
             bpy.ops.pbr.arrange_nodes()
             return {'FINISHED'}
         else:
-            self.report({'INFO'}, "No matching textures found in folder.")
+            notify.info("No matching textures found in folder.")
             return {'CANCELLED'}
 

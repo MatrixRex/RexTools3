@@ -1,7 +1,7 @@
 import bpy, bmesh, gpu, blf
 from gpu_extras.batch import batch_for_shader
 from bpy.props import FloatProperty
-from .. import overlay_drawer
+from ..ui import overlay as overlay_drawer
 import time
 
 class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):

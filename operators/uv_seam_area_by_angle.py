@@ -1,6 +1,6 @@
 import bpy, bmesh, gpu, blf
 from gpu_extras.batch import batch_for_shader
-from .. import overlay_drawer
+from ..ui import overlay as overlay_drawer
 import time
 import math
 
@@ -83,16 +83,20 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
         else:
             thr_value, thr_min, thr_max = self.threshold,       0.0, 1.0
 
-        od.draw_info_block(
-            x=sx, y=sy,
-            title="SeamArea by Angle",
-            lines=[
-                ("Mode",      (self.MODES, self.mode),    "Scroll Wheel"),
-                ("Threshold", (thr_value, thr_min, thr_max),"Drag Mouse L/R"),
-                ("Clear Inner", str(self.clear_inner),     "Press A"),
-            ],
-            show_until_map={"Mode": self.option_show_until}
-        )
+        # New Modal Overlay
+        mov = od.ModalOverlay(title="SeamArea by Angle", x=sx + 20, y=sy, width=320)
+        
+        # 1. Mode Selector
+        is_scrolling = time.time() < self.option_show_until
+        mov.add_mode_selector("Mode", "Scroll Wheel", self.MODES, self.type_index, interacting=is_scrolling)
+        
+        # 2. Threshold
+        mov.add_progress("Threshold", "Drag Mouse L/R", thr_value, thr_min, thr_max)
+        
+        # 3. Clear Inner Toggle
+        mov.add_bool("Clear Inner", "Press A", self.clear_inner)
+        
+        mov.draw()
 
     def modal(self, context, event):
         # ——— mode switch on scroll ———

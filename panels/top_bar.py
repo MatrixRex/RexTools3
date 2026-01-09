@@ -1,4 +1,5 @@
 import bpy
+from ..ui import utils
 
 class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
     bl_label = "Export Settings"
@@ -13,19 +14,15 @@ class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
         
         settings = context.scene.rex_export_settings
         
-        layout.label(text="Batch Export Settings", icon='SETTINGS')
-        layout.separator()
+        main_col = utils.draw_section(layout, "Batch Export Settings", icon='SETTINGS')
+        main_col.use_property_split = True
+        main_col.use_property_decorate = False
         
-        col = layout.column(align=True)
-        # Use proportional column for consistent label/property ratio
-        col.use_property_split = True
-        col.use_property_decorate = False # Keeps it clean
-        
-        col.prop(settings, "export_path", text="Path")
-        col.prop(settings, "export_mode", text="Mode")
-        col.prop(settings, "export_limit", text="Limit")
-        col.prop(settings, "export_format", text="Format")
-        col.prop(settings, "export_preset", text="Preset")
+        main_col.prop(settings, "export_path", text="Path")
+        main_col.prop(settings, "export_mode", text="Mode")
+        main_col.prop(settings, "export_limit", text="Limit")
+        main_col.prop(settings, "export_format", text="Format")
+        main_col.prop(settings, "export_preset", text="Preset")
 
         layout.separator()
 

@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Operator
-from ..overlay_drawer import ViewportOverlay, MessageBox
+from ..ui.overlay import ViewportOverlay, MessageBox
 
 class MESH_OT_RexTools3SmartJoin(Operator):
     """Join mesh objects and warn if UV map names are mismatched"""

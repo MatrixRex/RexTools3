@@ -1,5 +1,6 @@
 import bpy
-from ..overlay_drawer import ViewportOverlay, Label, Row, Column, ProgressBar, MessageBox, Theme
+from ..ui.overlay import ViewportOverlay, Label, Row, Column, ProgressBar, MessageBox
+from ..core.theme import Theme
 
 class REXTOOLS3_OT_TestOverlay(bpy.types.Operator):
     bl_idname = "rextools3.test_overlay"

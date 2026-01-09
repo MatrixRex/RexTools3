@@ -1,7 +1,7 @@
 import bpy
 import bmesh
 from bpy.types import Operator
-from ..overlay_drawer import ViewportOverlay, MessageBox
+from ..ui.overlay import ViewportOverlay, MessageBox
 
 
 class REXTOOLS3_OT_uv_from_sharp(Operator):

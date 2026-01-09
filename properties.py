@@ -73,21 +73,26 @@ def update_channel_map(self, context, input_name):
             links.remove(link)
 
         # 2) full = Color output, A = direct Alpha output, else AOSplit
-        if chan == 'FULL':
-            links.new(tex_node.outputs['Color'], inp)
-        elif chan == 'A':
-            links.new(tex_node.outputs['Alpha'], inp)
+        if chan in ('FULL', 'A'):
+            # Remove existing split node if we are switching to full/alpha
+            sep = nodes.get(f"{input_name}Split")
+            if sep: nodes.remove(sep)
+            
+            if chan == 'FULL':
+                links.new(tex_node.outputs['Color'], inp)
+            else: # 'A'
+                links.new(tex_node.outputs['Alpha'], inp)
         else:
             sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
             sep.name = f"{input_name}Split"
             sep.location = (tex_node.location.x + 150, tex_node.location.y)
-            # reconnect its input
             if sep.inputs['Image'].is_linked:
                 links.remove(sep.inputs['Image'].links[0])
             links.new(tex_node.outputs['Color'], sep.inputs['Image'])
             links.new(sep.outputs[chan], inp)
 
         mat.blend_method = 'BLEND'
+        bpy.ops.pbr.arrange_nodes()
         return
 
     # AO uses the AOMix node
@@ -99,10 +104,15 @@ def update_channel_map(self, context, input_name):
         if target_sock.is_linked:
             links.remove(target_sock.links[0])
             
-        if chan == 'FULL':
-            links.new(tex_node.outputs['Color'], target_sock)
-        elif chan == 'A':
-            links.new(tex_node.outputs['Alpha'], target_sock)
+        if chan in ('FULL', 'A'):
+            # Cleanup split node
+            sep = nodes.get("AOSplit")
+            if sep: nodes.remove(sep)
+            
+            if chan == 'FULL':
+                links.new(tex_node.outputs['Color'], target_sock)
+            else: # 'A'
+                links.new(tex_node.outputs['Alpha'], target_sock)
         else:
             sep = nodes.get("AOSplit") or nodes.new('ShaderNodeSeparateRGB')
             sep.name = "AOSplit"
@@ -111,6 +121,7 @@ def update_channel_map(self, context, input_name):
                 links.remove(sep.inputs['Image'].links[0])
             links.new(tex_node.outputs['Color'], sep.inputs['Image'])
             links.new(sep.outputs[chan], target_sock)
+        bpy.ops.pbr.arrange_nodes()
         return
 
     # Roughness & Metallic use the Math node
@@ -123,10 +134,15 @@ def update_channel_map(self, context, input_name):
         links.remove(math.inputs[0].links[0])
 
     # Full or Alpha directly from the texture
-    if chan == 'FULL':
-        links.new(tex_node.outputs['Color'], math.inputs[0])
-    elif chan == 'A':
-        links.new(tex_node.outputs['Alpha'], math.inputs[0])
+    if chan in ('FULL', 'A'):
+        # Cleanup split node
+        sep = nodes.get(f"{input_name}Split")
+        if sep: nodes.remove(sep)
+        
+        if chan == 'FULL':
+            links.new(tex_node.outputs['Color'], math.inputs[0])
+        else: # 'A'
+            links.new(tex_node.outputs['Alpha'], math.inputs[0])
     else:
         sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
         sep.name = f"{input_name}Split"
@@ -135,6 +151,8 @@ def update_channel_map(self, context, input_name):
             links.remove(sep.inputs['Image'].links[0])
         links.new(tex_node.outputs['Color'], sep.inputs['Image'])
         links.new(sep.outputs[chan], math.inputs[0])
+    
+    bpy.ops.pbr.arrange_nodes()
 
 
 def update_roughness_channel(self, context):

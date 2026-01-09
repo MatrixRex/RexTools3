@@ -145,6 +145,18 @@ class PBR_OT_AssignTexture(Operator):
             image.alpha_mode = 'CHANNEL_PACKED'
         image.colorspace_settings.name = colorspace
 
+        # Capture current tint if we are assigning to Base Color, so we can preserve it
+        current_tint = (1.0, 1.0, 1.0, 1.0)
+        if input_name == 'Base Color':
+            bc_inp = principled.inputs.get('Base Color')
+            if bc_inp:
+                if bc_inp.is_linked:
+                    src = bc_inp.links[0].from_node
+                    if src.type == 'MIX_RGB':
+                        current_tint = src.inputs['Color2'].default_value[:]
+                else:
+                    current_tint = bc_inp.default_value[:]
+
         # remove old chain
         def gather(n, out):
             if n in out: return
@@ -198,13 +210,7 @@ class PBR_OT_AssignTexture(Operator):
             mix.inputs['Fac'].default_value = 1.0
             mix.location = (-150, y)
             links.new(tex_node.outputs['Color'], mix.inputs['Color1'])
-            tint = principled.inputs['Base Color'].default_value
-            mix.inputs['Color2'].default_value = (
-                max(0, min(tint[0],1)),
-                max(0, min(tint[1],1)),
-                max(0, min(tint[2],1)),
-                max(0, min(tint[3],1)),
-            )
+            mix.inputs['Color2'].default_value = current_tint
             links.new(mix.outputs['Color'], principled.inputs['Base Color'])
             if not settings.use_separate_alpha_map:
                 links.new(tex_node.outputs['Alpha'], principled.inputs['Alpha'])

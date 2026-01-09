@@ -10,6 +10,31 @@ class PBR_PT_MaterialPanel(Panel):
     bl_context = "material"
     bl_category = "PBR Tools"  # This ensures the panel appears under the "PBR Tools" tab
 
+    def find_texture_node(self, node):
+        """Finds the first Image Texture node in the chain starting from node."""
+        visited = set()
+        current = node
+        while current and current not in visited:
+            visited.add(current)
+            if current.type == 'TEX_IMAGE':
+                return current
+            
+            # Follow the first linked input, prioritizing common texture inputs
+            next_node = None
+            for name in ['Color', 'Color1', 'Value', 'Image']:
+                inp = current.inputs.get(name)
+                if inp and inp.is_linked:
+                    next_node = inp.links[0].from_node
+                    break
+            
+            if not next_node:
+                for inp in current.inputs:
+                    if inp.is_linked:
+                        next_node = inp.links[0].from_node
+                        break
+            current = next_node
+        return None
+
     def draw(self, context):
         layout = self.layout
         obj = context.active_object
@@ -69,21 +94,24 @@ class PBR_PT_MaterialPanel(Panel):
             box = layout.box()
             row = box.row()
             row.label(text=label, icon='TEXTURE')
-            inp = principled.inputs[socket]
+            
+            # Use try-except or check principled.inputs.get(socket) to be safe
+            inp = principled.inputs.get(socket)
+            if not inp:
+                continue
 
             # If already linked, show remove + controls
             if inp.is_linked:
                 row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
                 src_node = inp.links[0].from_node
 
-                # Display the texture name
-                if socket == "Base Color" and src_node.type == 'MIX_RGB':
-                    tex = src_node.inputs['Color1'].links[0].from_node
-                    name = tex.image.name if tex.image else "No Image"
-                elif src_node.type == 'TEX_IMAGE':
-                    name = src_node.image.name if src_node.image else "No Image"
+                # Find the texture node by crawling the chain
+                tex_node = self.find_texture_node(src_node)
+                if tex_node and tex_node.type == 'TEX_IMAGE':
+                    name = tex_node.image.name if tex_node.image else "No Image"
                 else:
-                    name = src_node.type
+                    name = src_node.type.replace('_', ' ').title()
+                
                 box.label(text=f"Texture: {name}")
 
                 # Per-socket extra controls
@@ -107,7 +135,9 @@ class PBR_PT_MaterialPanel(Panel):
 
                 if socket != "Normal":
                     if socket == "Base Color":
-                        box.prop(principled.inputs['Base Color'], "default_value", text="Color")
+                        r = box.row(align=True)
+                        r.prop(principled.inputs['Base Color'], "default_value", text="Color")
+                        r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
                     else:
                         box.prop(principled.inputs[socket], "default_value", text="Value")
 

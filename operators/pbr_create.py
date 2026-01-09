@@ -24,6 +24,7 @@ class PBR_OT_CreateMaterial(Operator):
         nodes.clear()
 
         principled = nodes.new('ShaderNodeBsdfPrincipled')
+        principled.inputs['Base Color'].default_value = (1.0, 1.0, 1.0, 1.0)
         output = nodes.new('ShaderNodeOutputMaterial')
         principled.location = (0, 0)
         output.location = (300, 0)

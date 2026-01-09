@@ -182,15 +182,14 @@ def update_strength(self, context, input_name):
     nodes = mat.node_tree.nodes
 
     if input_name == 'AO':
-        node = nodes.get("PBR AO Mix")
+        node = nodes.get("AOMix")
         if node:
             # Modern Mix node stores Factor in inputs[0] or named 'Factor'
-            # Note: For MULTIPLY mode, Factor is the strength/influence
             sock = node.inputs.get('Factor') or node.inputs[0]
             sock.default_value = float(getattr(self, "ao_strength", 1.0))
         return
 
-    math = nodes.get(f"PBR Math {input_name}")
+    math = nodes.get(f"{input_name}Math")
     if not math:
         return
     value = getattr(self, f"{input_name.lower()}_strength", 1.0)

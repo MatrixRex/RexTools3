@@ -14,10 +14,17 @@ class REXTools3UVPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        wm = context.window_manager 
-        tool = context.scene.tool_settings
         
+        # Section 1: UV Seams
         box = layout.box()
-        row = box.row(align=True)
-        row.operator("rextools3.uv_from_sharp", text="From Sharp", icon='MOD_EDGESPLIT')
-        row.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')
+        box.label(text="Seams", icon='STRANDS')
+        col = box.column(align=True)
+        col.operator("rextools3.uv_from_sharp", text="From Sharp", icon='MOD_EDGESPLIT')
+        
+        layout.separator()
+        
+        # Section 2: Cleanup Tools
+        box = layout.box()
+        box.label(text="Cleanup Tools", icon='BRUSH_DATA')
+        col = box.column(align=True)
+        col.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')

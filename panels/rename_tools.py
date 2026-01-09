@@ -41,7 +41,14 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
             box.label(text="Select only 2 meshes")
 
         layout.separator()
-        layout.prop(props, "obj_name")
+        row = layout.row(align=True)
+        row.prop(props, "obj_name")
+        row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+        # Add a clear button to make resetting to auto-fill easier
+        op = row.operator("wm.context_set_string", text="", icon='X')
+        op.data_path = "scene.highlow_renamer_props.obj_name"
+        op.value = ""
+        
         layout.prop(props, "high_prefix")
         layout.prop(props, "low_prefix")
 

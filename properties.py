@@ -208,7 +208,7 @@ class BoneRenameProperties(PropertyGroup):
 
 
 class HighLowRenamerProperties(PropertyGroup):
-    obj_name: StringProperty(name="Object Name", default="Asset")
+    obj_name: StringProperty(name="Object Name", default="")
     high_prefix: StringProperty(name="High Prefix", default="_high")
     low_prefix: StringProperty(name="Low Prefix", default="_low")
 

@@ -558,111 +558,77 @@ class ModalOverlay(UIElement):
     def draw(self):
         # 1. Calculate Layout
         header_h = Theme.FONT_SIZE_HEADER + Theme.SPACING * 2
-        total_h = header_h + len(self.items) * (self.row_height + Theme.SPACING) + self.padding * 2
+        row_h = 32 # Taller rows to fit Label + Keymap underneath
+        total_h = header_h + len(self.items) * (row_h + Theme.SPACING) + self.padding 
         
-        # Draw Main BG
+        # Draw Main BG 
         draw_rounded_rect(self.x, self.y, self.width, total_h, 
                           Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
         
-        # Draw Title
-        draw_text(self.title, self.x + self.padding, self.y - self.padding - Theme.FONT_SIZE_HEADER, 
+        # Left Accent Bar
+        draw_rounded_rect(self.x, self.y, 3, total_h, 
+                          Theme.COLOR_INFO, (0,0,0,0), 0)
+        
+        
+        # 2. Draw Title with decoration
+        title_x = self.x + self.padding
+        draw_text("#", title_x, self.y - self.padding - Theme.FONT_SIZE_HEADER, 
                   size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
+        draw_text(self.title, title_x + 18, self.y - self.padding - Theme.FONT_SIZE_HEADER, 
+                  size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_TEXT)
                   
-        # Draw Items
+        # 3. Draw Items
         curr_y = self.y - self.padding - header_h
         
-        popups = [] # Store popups to draw on top
+        # Virtual column offsets
+        col_label = self.x + self.padding + 8
+        col_value = self.x + 110 # Give more room to the left col
         
         for item in self.items:
-            # Row BG (striped/highlight could go here)
-            
-            # --- Left Col (Label + Shortcuts) ---
             # Label
-            draw_text(item['label'], self.x + self.padding, curr_y - 18, 
-                      size=14, color=Theme.COLOR_TEXT)
-            # Shortcut
-            draw_text(item['shortcuts'], self.x + self.padding, curr_y - 30, 
-                      size=10, color=Theme.COLOR_SUBTEXT)
+            draw_text(item['label'], col_label, curr_y - 14, size=12, color=Theme.COLOR_TEXT)
             
-            # --- Right Col (Data) ---
-            col_x = self.x + 120 # Split point
-            col_w = self.width - 120 - self.padding
+            # Shortcut (Underneath Label)
+            draw_text(item['shortcuts'], col_label, curr_y - 26, size=10, color=Theme.COLOR_SUBTEXT)
             
+            # Value/Widget
             if item['type'] == 'MODE':
-                # Draw the static/current part
-                cur = item['options'][item['current_index']]
-                draw_text(cur, col_x, curr_y - 20, size=14, color=Theme.COLOR_SUCCESS)
-                
-                # If interacting, queue the popup
-                if item['interacting']:
-                    popups.append((col_x, curr_y, col_w, item))
+                self._draw_mode_inline(col_value, curr_y, item)
                     
             elif item['type'] == 'PROGRESS':
-                self._draw_progress(col_x, curr_y, col_w, item)
+                self._draw_progress(col_value, curr_y, 100, item)
             elif item['type'] == 'BOOL':
-                self._draw_bool(col_x, curr_y, col_w, item)
+                self._draw_bool(col_value, curr_y, 100, item) 
             elif item['type'] == 'VALUE':
-                self._draw_value(col_x, curr_y, col_w, item)
+                self._draw_value(col_value, curr_y, 100, item)
                 
-            curr_y -= (self.row_height + Theme.SPACING)
-            
-        # Draw Popups on top of everything
-        for px, py, pw, item in popups:
-            self._draw_mode_popup(px, py, pw, item)
+            curr_y -= (row_h + Theme.SPACING)
 
-    def _draw_mode_popup(self, x, y, w, item):
+    def _draw_mode_inline(self, x, y, item):
         opts = item['options']
+        cur_idx = item['current_index']
         
-        spacing = 8
-        horizontal_padding = 8
-        vertical_padding = 6
-        pill_height = 20
-        
-        # Measure all items
-        blf.size(0, 13)
-        dims = []
-        total_content_w = 0
-        for opt in opts:
-            tw, th = blf.dimensions(0, opt)
-            dims.append((tw, th))
-            total_content_w += tw + spacing
-        total_content_w -= spacing
-        
-        # Container dimensions
-        cont_w = total_content_w + horizontal_padding * 2
-        cont_h = pill_height + vertical_padding * 2
-        
-        # Position: start slightly left of the split line
-        pop_x = x - 20
-        pop_y = y + 10
-        
-        # Draw Drop Shadow / BG
-        draw_rounded_rect(pop_x, pop_y, cont_w, cont_h, (0.05, 0.05, 0.05, 1.0), Theme.COLOR_BORDER, 4)
-        
-        cur_x = pop_x + horizontal_padding
-        
-        # Vertical alignment
-        # Container Top is pop_y.
-        # Pill top is pop_y - vertical_padding
-        pill_top_y = pop_y - vertical_padding
-        
-        # Text baseline. Visual center of pill is pill_top_y - pill_height/2.
-        # Visual center of text (approx) is baseline + size/3.
-        # So baseline = pill_center - size/3
-        text_baseline_y = (pill_top_y - pill_height/2) - 4
-        
-        for i, opt in enumerate(opts):
-            tw, th = dims[i]
-            is_sel = (i == item['current_index'])
-            col = Theme.COLOR_SUCCESS if is_sel else Theme.COLOR_SUBTEXT
+        if not item['interacting']:
+            # Contracted: Just show current
+            draw_text(opts[cur_idx], x, y - 16, size=13, color=Theme.COLOR_INFO)
+        else:
+            # Expanded: Show all horizontally
+            spacing = 12
+            cur_x = x
+            blf.size(0, 13)
             
-            # Highlight pill
-            if is_sel:
-                draw_rounded_rect(cur_x - 4, pill_top_y, tw + 8, pill_height, (0.25, 0.25, 0.25, 1), (0,0,0,0), 4)
+            for i, opt in enumerate(opts):
+                is_sel = (i == cur_idx)
+                col = Theme.COLOR_INFO if is_sel else Theme.COLOR_SUBTEXT
+                tw, _ = blf.dimensions(0, opt)
                 
-            draw_text(opt, cur_x, text_baseline_y, size=13, color=col)
-            
-            cur_x += tw + spacing
+                # Active highlight (pill)
+                if is_sel:
+                    draw_rounded_rect(cur_x - 4, y - 2, tw + 8, 22, (0.2, 0.2, 0.2, 1), (0,0,0,0), 2)
+                
+                draw_text(opt, cur_x, y - 18, size=13, color=col)
+                cur_x += tw + spacing
+
 
     def _draw_progress(self, x, y, w, item):
         val = item['value']
@@ -671,33 +637,28 @@ class ModalOverlay(UIElement):
         if mx > mn: factor = (val - mn) / (mx - mn)
         factor = max(0, min(1, factor))
         
-        h = 10
+        h = 6 # Shorter bar
         py = y - 10
         
         # BG
-        draw_rounded_rect(x, py, w, h, (0.2,0.2,0.2,1), (0,0,0,0), 5)
+        draw_rounded_rect(x, py, w, h, (0.1, 0.1, 0.1, 1), (0,0,0,0), 0)
         # Fill
         if factor > 0:
-            draw_rounded_rect(x, py, w * factor, h, Theme.COLOR_SUCCESS, (0,0,0,0), 5)
+            draw_rounded_rect(x, py, w * factor, h, Theme.COLOR_INFO, (0,0,0,0), 0)
             
         # Text
         txt = f"{val:.2f}"
-        tsize = 12
-        blf.size(0, tsize)
-        tw, _ = blf.dimensions(0, txt)
-        # Centered on bar
-        draw_text(txt, x + w/2 - tw/2, py - h/2 - 6, size=tsize, color=(1,1,1,1))
+        draw_text(txt, x + w + 8, y - 16, size=11, color=Theme.COLOR_TEXT)
 
     def _draw_bool(self, x, y, w, item):
         val = item['value']
-        txt = "ON" if val else "OFF"
+        txt = "True" if val else "False"
         col = Theme.COLOR_SUCCESS if val else Theme.COLOR_SUBTEXT
-        draw_text(txt, x, y - 20, size=14, color=col)
+        draw_text(txt, x, y - 15, size=13, color=col)
 
     def _draw_value(self, x, y, w, item):
         val = item['value']
-        txt = str(val)
-        draw_text(txt, x, y - 20, size=14, color=Theme.COLOR_TEXT)
+        draw_text(str(val), x, y - 15, size=13, color=Theme.COLOR_TEXT)
 
 # ---------- Legacy Support / Low Level Drawing ----------
 
@@ -715,6 +676,17 @@ def draw_line(p1, p2, width=1, color=(1,1,1,1)):
 def draw_point(p, radius=5, color=(1,1,1,1)):
     # Draw as a small circle
     draw_rounded_rect(p[0]-radius, p[1]+radius, radius*2, radius*2, color, (0,0,0,0), radius)
+
+def draw_crosshair(p, size=5, gap=3, width=1, color=(1,1,1,1)):
+    """ Draws a tactical HUD crosshair with a central gap. """
+    # Top
+    draw_line((p[0], p[1] + gap), (p[0], p[1] + gap + size), width, color)
+    # Bottom
+    draw_line((p[0], p[1] - gap), (p[0], p[1] - gap - size), width, color)
+    # Left
+    draw_line((p[0] - gap, p[1]), (p[0] - gap - size, p[1]), width, color)
+    # Right
+    draw_line((p[0] + gap, p[1]), (p[0] + gap + size, p[1]), width, color)
 
 def draw_info_block(x, y, title, lines, show_until_map=None):
     """

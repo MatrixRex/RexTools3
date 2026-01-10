@@ -75,7 +75,7 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
         od      = overlay_drawer
 
         od.draw_line((sx, sy), (cx, cy))
-        od.draw_point((sx, sy), radius=6, color=(1, 0, 0, 1))
+        od.draw_crosshair((sx, sy), size=5, color=od.Theme.COLOR_INFO)
 
         # decide threshold display range per mode
         if self.mode == 'Linked Flat':

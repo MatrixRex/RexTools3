@@ -64,37 +64,24 @@ class REXTOOLS3_OT_select_similar_modal(bpy.types.Operator):
         )
 
     def _draw_overlay(self, context):
-        
-
         sx, sy = self.start_mouse
         cx, cy = self.current_mouse
-
         od = overlay_drawer
         
         od.draw_line((sx, sy), (cx, cy))
-        od.draw_point((sx, sy), radius=6, color=(1, 0, 0, 1))
+        od.draw_crosshair((sx, sy), size=5, color=od.Theme.COLOR_INFO)
 
-        # Draw info block
-        od.draw_info_block(
-            x=sx,
-            y=sy,
-            title="Surface Mode",
-            lines=[
-                ("Threshold", (self.threshold, 0.0, 1.0), "scroll"),
-                ("Type", (self.SIM_TYPES, self.sim_type), "wheel up/down"),
-            ],
-            show_until_map={
-                "Type": self.option_show_until
-            }
-        )
+        # New Modal Overlay
+        mov = od.ModalOverlay(title="Select Similar", x=sx + 20, y=sy, width=320)
         
-        od.draw_option_set(
-            x=200,
-            y=160,
-            options=self.SIM_TYPES,
-            current_option=self.sim_type,
-            show_until_time=self.option_show_until
-        )
+        # 1. Type Selector
+        is_scrolling = time.time() < self.option_show_until
+        mov.add_mode_selector("Type", "Scroll Wheel", self.SIM_TYPES, self.type_index, interacting=is_scrolling)
+        
+        # 2. Threshold
+        mov.add_progress("Threshold", "Drag Mouse L/R", self.threshold, 0.0, 1.0)
+        
+        mov.draw()
 
 
 

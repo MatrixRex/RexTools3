@@ -1,19 +1,19 @@
 
 class Theme:
-    COLOR_TEXT = (1.0, 1.0, 1.0, 1.0)
-    COLOR_SUBTEXT = (0.7, 0.7, 0.7, 1.0)
-    COLOR_BG = (0.08, 0.08, 0.08, 0.9)
-    COLOR_BORDER = (0.5, 0.5, 0.5, 0.8)
-    COLOR_INFO = (0.35, 0.65, 1.0, 1.0)
-    COLOR_WARNING = (1.0, 0.6, 0.2, 1.0)
-    COLOR_SUCCESS = (0.4, 0.8, 0.4, 1.0)
-    COLOR_ERROR = (1.0, 0.3, 0.3, 1.0)
+    COLOR_TEXT = (0.9, 0.9, 0.9, 1.0)
+    COLOR_SUBTEXT = (0.5, 0.5, 0.5, 1.0)
+    COLOR_BG = (0.05, 0.05, 0.05, 0.75) # Darker, more glass-like
+    COLOR_BORDER = (0.4, 0.4, 0.4, 0.3) # Subtle border
+    COLOR_INFO = (0.0, 0.8, 1.0, 1.0)   # Cyber cyan
+    COLOR_WARNING = (1.0, 0.5, 0.0, 1.0)
+    COLOR_SUCCESS = (0.2, 1.0, 0.4, 1.0) # Bright green
+    COLOR_ERROR = (1.0, 0.1, 0.2, 1.0)
     
-    SPACING = 8
-    PADDING = 15
-    FONT_SIZE_NORMAL = 14
-    FONT_SIZE_HEADER = 18
-    CORNER_RADIUS = 10
+    SPACING = 6
+    PADDING = 12
+    FONT_SIZE_NORMAL = 13
+    FONT_SIZE_HEADER = 17
+    CORNER_RADIUS = 3 # Sharper edges
     
     # Panel UI Constants
     PANEL_PADDING = 10      # Standard padding inside a box/section

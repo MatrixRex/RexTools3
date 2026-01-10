@@ -9,7 +9,6 @@ def _show_message(text, type='INFO', timeout=3.0):
     ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
     ov.show_bg = False # Just the message box has bg
     ov.timeout = timeout
-    ov.close_on_click = True
     
     # Message Box
     msg = MessageBox(text=text, type=type, width=350)

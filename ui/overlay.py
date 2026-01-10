@@ -500,7 +500,16 @@ class OverlayManager:
 
     def add_overlay(self, overlay):
         if overlay not in self.overlays:
+            # Shift handling for "toasts" (BOTTOM anchored)
+            if getattr(overlay, 'anchor_y', None) == 'BOTTOM':
+                bottom_toasts = [ov for ov in self.overlays if getattr(ov, 'anchor_y', None) == 'BOTTOM']
+                if len(bottom_toasts) >= 3:
+                    # Remove oldest
+                    oldest = sorted(bottom_toasts, key=lambda x: x.start_time)[0]
+                    self.remove_overlay(oldest)
+            
             self.overlays.append(overlay)
+            
         if not self.handle:
             self.handle = bpy.types.SpaceView3D.draw_handler_add(self.draw, (), 'WINDOW', 'POST_PIXEL')
         
@@ -540,6 +549,20 @@ class OverlayManager:
     def draw(self):
         if not self.overlays: return
         gpu.state.blend_set('ALPHA')
+        
+        # Calculate offsets for stacked BOTTOM overlays
+        bottom_toasts = [ov for ov in self.overlays if getattr(ov, 'anchor_y', None) == 'BOTTOM']
+        # Sort oldest to newest
+        bottom_toasts.sort(key=lambda x: x.start_time)
+        
+        curr_offset = 0
+        # Iterate newest to oldest to build stacking heights
+        for ov in reversed(bottom_toasts):
+            ov._stack_offset_y = curr_offset
+            # Pre-calculate layout to get height
+            ov.update_layout(0, 0)
+            curr_offset += ov.height + 10 # 10px spacing
+            
         for overlay in self.overlays:
             overlay.draw()
         gpu.state.blend_set('NONE')
@@ -603,10 +626,17 @@ class ViewportOverlay(Group):
         
         if ty == 'MOUSE': ty = my - 15
         elif ty == 'CENTER': ty = (region.height + self.height) / 2
-        elif ty == 'BOTTOM': ty = self.height + 50
+        elif ty == 'BOTTOM': 
+            # Apply stack offset
+            offset = getattr(self, '_stack_offset_y', 0)
+            ty = self.height + 50 + offset
         elif ty is None: ty = region.height - 50
         
         self.update_layout(tx, ty)
+        # We don't call super().draw() because ViewportOverlay inherits from Group 
+        # but we want to avoid double layout/draw if not needed, 
+        # though ViewportOverlay.draw is currently what's registered.
+        # Group.draw calls self.layout.draw()
         super().draw()
 
 

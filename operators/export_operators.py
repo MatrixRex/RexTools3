@@ -158,18 +158,8 @@ class REXTOOLS3_OT_Export(Operator):
                 if (o.type == 'MESH' and o.data.shape_keys and 
                     any(m.show_viewport for m in o.modifiers)):
                     
-                    from ..ui.overlay import ViewportOverlay, MessageBox
-                    err_ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
-                    err_ov.show_bg = False
-                    err_ov.padding = 0
-                    err_ov.timeout = 3
-                    err_ov.add(MessageBox(
-                        text="Error: Shape keys wont be exported. Modifier found in object.",
-                        type='ERROR',
-                        width=320,
-                        show_icon=True
-                    ))
-                    err_ov.show()
+                    from ..core import notify
+                    notify.error("Shape keys won't be exported. Modifier found in object.")
                     break
 
             try:

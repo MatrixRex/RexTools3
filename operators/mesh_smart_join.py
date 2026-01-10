@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Operator
-from ..ui.overlay import ViewportOverlay, MessageBox
+from bpy.types import Operator
 
 class MESH_OT_RexTools3SmartJoin(Operator):
     """Join mesh objects and warn if UV map names are mismatched"""
@@ -37,18 +37,8 @@ class MESH_OT_RexTools3SmartJoin(Operator):
                         break
                 
                 if mismatch:
-                    # Spawn overlay warning
-                    ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
-                    ov.show_bg = False
-                    ov.padding = 0
-                    ov.timeout = 5
-                    ov.add(MessageBox(
-                        text="Warning: UV slots not merged. Mismatched UV names.",
-                        type='WARNING',
-                        width=350,
-                        show_icon=True
-                    ))
-                    ov.show()
+                    from ..core import notify
+                    notify.warning("UV slots not merged. Mismatched UV names.")
 
         # Execute the native join operation
         try:

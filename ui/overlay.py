@@ -250,31 +250,76 @@ class MessageBox(UIElement):
     def draw(self):
         if not self.visible: return
         
-        if self.type == 'ERROR':
-            col = (1.0, 0.2, 0.2, 1.0)
-        else:
-            col = Theme.COLOR_INFO if self.type == 'INFO' else Theme.COLOR_WARNING
+        # Color mapping from Theme
+        if self.type == 'ERROR': col = Theme.COLOR_ERROR
+        elif self.type == 'SUCCESS': col = Theme.COLOR_SUCCESS
+        elif self.type == 'WARNING': col = Theme.COLOR_WARNING
+        else: col = Theme.COLOR_INFO
             
-        bg_col = (col[0], col[1], col[2], 0.22)
+        bg_col = (col[0] * 0.1, col[1] * 0.1, col[2] * 0.1, 0.6) # Darker HUD bg
         
+        # Main Box
         draw_rounded_rect(self.x, self.y, self.width, self.height, 
                           color_bg=bg_col, 
-                          color_border=col, 
+                          color_border=(col[0], col[1], col[2], 0.4), 
                           radius=Theme.CORNER_RADIUS)
         
+        # Left Accent Bar (The HUD look)
+        draw_rounded_rect(self.x, self.y, 4, self.height, 
+                          color_bg=col, 
+                          color_border=(0,0,0,0), 
+                          radius=0)
+        
         # Room for icon
-        text_x_offset = self.padding
+        text_x_offset = self.padding + 5
         if self.show_icon:
-            icon_size = 20
-            draw_icon_warning(self.x + self.padding, self.y - self.padding - icon_size/2 - 2, icon_size, col)
-            text_x_offset += icon_size + 10
+            icon_size = 18
+            # Simplified icon position center-aligned vertically
+            iy = self.y - self.height / 2
+            draw_icon_hud(self.x + self.padding + 8, iy, icon_size, col, self.type)
+            text_x_offset += icon_size + 15
 
         for i, line in enumerate(self.lines):
             ly = self.y - self.padding - (i+1) * Theme.FONT_SIZE_NORMAL - i * Theme.SPACING
-            draw_text(line, self.x + text_x_offset, ly, color=Theme.COLOR_TEXT)
+            draw_text(line, self.x + text_x_offset, ly + 2, color=Theme.COLOR_TEXT)
 
 # ---------- Drawing Primitives ----------
 
+def draw_icon_hud(x, y, size, color, type='INFO'):
+    """Draw a stylized HUD icon based on type."""
+    hh = size / 2
+    if type == 'ERROR' or type == 'WARNING':
+        # Simple triangle outline
+        pts = [(x + hh, y + hh), (x, y - hh), (x + size, y - hh)]
+        # We draw it as lines for HUD look
+        draw_line(pts[0], pts[1], 1.5, color)
+        draw_line(pts[1], pts[2], 1.5, color)
+        draw_line(pts[2], pts[0], 1.5, color)
+        # Symbol
+        txt = "!"
+        draw_text(txt, x + hh - 3, y - hh + 4, size=int(size*0.7), color=color)
+    elif type == 'SUCCESS':
+        # Checkmark style
+        p1 = (x, y)
+        p2 = (x + hh, y - hh)
+        p3 = (x + size, y + hh)
+        draw_line(p1, p2, 2, color)
+        draw_line(p2, p3, 2, color)
+    else:
+        # Info: Square diamond
+        p1 = (x + hh, y + hh)
+        p2 = (x + size, y)
+        p3 = (x + hh, y - hh)
+        p4 = (x, y)
+        draw_line(p1, p2, 1.2, color)
+        draw_line(p2, p3, 1.2, color)
+        draw_line(p3, p4, 1.2, color)
+        draw_line(p4, p1, 1.2, color)
+        draw_text("i", x + hh - 2, y - hh + 4, size=int(size*0.7), color=color)
+
+def draw_icon_warning(x, y, size, color):
+    # Standard warning, keep for legacy but map to hud if possible
+    draw_icon_hud(x, y + size/2, size, color, 'WARNING')
 def draw_rounded_rect(x, y, w, h, color_bg, color_border, radius):
     """Draw an anti-aliased rounded rectangle with an optional border."""
     gpu.state.blend_set('ALPHA')
@@ -720,8 +765,12 @@ def draw_info_block(x, y, title, lines, show_until_map=None):
     # Draw BG
     draw_rounded_rect(x, y, width, height, Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
     
+    # Left Accent Bar
+    draw_rounded_rect(x, y, 3, height, Theme.COLOR_INFO, (0,0,0,0), 0)
+    
     # Title
-    draw_text(title, x + padding, y - padding - Theme.FONT_SIZE_HEADER, size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
+    draw_text(f"# {title}", x + padding + 5, y - padding - Theme.FONT_SIZE_HEADER, 
+              size=Theme.FONT_SIZE_HEADER, color=Theme.COLOR_INFO)
     
     curr_y = y - padding - Theme.FONT_SIZE_HEADER - 10
     for row in lines:
@@ -767,6 +816,9 @@ def draw_option_set(x, y, options, current_option, show_until_time):
     height = len(options) * line_h + padding * 2
     
     draw_rounded_rect(x, y, width, height, Theme.COLOR_BG, Theme.COLOR_BORDER, Theme.CORNER_RADIUS)
+    
+    # Left Accent Bar
+    draw_rounded_rect(x, y, 3, height, Theme.COLOR_INFO, (0,0,0,0), 0)
     
     curr_y = y - padding
     for opt in options:

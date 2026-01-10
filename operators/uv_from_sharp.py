@@ -1,7 +1,6 @@
 import bpy
 import bmesh
 from bpy.types import Operator
-from ..ui.overlay import ViewportOverlay, MessageBox
 
 
 class REXTOOLS3_OT_uv_from_sharp(Operator):
@@ -87,10 +86,7 @@ class REXTOOLS3_OT_uv_from_sharp(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         # Show Overlay Message
-        ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
-        ov.show_bg = False
-        ov.padding = 0
-        ov.timeout = 3.0
+        from ..core import notify
         
         if objects_processed > 1:
             msg = f"Processed {objects_processed} objects. Marked {total_sharp_edges} seams."
@@ -99,8 +95,7 @@ class REXTOOLS3_OT_uv_from_sharp(Operator):
             if total_sharp_edges == 0:
                 msg = "No new seams added (UVs updated)."
 
-        ov.add(MessageBox(text=msg, type='INFO', width=400))
-        ov.show()
+        notify.info(msg)
 
         return {'FINISHED'}
 
@@ -172,17 +167,13 @@ class REXTOOLS3_OT_uv_clear_seams(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         # Show Overlay Message
-        ov = ViewportOverlay(title="", x='CENTER', y='BOTTOM')
-        ov.show_bg = False
-        ov.padding = 0
-        ov.timeout = 2.0
+        from ..core import notify
         
         if objects_processed > 1:
             msg = f"Cleared seams on {objects_processed} objects ({total_cleared} total)."
         else:
             msg = f"Cleared {total_cleared} seams."
             
-        ov.add(MessageBox(text=msg, type='INFO', width=350))
-        ov.show()
+        notify.info(msg)
 
         return {'FINISHED'}

@@ -2,77 +2,85 @@ import bpy
 from ..ui import utils
 
 class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
-    bl_label = "Export Settings"
+    bl_label = "Export Quick Settings"
     bl_idname = "REXTOOLS3_PT_export_settings_popup"
     bl_space_type = 'TOPBAR'
     bl_region_type = 'WINDOW'
     
     def draw(self, context):
         layout = self.layout
-        # Further reduced width
-        layout.ui_units_x = 9
+        layout.ui_units_x = 10
         
         settings = context.scene.rex_export_settings
         
-        main_col = utils.draw_section(layout, "Batch Export Settings", icon='SETTINGS')
-        main_col.use_property_split = True
-        main_col.use_property_decorate = False
-        
-        main_col.prop(settings, "export_path", text="Path")
-        main_col.prop(settings, "export_mode", text="Mode")
-        main_col.prop(settings, "export_limit", text="Limit")
-        main_col.prop(settings, "export_format", text="Format")
-        main_col.prop(settings, "export_preset", text="Preset")
+        # --- ACTION ---
+        col = layout.column()
+        col.scale_y = 1.4
+        col.operator("rextools3.export", text="Batch Export", icon='EXPORT')
 
         layout.separator()
 
+        # --- QUICK CONFIG ---
+        col = utils.draw_section(layout, "Config", icon='SETTINGS')
+        col.use_property_split = True
+        col.use_property_decorate = False
+        
+        # Path selection (removed redundant button)
+        col.prop(settings, "export_path", text="Path")
+        
+        col.prop(settings, "export_mode", text="Mode")
+        col.separator()
+        col.prop(settings, "export_limit", text="Limit")
+        col.prop(settings, "export_format", text="Format")
+        col.prop(settings, "export_preset", text="Preset")
+
+        layout.separator()
+
+        # --- PREVIEW ---
         from ..operators.export_operators import get_export_groups
         groups = get_export_groups(context, settings)
         
-        box = layout.box()
-        row = box.row()
-        row.prop(settings, "show_preview", 
+        tbox = layout.box()
+        trow = tbox.row()
+        trow.prop(settings, "show_preview", 
                  icon='TRIA_DOWN' if settings.show_preview else 'TRIA_RIGHT', 
-                 text=f"Preview ({len(groups)})",
+                 text=f"Targets ({len(groups)})",
                  emboss=False)
         
         if settings.show_preview:
             if groups:
-                p_col = box.column(align=True)
+                p_col = tbox.column(align=True)
                 for name in sorted(groups.keys()):
-                    item_row = p_col.row()
-                    item_row.label(text=name, icon='OBJECT_DATA')
+                    p_col.label(text=name, icon='OBJECT_DATA')
             else:
-                box.label(text="No items", icon='ERROR')
+                tbox.label(text="None", icon='ERROR')
 
         layout.separator()
         
-        # Custom Locations Overrides
-        box = layout.box()
-        row = box.row()
-        row.prop(settings, "show_custom_locations",
+        # --- OVERRIDES ---
+        obox = layout.box()
+        orow = obox.row()
+        orow.prop(settings, "show_custom_locations",
                  icon='TRIA_DOWN' if settings.show_custom_locations else 'TRIA_RIGHT',
                  text="Overrides",
                  emboss=False)
         
         if settings.show_custom_locations:
-            # Simplified logic for adding overrides
-            row = box.row(align=True)
             mode = settings.export_mode
             sel_count = len(context.selected_objects)
 
             if sel_count > 0:
-                if mode in {'OBJECTS', 'PARENTS'} and sel_count == 1:
+                row = obox.row(align=True)
+                if mode in {'OBJECTS', 'PARENTS'} and context.active_object:
                     op = row.operator("rextools3.browse_export_path", text="", icon='ADD')
                     op.target = 'OBJECT'
                     op.target_name = context.active_object.name
-                elif mode == 'COLLECTIONS':
+                elif mode == 'COLLECTIONS' and context.view_layer.active_layer_collection:
                     op = row.operator("rextools3.browse_export_path", text="", icon='OUTLINER_COLLECTION')
                     op.target = 'COLLECTION'
                     op.target_name = context.view_layer.active_layer_collection.collection.name
             
-            box.separator()
-
+            obox.separator()
             custom_items = []
             if mode == 'COLLECTIONS':
                 for coll in bpy.data.collections:
@@ -84,19 +92,19 @@ class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
                         custom_items.append(('OBJECT', obj))
             
             if custom_items:
-                p_col = box.column(align=True)
                 for type, item in custom_items:
-                    row = p_col.row(align=True)
+                    row = obox.row(align=True)
                     op = row.operator("rextools3.select_by_name", text="", icon='RESTRICT_SELECT_OFF')
                     op.name = item.name
                     op.type = type
                     row.prop(item, "export_location", text=item.name)
-                    # Clear button
                     clear_op = row.operator("rextools3.clear_export_path", text="", icon='X')
                     clear_op.name = item.name
                     clear_op.type = type
             else:
-                box.label(text="None", icon='INFO')
+                obox.label(text="None", icon='INFO')
+
+
 
 def draw_topbar_export(self, context):
     layout = self.layout

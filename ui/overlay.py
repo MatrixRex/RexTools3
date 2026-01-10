@@ -1,9 +1,10 @@
 import gpu
-from gpu_extras.batch import batch_for_shader
+import bpy
 import blf
 import time
-import bpy
+import os
 import math
+from gpu_extras.batch import batch_for_shader
 from ..core.theme import Theme
 
 # ---------- Shaders & Constants ----------
@@ -15,6 +16,60 @@ except:
     _shader_sdf = None
 
 _shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
+try:
+    _shader_img_color = gpu.shader.from_builtin('IMAGE_COLOR')
+except:
+    _shader_img_color = gpu.shader.from_builtin('2D_IMAGE_COLOR') # Fallback if builtin name varies
+
+# ---------- Asset Management ----------
+
+class IconManager:
+    _icons = {}
+    
+    @classmethod
+    def get_icon(cls, icon_name):
+        icon_key = icon_name.lower()
+        if icon_key in cls._icons:
+            return cls._icons[icon_key]
+        
+        # Determine path to assets
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        path = os.path.join(base_dir, "assets", f"{icon_key}.png")
+        
+        if not os.path.exists(path):
+            return None
+            
+        try:
+            img_name = f"rextools3_icon_{icon_key}"
+            img = bpy.data.images.get(img_name)
+            if not img:
+                img = bpy.data.images.load(path, check_existing=True)
+                img.name = img_name
+                img.alpha_mode = 'STRAIGHT'
+                img.pack()
+            
+            tex = gpu.texture.from_image(img)
+            cls._icons[icon_key] = tex
+            return tex
+        except Exception as e:
+            print(f"RexTools3: Error loading icon {icon_key}: {e}")
+            return None
+
+def draw_texture(texture, x, y, w, h, color=(1,1,1,1)):
+    """Draw a texture quad at x, y."""
+    gpu.state.blend_set('ALPHA')
+    verts = [(x, y), (x + w, y), (x + w, y - h), (x, y - h)]
+    uvs = [(0, 1), (1, 1), (1, 0), (0, 0)]
+    
+    batch = batch_for_shader(_shader_img_color, 'TRI_FAN', {
+        "pos": verts,
+        "texCoord": uvs,
+    })
+    
+    _shader_img_color.bind()
+    _shader_img_color.uniform_sampler("image", texture)
+    _shader_img_color.uniform_float("color", color)
+    batch.draw(_shader_img_color)
 
 
 
@@ -274,20 +329,28 @@ class MessageBox(UIElement):
         text_x_offset = self.padding + 5
         if self.show_icon:
             icon_size = 18
-            # Simplified icon position center-aligned vertically
-            iy = self.y - self.height / 2
+            # Optical centering adjustment
+            iy = self.y - (self.height / 2) + 1
             draw_icon_hud(self.x + self.padding + 8, iy, icon_size, col, self.type)
             text_x_offset += icon_size + 15
 
         for i, line in enumerate(self.lines):
             ly = self.y - self.padding - (i+1) * Theme.FONT_SIZE_NORMAL - i * Theme.SPACING
-            draw_text(line, self.x + text_x_offset, ly + 2, color=Theme.COLOR_TEXT)
+            draw_text(line, self.x + text_x_offset, ly + 4, color=Theme.COLOR_TEXT)
 
 # ---------- Drawing Primitives ----------
 
 def draw_icon_hud(x, y, size, color, type='INFO'):
     """Draw a stylized HUD icon based on type."""
     hh = size / 2
+    
+    # Try custom PNG icon from assets
+    tex = IconManager.get_icon(type)
+    if tex:
+        # Center vertically around iy: top = iy + radius
+        draw_texture(tex, x, y + hh, size, size, color)
+        return
+
     if type == 'ERROR' or type == 'WARNING':
         # Simple triangle outline
         pts = [(x + hh, y + hh), (x, y - hh), (x + size, y - hh)]
@@ -297,14 +360,15 @@ def draw_icon_hud(x, y, size, color, type='INFO'):
         draw_line(pts[2], pts[0], 1.5, color)
         # Symbol
         txt = "!"
-        draw_text(txt, x + hh - 3, y - hh + 4, size=int(size*0.7), color=color)
+        # Adjusted y-offset for better centering: y - (char_height/2) + nudge
+        draw_text(txt, x + hh - 3, y - 6, size=int(size*0.75), color=color)
     elif type == 'SUCCESS':
-        # Checkmark style
-        p1 = (x, y)
-        p2 = (x + hh, y - hh)
-        p3 = (x + size, y + hh)
-        draw_line(p1, p2, 2, color)
-        draw_line(p2, p3, 2, color)
+        # Checkmark style (slightly thicker)
+        p1 = (x + 2, y - 2)
+        p2 = (x + hh, y - hh + 2)
+        p3 = (x + size - 2, y + hh - 2)
+        draw_line(p1, p2, 2.5, color)
+        draw_line(p2, p3, 2.5, color)
     else:
         # Info: Square diamond
         p1 = (x + hh, y + hh)
@@ -315,7 +379,7 @@ def draw_icon_hud(x, y, size, color, type='INFO'):
         draw_line(p2, p3, 1.2, color)
         draw_line(p3, p4, 1.2, color)
         draw_line(p4, p1, 1.2, color)
-        draw_text("i", x + hh - 2, y - hh + 4, size=int(size*0.7), color=color)
+        draw_text("i", x + hh - 2, y - 6, size=int(size*0.75), color=color)
 
 def draw_icon_warning(x, y, size, color):
     # Standard warning, keep for legacy but map to hud if possible

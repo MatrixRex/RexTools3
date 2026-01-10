@@ -26,7 +26,16 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         row = box.row(align=True)
         row.prop(common, "clean_modifiers_all", text="All", toggle=True)
         row.prop(common, "clean_modifiers_hidden", text="Hidden", toggle=True)
+        layout.separator()
         
+        # Debugging Notifications
+        box = layout.box()
+        box.label(text="Debug Notifications:", icon='INFO')
+        grid = box.grid_flow(columns=2, align=True)
+        grid.operator("rextools3.debug_toast", text="Info").type = 'INFO'
+        grid.operator("rextools3.debug_toast", text="Success").type = 'SUCCESS'
+        grid.operator("rextools3.debug_toast", text="Warning").type = 'WARNING'
+        grid.operator("rextools3.debug_toast", text="Error").type = 'ERROR'
 
         
         

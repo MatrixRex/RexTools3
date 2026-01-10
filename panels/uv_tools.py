@@ -19,12 +19,4 @@ class REXTools3UVPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Seams", icon='STRANDS')
         col = box.column(align=True)
-        col.operator("rextools3.uv_from_sharp", text="From Sharp", icon='MOD_EDGESPLIT')
-        
-        layout.separator()
-        
-        # Section 2: Cleanup Tools
-        box = layout.box()
-        box.label(text="Cleanup Tools", icon='BRUSH_DATA')
-        col = box.column(align=True)
-        col.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')
+        col.operator("rextools3.uv_from_sharp", text="Seam From Sharp", icon='MOD_EDGESPLIT')

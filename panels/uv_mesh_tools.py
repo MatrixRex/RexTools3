@@ -21,29 +21,25 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         live_unwrap = tool.use_edge_path_live_unwrap
         
         box = layout.box()
-        box.label(text="Seam", icon='OPTIONS')
+        box.label(text="Seam", icon='STRANDS')
         
         box2 = box.box()
-        
-        
         box2.operator("rextools3.uv_area_seam", text="Area Seam")
         row = box2.row(align=True)
-        
-        
         row.operator("wm.toggle_clear_inner_seam", depress=wm.clear_inner_uv_area_seam, text="Clear Inner")
         row.operator("wm.toggle_reseam_loop", depress=wm.reseam_uv_area_seam, text="Reseam")
-        
         
         box3 = box.box()
         col = box3.column(align=True)
         col.operator("mesh.uv_angle_loop_seam", text="Angle Loop Seam", icon='ORIENTATION_NORMAL')
-
-        # Toggle button styled with depress state
         row = box3.row(align=True)
-        row.operator(
-            "wm.toggle_stop_at_seam",
-            depress=wm.stop_loop_at_seam
-        )
+        row.operator("wm.toggle_stop_at_seam", depress=wm.stop_loop_at_seam)
+
+        # Added: Seam from Island and From Sharp in the Seam section
+        box4 = box.box()
+        col = box4.column(align=True)
+        col.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
+        col.operator("rextools3.uv_from_sharp", text="Seam From Sharp", icon='MOD_EDGESPLIT')
         
         layout.operator("rextools3.uv_seam_area_by_angle_modal", text="Area Seam by angle")
         
@@ -58,13 +54,6 @@ class REXTools3MeshUVPanel(bpy.types.Panel):
         )
         box.operator_context = 'EXEC_DEFAULT'
         box.operator("uv.follow_active_quads", text="Quad Follow").mode = 'LENGTH_AVERAGE'
-        box.separator()
-        box.operator("rextools3.mark_seams_from_islands", text="Seam From Island")
-        
-        # Added: mark sharp edges as seams and clear seams
-        row = box.row(align=True)
-        row.operator("rextools3.uv_from_sharp", text="From Sharp", icon='MOD_EDGESPLIT')
-        row.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')
         
             
 

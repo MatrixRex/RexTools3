@@ -129,19 +129,3 @@ class MESH_OT_checker_dissolve(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_PT_mesh_cleanup(Panel):
-    bl_label = "Mesh Cleanup"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "RexTools3"
-
-    @classmethod
-    def poll(cls, context):
-        return (
-            context.active_object is not None and
-            context.active_object.type == 'MESH' and
-            context.mode == 'EDIT_MESH'
-        )
-
-    def draw(self, context):
-        self.layout.operator(MESH_OT_checker_dissolve.bl_idname, icon='MOD_DECIM')

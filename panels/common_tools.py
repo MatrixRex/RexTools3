@@ -21,14 +21,6 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         
         layout.separator()
         
-        common = context.scene.rex_common_settings
-        box = layout.box()
-        box.operator("rextools3.clean_modifiers", text="Clean Modifiers")
-        row = box.row(align=True)
-        row.prop(common, "clean_modifiers_all", text="All", toggle=True)
-        row.prop(common, "clean_modifiers_hidden", text="Hidden", toggle=True)
-        layout.separator()
-        
         # Debugging Notifications
         box = layout.box()
         box.label(text="Debug Notifications:", icon='INFO')

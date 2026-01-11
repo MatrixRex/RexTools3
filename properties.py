@@ -55,130 +55,49 @@ def update_channel_map(self, context, input_name):
         'Emission': 'Emission Color',
     }
     actual_socket_name = socket_map.get(input_name, input_name)
-    inp = principled.inputs.get(actual_socket_name)
+    
+    # Target socket for texture linking
+    # For Roughness, Metallic, Alpha, AO, we link to a helper node first
+    math_node = nodes.get(f"{input_name}Math")
+    ao_add = nodes.get("AOAdd")
+    em_mix = nodes.get("EmissionTintMix")
+    
+    target_sock = None
+    if math_node:
+        target_sock = math_node.inputs[0]
+    elif input_name == 'AO' and ao_add:
+        target_sock = ao_add.inputs[0]
+    elif input_name == 'Emission' and em_mix:
+        target_sock = em_mix.inputs.get('A') or em_mix.inputs[0]
+    else:
+        # Fallback to direct BSDF socket
+        target_sock = principled.inputs.get(actual_socket_name)
 
-    # Find the Image Texture node we created
-    # Prioritize exact names like 'BaseTex', 'AOTex', or '{slot}Tex'
+    if not target_sock:
+        return
+
+    # Find relevant image texture node
     target_name = "BaseTex" if input_name == 'Base Color' else ("AOTex" if input_name == 'AO' else f"{input_name}Tex")
     tex_node = nodes.get(target_name)
-    
-    # Fallback to older naming if exact match fails
-    if not tex_node:
-        tex_node = next((n for n in nodes 
-                         if n.type=='TEX_IMAGE' and (n.name==f"PBR Tex {input_name}" or (input_name == 'AO' and "AO" in n.name))), 
-                        None)
-    
     if not tex_node:
         return
 
     chan = getattr(self, f"{input_name.lower()}_channel")
 
-    # — Handle Alpha channel on its own —
-    if input_name == 'Alpha':
-        # 1) clear existing links into Alpha socket
-        for link in list(inp.links):
-            links.remove(link)
+    # 1) Clear existing links into target socket
+    for link in list(target_sock.links):
+        links.remove(link)
 
-        # 2) full = Color output, A = direct Alpha output, else AOSplit
-        if chan in ('FULL', 'A'):
-            # Remove existing split node if we are switching to full/alpha
-            sep = nodes.get(f"{input_name}Split")
-            if sep: nodes.remove(sep)
-            
-            if chan == 'FULL':
-                links.new(tex_node.outputs['Color'], inp)
-            else: # 'A'
-                links.new(tex_node.outputs['Alpha'], inp)
-        else:
-            sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
-            sep.name = f"{input_name}Split"
-            sep.location = (tex_node.location.x + 150, tex_node.location.y)
-            if sep.inputs['Image'].is_linked:
-                links.remove(sep.inputs['Image'].links[0])
-            links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-            links.new(sep.outputs[chan], inp)
-
-        mat.blend_method = 'BLEND'
-        bpy.ops.pbr.arrange_nodes()
-        return
-
-    # AO uses the AOAdd -> AOMix chain
-    if input_name == 'AO':
-        add_node = nodes.get("AOAdd")
-        if not add_node: return
-        
-        target_sock = add_node.inputs[0]
-        if target_sock.is_linked:
-            links.remove(target_sock.links[0])
-            
-        if chan in ('FULL', 'A'):
-            # Cleanup split node
-            sep = nodes.get("AOSplit")
-            if sep: nodes.remove(sep)
-            
-            if chan == 'FULL':
-                links.new(tex_node.outputs['Color'], target_sock)
-            else: # 'A'
-                links.new(tex_node.outputs['Alpha'], target_sock)
-        else:
-            sep = nodes.get("AOSplit") or nodes.new('ShaderNodeSeparateRGB')
-            sep.name = "AOSplit"
-            sep.location = (tex_node.location.x + 150, tex_node.location.y)
-            if sep.inputs['Image'].is_linked:
-                links.remove(sep.inputs['Image'].links[0])
-            links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-            links.new(sep.outputs[chan], target_sock)
-        bpy.ops.pbr.arrange_nodes()
-        return
-
-    # Emission uses the EmissionTintMix node
-    if input_name == 'Emission':
-        mix = nodes.get("EmissionTintMix")
-        if not mix: return
-        
-        target_sock = mix.inputs.get('A') or mix.inputs[0] # ShaderNodeMix uses A/B
-        if target_sock.is_linked:
-            links.remove(target_sock.links[0])
-            
-        if chan in ('FULL', 'A'):
-            # Cleanup split node
-            sep = nodes.get("EmissionSplit")
-            if sep: nodes.remove(sep)
-            
-            if chan == 'FULL':
-                links.new(tex_node.outputs['Color'], target_sock)
-            else: # 'A'
-                links.new(tex_node.outputs['Alpha'], target_sock)
-        else:
-            sep = nodes.get("EmissionSplit") or nodes.new('ShaderNodeSeparateRGB')
-            sep.name = "EmissionSplit"
-            sep.location = (tex_node.location.x + 150, tex_node.location.y)
-            if sep.inputs['Image'].is_linked:
-                links.remove(sep.inputs['Image'].links[0])
-            links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-            links.new(sep.outputs[chan], target_sock)
-        bpy.ops.pbr.arrange_nodes()
-        return
-
-    # Roughness & Metallic use the Math node
-    math = nodes.get(f"{input_name}Math")
-    if not math:
-        return
-
-    # Remove old connection into math.inputs[0]
-    if math.inputs[0].is_linked:
-        links.remove(math.inputs[0].links[0])
-
-    # Full or Alpha directly from the texture
+    # 2) Full or A directly from the texture
     if chan in ('FULL', 'A'):
         # Cleanup split node
         sep = nodes.get(f"{input_name}Split")
         if sep: nodes.remove(sep)
         
         if chan == 'FULL':
-            links.new(tex_node.outputs['Color'], math.inputs[0])
+            links.new(tex_node.outputs['Color'], target_sock)
         else: # 'A'
-            links.new(tex_node.outputs['Alpha'], math.inputs[0])
+            links.new(tex_node.outputs['Alpha'], target_sock)
     else:
         sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
         sep.name = f"{input_name}Split"
@@ -186,7 +105,13 @@ def update_channel_map(self, context, input_name):
         if sep.inputs['Image'].is_linked:
             links.remove(sep.inputs['Image'].links[0])
         links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-        links.new(sep.outputs[chan], math.inputs[0])
+        links.new(sep.outputs[chan], target_sock)
+
+    if input_name == 'Alpha':
+        mat.blend_method = 'BLEND'
+    
+    bpy.ops.pbr.arrange_nodes()
+    return
     
     bpy.ops.pbr.arrange_nodes()
 
@@ -235,14 +160,19 @@ def update_strength(self, context, input_name):
             principled.inputs['Emission Strength'].default_value = float(getattr(self, "emission_strength", 1.0))
         return
 
+    # Check for both slot-named Math node and generic principled input fallback
     math = nodes.get(f"{input_name}Math")
-    if not math:
-        return
-    value = getattr(self, f"{input_name.lower()}_strength", 1.0)
-    try:
-        math.inputs[1].default_value = float(value)
-    except Exception:
-        pass
+    if math:
+        value = getattr(self, f"{input_name.lower()}_strength", 1.0)
+        try:
+            math.inputs[1].default_value = float(value)
+        except Exception:
+            pass
+    elif input_name == 'Alpha':
+        # Fallback for Alpha if no node exists yet (direct BSDF input)
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if principled:
+            principled.inputs['Alpha'].default_value = float(getattr(self, "alpha_strength", 1.0))
 
 
 class BoneRenameProperties(PropertyGroup):
@@ -282,6 +212,11 @@ class PBRMaterialSettings(PropertyGroup):
         name="Metallic Strength",
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'Metallic')
+    )
+    alpha_strength: FloatProperty(
+        name="Alpha Strength",
+        default=1.0, min=0.0, max=1.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'Alpha')
     )
     ao_strength: FloatProperty(
         name="AO Strength",

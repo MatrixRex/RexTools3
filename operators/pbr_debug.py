@@ -6,6 +6,7 @@ from ..core import notify
 class PBR_OT_DebugPreview(Operator):
     bl_idname = "pbr.debug_preview"
     bl_label = "Debug Preview"
+    bl_description = "Preview texture outputs directly or mixed through an Emission shader"
     bl_options = {'REGISTER', 'UNDO'}
 
     _active_toast = None # Persistent toast reference
@@ -171,6 +172,19 @@ class PBR_OT_DebugPreview(Operator):
                 print(f"DEBUG: Success! Found '{slot}' -> '{node.name}'")
                 # Try Result (Mix) then Value (Math)
                 return node.outputs.get('Result', node.outputs.get('Value', node.outputs[0]))
+            
+        elif slot == 'Alpha':
+            # Check for AlphaMath (Strength) node first
+            node = find_node("AlphaMath", "Alpha Strength")
+            if node:
+                print(f"DEBUG: Success! Found '{slot}' (Math) -> '{node.name}'")
+                return node.outputs.get('Value', node.outputs[0])
+            
+            # Fallback to texture
+            node = find_node("AlphaTex", "Alpha Texture")
+            if node: 
+                print(f"DEBUG: Success! Found '{slot}' (Texture) -> '{node.name}'")
+                return node.outputs.get('Color', node.outputs[0])
             
         print(f"DEBUG: FAILED to find target for slot '{slot}' in mode '{mode}'")
         return None

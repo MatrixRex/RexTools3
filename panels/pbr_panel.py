@@ -186,7 +186,7 @@ class PBR_PT_MaterialPanel(Panel):
 
             # If already linked, show remove + controls
             if linked:
-                row.operator("pbr.remove_texture", text="", icon='X').input_name = socket
+                row.operator("pbr.remove_texture", text="", icon='TRASH').input_name = socket
                 
                 name = "Unknown"
                 if src_node:
@@ -196,7 +196,32 @@ class PBR_PT_MaterialPanel(Panel):
                     else:
                         name = src_node.type.replace('_', ' ').title()
                 
-                box.label(text=f"Texture: {name}")
+                # ─── Consolidated Header Row (Name | Channel | Debug) ───
+                # Use a split to give the name priority on the left
+                split = box.row(align=True).split(factor=0.6)
+                
+                # Left Column: Texture Name
+                split.label(text=name, icon='IMAGE_DATA')
+                
+                # Right Column: Channel + Debug Buttons (Anchored Right)
+                right_row = split.row(align=True)
+                right_row.alignment = 'RIGHT'
+                
+                if socket not in ("Base Color", "Normal"):
+                    right_row.prop(mat.pbr_settings, f"{socket.lower()}_channel", text="")
+                
+                # Debug Buttons
+                d_op = right_row.operator("pbr.debug_preview", text="", icon='SEQ_SPLITVIEW', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'DIRECT'))
+                d_op.slot = label
+                d_op.mode = 'DIRECT'
+                
+                if label in ("Base Color", "Normal", "Emission"):
+                    m_op = right_row.operator("pbr.debug_preview", text="", icon='SHADING_RENDERED', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'MIXED'))
+                    m_op.slot = label
+                    m_op.mode = 'MIXED'
+                
+                if is_preview:
+                    right_row.operator("pbr.clear_debug_preview", text="", icon='X')
 
                 # Per-socket extra controls
                 if socket == "Base Color":
@@ -219,11 +244,9 @@ class PBR_PT_MaterialPanel(Panel):
                             r.prop(tint_sock, "default_value", text="Tint")
                             r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'EMISSION'
                     box.prop(mat.pbr_settings, "emission_strength", text="Strength")
-                elif socket in ("Roughness", "Metallic", "AO"):
+                elif socket in ("Roughness", "Metallic", "AO", "Alpha"):
                     key = socket.lower() + "_strength"
                     box.prop(mat.pbr_settings, key, text="Strength", slider=True)
-                elif socket == "Alpha":
-                    box.prop(principled.inputs['Alpha'], "default_value", text="Alpha")
 
             # If not linked, show assign UI
             else:
@@ -243,32 +266,7 @@ class PBR_PT_MaterialPanel(Panel):
                     else:
                         box.prop(principled.inputs[socket], "default_value", text="Value")
 
-            # ─── Channel dropdown (always shown for non-BaseColor, non-Normal) ───
-            if socket not in ("Base Color", "Normal"):
-                box.prop(
-                    mat.pbr_settings,
-                    f"{socket.lower()}_channel",
-                    text="Channel"
-                )
-            
-            # ─── Debug Buttons (if linked) ───
-            if linked:
-                row = box.row(align=True)
-                row.label(text="Debug Preview:", icon='VIEWZOOM')
-                
-                # Direct
-                d_op = row.operator("pbr.debug_preview", text="Direct", depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'DIRECT'))
-                d_op.slot = label
-                d_op.mode = 'DIRECT'
-                
-                # Mixed
-                if label in ("Base Color", "Normal", "Emission"):
-                    m_op = row.operator("pbr.debug_preview", text="Mixed", depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'MIXED'))
-                    m_op.slot = label
-                    m_op.mode = 'MIXED'
-                
-                if is_preview:
-                    row.operator("pbr.clear_debug_preview", text="", icon='X')
+
 
         # Material settings footer
         layout.separator()

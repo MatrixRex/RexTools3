@@ -30,12 +30,12 @@ class PBR_OT_ResetTint(Operator):
             if tint_node:
                 sock = tint_node.inputs.get('B') or tint_node.inputs.get('Color2')
                 if sock:
-                    sock.default_value = (1.0, 1.0, 1.0, 1.0)
+                    sock.default_value = (0.0, 0.0, 0.0, 1.0)
                     return {'FINISHED'}
             
             principled = next((n for n in nodes if n.type=='BSDF_PRINCIPLED'), None)
             if principled:
-                principled.inputs['Emission Color'].default_value = (1.0, 1.0, 1.0, 1.0)
+                principled.inputs['Emission Color'].default_value = (0.0, 0.0, 0.0, 1.0)
             return {'FINISHED'}
 
         # Default BASE logic

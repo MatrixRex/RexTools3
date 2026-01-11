@@ -11,6 +11,9 @@ class PBR_OT_RemoveTexture(Operator):
     input_name: StringProperty()
 
     def execute(self, context):
+        # Clear debug preview if active
+        bpy.ops.pbr.clear_debug_preview()
+
         obj = context.active_object
         if not obj or not obj.active_material:
             self.report({'WARNING'}, "No active material")

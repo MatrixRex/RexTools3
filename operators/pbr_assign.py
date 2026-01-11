@@ -280,11 +280,41 @@ class PBR_OT_AssignTexture(Operator):
             links.new(nm.outputs['Normal'], principled.inputs['Normal'])
             return True
 
-        if input_name == 'Alpha':
-            links.new(tex_node.outputs['Color'], principled.inputs['Alpha'])
-            material.blend_method = 'BLEND'
-            return True
+        if input_name == 'Alpha' or (input_name == 'Base Color' and not settings.use_separate_alpha_map):
+            # Alpha Strength/Math node
+            math = nodes.get("AlphaMath") or nodes.new('ShaderNodeMath')
+            math.name = "AlphaMath"
+            math.label = "Alpha Strength"
+            math.operation = 'MULTIPLY'
+            math.use_clamp = True
+            math.location = (-150, y if input_name == 'Alpha' else -200)
+            
+            # Source for Alpha
+            if input_name == 'Alpha':
+                src = tex_node.outputs['Color']
+                # Apply channel mapping if needed
+                chan = settings.alpha_channel
+                if chan == 'A':
+                    src = tex_node.outputs['Alpha']
+                elif chan != 'FULL':
+                    sep = nodes.get("AlphaSplit") or nodes.new('ShaderNodeSeparateRGB')
+                    sep.name = "AlphaSplit"
+                    sep.label = "Alpha Channel Split"
+                    sep.location = (-350, y)
+                    links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+                    src = sep.outputs[chan]
+                links.new(src, math.inputs[0])
+                material.blend_method = 'BLEND'
+            else:
+                # Coming from Base Color's alpha channel
+                links.new(tex_node.outputs['Alpha'], math.inputs[0])
+                material.blend_method = 'HASHED'
 
+            math.inputs[1].default_value = settings.alpha_strength
+            links.new(math.outputs['Value'], principled.inputs['Alpha'])
+            
+            if input_name == 'Alpha':
+                return True
         if input_name == 'Base Color':
             mix = nodes.new('ShaderNodeMix')
             mix.name = "BaseTintMix"
@@ -297,8 +327,7 @@ class PBR_OT_AssignTexture(Operator):
             mix.inputs['B'].default_value = current_tint
             links.new(mix.outputs['Result'], principled.inputs['Base Color'])
             if not settings.use_separate_alpha_map:
-                links.new(tex_node.outputs['Alpha'], principled.inputs['Alpha'])
-                material.blend_method = 'HASHED'
+                pass # Already handled by AlphaMath logic above
             return True
 
         if input_name == 'AO':

@@ -79,6 +79,15 @@ class PBR_PT_MaterialPanel(Panel):
 
         layout.separator()
 
+        # Debug Preview Active Alert
+        if mat.pbr_settings.debug_preview_mode != 'OFF':
+            box = layout.box()
+            box.alert = True
+            row = box.row()
+            row.label(text=f"DEBUG PREVIEW: {mat.pbr_settings.debug_preview_slot} ({mat.pbr_settings.debug_preview_mode.title()})", icon='VIEWZOOM')
+            row.operator("pbr.clear_debug_preview", text="Clear", icon='X')
+            layout.separator()
+
         # Build our list of sockets
         inputs = [
             ("Base Color", "Base Color", "sRGB"),
@@ -96,7 +105,13 @@ class PBR_PT_MaterialPanel(Panel):
 
         # Draw each socket block
         for label, socket, colorspace in inputs:
+            # Highlight active preview
+            is_preview = (mat.pbr_settings.debug_preview_slot == label and mat.pbr_settings.debug_preview_mode != 'OFF')
+            
             box = layout.box()
+            if is_preview:
+                box.alert = True
+                
             row = box.row()
             row.label(text=label, icon='TEXTURE')
             
@@ -235,6 +250,25 @@ class PBR_PT_MaterialPanel(Panel):
                     f"{socket.lower()}_channel",
                     text="Channel"
                 )
+            
+            # ─── Debug Buttons (if linked) ───
+            if linked:
+                row = box.row(align=True)
+                row.label(text="Debug Preview:", icon='VIEWZOOM')
+                
+                # Direct
+                d_op = row.operator("pbr.debug_preview", text="Direct", depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'DIRECT'))
+                d_op.slot = label
+                d_op.mode = 'DIRECT'
+                
+                # Mixed
+                if label in ("Base Color", "Normal", "Emission"):
+                    m_op = row.operator("pbr.debug_preview", text="Mixed", depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'MIXED'))
+                    m_op.slot = label
+                    m_op.mode = 'MIXED'
+                
+                if is_preview:
+                    row.operator("pbr.clear_debug_preview", text="", icon='X')
 
         # Material settings footer
         layout.separator()

@@ -331,6 +331,19 @@ class PBRMaterialSettings(PropertyGroup):
         default='FULL',
         update=update_emission_channel
     )
+    debug_preview_mode: EnumProperty(
+        name="Debug Preview Mode",
+        items=[
+            ('OFF', "Off", ""),
+            ('DIRECT', "Direct", ""),
+            ('MIXED', "Mixed", ""),
+        ],
+        default='OFF'
+    )
+    debug_preview_slot: StringProperty(
+        name="Debug Preview Slot",
+        default=""
+    )
 
 
 def update_constraint_type(self, context):

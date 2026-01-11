@@ -259,10 +259,13 @@ class PBR_OT_AssignTexture(Operator):
         tex_node.location = (-400, y)
         if input_name == 'Base Color':
             tex_node.name = "BaseTex"
+            tex_node.label = "Base Color Texture"
         elif input_name == 'AO':
             tex_node.name = "AOTex"
+            tex_node.label = "AO Texture"
         else:
             tex_node.name = f"{input_name}Tex"
+            tex_node.label = f"{input_name} Texture"
             
         settings = material.pbr_settings
 
@@ -270,6 +273,8 @@ class PBR_OT_AssignTexture(Operator):
 
         if input_name == 'Normal':
             nm = nodes.new('ShaderNodeNormalMap')
+            nm.name = "NormalMap"
+            nm.label = "Normal Map Node"
             nm.location = (-150, y)
             links.new(tex_node.outputs['Color'], nm.inputs['Color'])
             links.new(nm.outputs['Normal'], principled.inputs['Normal'])
@@ -283,6 +288,7 @@ class PBR_OT_AssignTexture(Operator):
         if input_name == 'Base Color':
             mix = nodes.new('ShaderNodeMix')
             mix.name = "BaseTintMix"
+            mix.label = "Base Color Tint"
             mix.data_type = 'RGBA'
             mix.blend_type = 'MULTIPLY'
             mix.inputs['Factor'].default_value = 1.0
@@ -299,6 +305,7 @@ class PBR_OT_AssignTexture(Operator):
             # Create the AOMix node (Multiply)
             ao_mix = nodes.new('ShaderNodeMix')
             ao_mix.name = "AOMix"
+            ao_mix.label = "AO Multiply"
             ao_mix.data_type = 'RGBA'
             ao_mix.blend_type = 'MULTIPLY'
             ao_mix.location = (0, y)
@@ -307,6 +314,7 @@ class PBR_OT_AssignTexture(Operator):
             # Create the AOAdd node (Math ADD)
             ao_add = nodes.new('ShaderNodeMath')
             ao_add.name = "AOAdd"
+            ao_add.label = "AO Strength"
             ao_add.operation = 'ADD'
             ao_add.use_clamp = True
             ao_add.location = (-180, y - 50)
@@ -320,6 +328,7 @@ class PBR_OT_AssignTexture(Operator):
             elif chan != 'FULL':
                 sep = nodes.new('ShaderNodeSeparateRGB')
                 sep.name = "AOSplit"
+                sep.label = "AO Channel Split"
                 sep.location = (-350, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]
@@ -346,6 +355,7 @@ class PBR_OT_AssignTexture(Operator):
             # Create EmissionTintMix
             mix = nodes.new('ShaderNodeMix')
             mix.name = "EmissionTintMix"
+            mix.label = "Emission Tint"
             mix.data_type = 'RGBA'
             mix.blend_type = 'MULTIPLY'
             mix.inputs['Factor'].default_value = 1.0
@@ -359,6 +369,7 @@ class PBR_OT_AssignTexture(Operator):
             elif chan != 'FULL':
                 sep = nodes.new('ShaderNodeSeparateRGB')
                 sep.name = "EmissionSplit"
+                sep.label = "Emission Channel Split"
                 sep.location = (-350, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]
@@ -376,6 +387,7 @@ class PBR_OT_AssignTexture(Operator):
         math.use_clamp = True  # keep outputs within 0..1
         math.location = (-150, y)
         math.name = f"{input_name}Math"
+        math.label = f"{input_name} Strength"
 
         chan = getattr(settings, f"{input_name.lower()}_channel")
         if chan == 'FULL':
@@ -386,6 +398,7 @@ class PBR_OT_AssignTexture(Operator):
             else:
                 sep = nodes.new('ShaderNodeSeparateRGB')
                 sep.name = f"{input_name}Split"
+                sep.label = f"{input_name} Channel Split"
                 sep.location = (-250, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]

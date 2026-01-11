@@ -30,4 +30,8 @@ def error(message, title="Error"):
 
 def info(message, title="Info"):
     """Show an info message (Blue)"""
-    _show_message(message, type='INFO', timeout=3.0)
+    return _show_message(message, type='INFO', timeout=3.0)
+
+def sticky_warning(message, title="Sticky Warning"):
+    """Show a persistent warning message that stays until manually hidden"""
+    return _show_message(message, type='WARNING', timeout=None)

@@ -65,7 +65,7 @@ def _derive_stem_from_base(filename_no_ext_lower: str) -> str:
     """
     # allow compound endings like "albedotransparency"
     suffixes = [
-        'albedo', 'basecolor', 'base_color', 'base-colour', 'basecolour',
+        'albedo', 'basecolor', 'base_color', 'base-colour', 'basecolour', 'base',
         'diffuse', 'color', 'colour', 'col',
         'opacity', 'transparency'
     ]
@@ -100,12 +100,19 @@ def _find_matches_in_dir(stem_lower: str, folder: Path, mapping: dict) -> dict:
         # prefer longer suffix tokens
         for suf in sorted(suffixes, key=len, reverse=True):
             for p, n in names:
-                # common pattern in studios: "{stem}_[...]_{suffix}" or "{stem}_{suffix}[...]"
-                if n.startswith(stem_lower) and suf in n:
-                    found = p
-                    break
-            if found:
-                break
+                # Must start with stem (or be exactly the stem if it's the base color)
+                if not n.startswith(stem_lower):
+                    continue
+                
+                # Check for suffix with common separators or as standalone if stem matches
+                # We check for f"_{suf}" or f"-{suf}" to avoid partial matches inside the stem
+                # but we also check if the suffix IS the rest of the string
+                for sep in ('_', '-'):
+                    if f"{sep}{suf}" in n:
+                        found = p
+                        break
+                if found: break
+            if found: break
         if found:
             results[slot] = found
     return results
@@ -141,6 +148,8 @@ class PBR_OT_AssignTexture(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        if self.input_name:
+            self.bl_label = f"Assign {self.input_name}"
         self.filter_image = True
         self.filter_glob = '*.png;*.jpg;*.jpeg;*.tga;*.tif;*.tiff;*.exr;*.bmp;*.webp'
         context.window_manager.fileselect_add(self)
@@ -204,6 +213,23 @@ class PBR_OT_AssignTexture(Operator):
                     if node:
                         try: nodes.remove(node)
                         except: pass
+        elif input_name == 'Emission':
+            # Emission is also special: Emission Color socket
+            inp_sock = principled.inputs.get('Emission Color')
+            if inp_sock and inp_sock.is_linked:
+                to_del = set()
+                gather(inp_sock.links[0].from_node, to_del)
+                for l in list(inp_sock.links):
+                    links.remove(l)
+                for n in to_del:
+                    try: nodes.remove(n)
+                    except: pass
+            # Clean up specifically named helper nodes
+            for name in ["EmissionSplit", "EmissionTintMix", "EmissionTex"]:
+                node = nodes.get(name)
+                if node:
+                    try: nodes.remove(node)
+                    except: pass
         else:
             # Standard BSDF socket logic
             inp_sock = principled.inputs.get(input_name)
@@ -225,6 +251,7 @@ class PBR_OT_AssignTexture(Operator):
             'Normal':     -100,
             'Alpha':      -200,
             'AO':         250,
+            'Emission':   350,
         }
         y = base_pos.get(input_name, 0)
         tex_node = nodes.new('ShaderNodeTexImage')
@@ -315,6 +342,34 @@ class PBR_OT_AssignTexture(Operator):
             links.new(ao_mix.outputs['Result'], bc_inp)
             return True
 
+        if input_name == 'Emission':
+            # Create EmissionTintMix
+            mix = nodes.new('ShaderNodeMix')
+            mix.name = "EmissionTintMix"
+            mix.data_type = 'RGBA'
+            mix.blend_type = 'MULTIPLY'
+            mix.inputs['Factor'].default_value = 1.0
+            mix.location = (-150, y)
+            
+            # Emission source (channeled or full)
+            chan = getattr(settings, "emission_channel")
+            src = tex_node.outputs['Color']
+            if chan == 'A':
+                src = tex_node.outputs['Alpha']
+            elif chan != 'FULL':
+                sep = nodes.new('ShaderNodeSeparateRGB')
+                sep.name = "EmissionSplit"
+                sep.location = (-350, y)
+                links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+                src = sep.outputs[chan]
+            
+            links.new(src, mix.inputs['A'])
+            mix.inputs['B'].default_value = (1.0, 1.0, 1.0, 1.0) # Emission Tint
+            
+            links.new(mix.outputs['Result'], principled.inputs['Emission Color'])
+            principled.inputs['Emission Strength'].default_value = getattr(settings, "emission_strength")
+            return True
+
         # Roughness / Metallic (always via Math node)
         math = nodes.new('ShaderNodeMath')
         math.operation = 'MULTIPLY'
@@ -396,12 +451,14 @@ class PBR_OT_AutoLoadTextures(Operator):
 
 
         # Slot -> acceptable suffix tokens (lowercase)
+        # We now use keywords only; matching logic handles separators like _ or -
         suffix_map = {
-            'Roughness': ['_roughness', '_rough', '_rgh', '_r','_smoothness'],
-            'Metallic':  ['_metallic', '_metal', '_metalness', '_mtl', '_m', '_metalSmoothness'],
-            'Normal':    ['_normal', '_norm', '_nrm', '_normalgl', '_normal_dx', '_normal_ogl','_n'],
-            'Alpha':     ['_alpha', '_opacity', '_transparency'],
-            'AO':        ['_ao', '_ambientocclusion', '_ambient_occlusion', '_occ'],
+            'Roughness': ['roughness', 'rough', 'rgh', 'smoothness', 'gloss', 'glossiness'],
+            'Metallic':  ['metallic', 'metal', 'metalness', 'mtl', 'metalsmoothness'],
+            'Normal':    ['normal', 'norm', 'nrm', 'normalgl', 'normal_dx', 'normal_ogl', 'nmap', 'nm', 'bump'],
+            'Alpha':     ['alpha', 'opacity', 'transparency'],
+            'AO':        ['ao', 'ambientocclusion', 'ambient_occlusion', 'occ'],
+            'Emission':  ['emissive', 'emission', 'emit', 'glow'],
         }
 
         matches = _find_matches_in_dir(stem_lower, folder, suffix_map)

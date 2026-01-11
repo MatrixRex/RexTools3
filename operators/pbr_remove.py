@@ -69,7 +69,11 @@ class PBR_OT_RemoveTexture(Operator):
                     except: pass
             return {'FINISHED'}
 
-        inp_socket = principled.inputs.get(self.input_name)
+        if self.input_name == 'Emission':
+            inp_socket = principled.inputs.get('Emission Color')
+        else:
+            inp_socket = principled.inputs.get(self.input_name)
+
         if not inp_socket or not inp_socket.is_linked:
             return {'FINISHED'}
 
@@ -101,7 +105,7 @@ class PBR_OT_RemoveTexture(Operator):
 
         # ─── Cleanup any leftover channel-packing nodes ───────────────────
         # Remove our named SeparateRGB and Math nodes if they remain
-        for node_name in (f"{self.input_name}Split", f"{self.input_name}Math"):
+        for node_name in (f"{self.input_name}Split", f"{self.input_name}Math", "EmissionTintMix"):
             leftover = nodes.get(node_name)
             if leftover:
                 try:

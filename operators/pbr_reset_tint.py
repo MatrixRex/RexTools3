@@ -8,6 +8,14 @@ class PBR_OT_ResetTint(Operator):
     bl_label = "Reset Tint"
     bl_options = {'UNDO'}
 
+    mode: bpy.props.EnumProperty(
+        items=[
+            ('BASE', "Base Color", ""),
+            ('EMISSION', "Emission", ""),
+        ],
+        default='BASE'
+    )
+
     def execute(self, context):
         obj = context.active_object
         if not obj or not obj.active_material:
@@ -17,6 +25,20 @@ class PBR_OT_ResetTint(Operator):
             return {'CANCELLED'}
 
         nodes = mat.node_tree.nodes
+        if self.mode == 'EMISSION':
+            tint_node = nodes.get("EmissionTintMix")
+            if tint_node:
+                sock = tint_node.inputs.get('B') or tint_node.inputs.get('Color2')
+                if sock:
+                    sock.default_value = (1.0, 1.0, 1.0, 1.0)
+                    return {'FINISHED'}
+            
+            principled = next((n for n in nodes if n.type=='BSDF_PRINCIPLED'), None)
+            if principled:
+                principled.inputs['Emission Color'].default_value = (1.0, 1.0, 1.0, 1.0)
+            return {'FINISHED'}
+
+        # Default BASE logic
         # 1. Look for the named Tint node directly
         tint_node = nodes.get("BaseTintMix")
         

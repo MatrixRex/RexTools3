@@ -85,6 +85,7 @@ class PBR_PT_MaterialPanel(Panel):
             ("Normal",     "Normal",     "Non-Color"),
             ("Roughness",  "Roughness",  "Non-Color"),
             ("Metallic",   "Metallic",   "Non-Color"),
+            ("Emission",   "Emission",   "sRGB"),
         ]
         if mat.pbr_settings.use_separate_alpha_map:
             inputs.append(("Alpha", "Alpha", "Non-Color"))
@@ -121,6 +122,18 @@ class PBR_PT_MaterialPanel(Panel):
                         # Move backwards through 'A' slot
                         a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
                         curr = a_sock.links[0].from_node if a_sock and a_sock.is_linked else None
+            elif socket == "Emission":
+                em_inp = principled.inputs.get("Emission Color")
+                if em_inp and em_inp.is_linked:
+                    linked = True
+                    curr = em_inp.links[0].from_node
+                    if curr.name == "EmissionTintMix":
+                        # Texture is behind the tint mix
+                        a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                        if a_sock and a_sock.is_linked:
+                            src_node = a_sock.links[0].from_node
+                    else:
+                        src_node = curr
             else:
                 inp = principled.inputs.get(socket)
                 if not inp:
@@ -178,10 +191,19 @@ class PBR_PT_MaterialPanel(Panel):
                         tint_sock = tint_node.inputs.get('B') or tint_node.inputs.get('Color2')
                         if tint_sock:
                             r.prop(tint_sock, "default_value", text="Tint")
-                            r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
+                            r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'BASE'
 
                 elif socket == "Normal" and src_node.type == 'NORMAL_MAP':
                     box.prop(src_node.inputs['Strength'], "default_value", text="Strength")
+                elif socket == "Emission":
+                    tint_node = nodes.get("EmissionTintMix")
+                    if tint_node:
+                        r = box.row(align=True)
+                        tint_sock = tint_node.inputs.get('B') or tint_node.inputs.get('Color2')
+                        if tint_sock:
+                            r.prop(tint_sock, "default_value", text="Tint")
+                            r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'EMISSION'
+                    box.prop(mat.pbr_settings, "emission_strength", text="Strength")
                 elif socket in ("Roughness", "Metallic", "AO"):
                     key = socket.lower() + "_strength"
                     box.prop(mat.pbr_settings, key, text="Strength", slider=True)
@@ -198,7 +220,11 @@ class PBR_PT_MaterialPanel(Panel):
                     if socket == "Base Color":
                         r = box.row(align=True)
                         r.prop(principled.inputs['Base Color'], "default_value", text="Color")
-                        r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH')
+                        r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'BASE'
+                    elif socket == "Emission":
+                        r = box.row(align=True)
+                        r.prop(principled.inputs['Emission Color'], "default_value", text="Color")
+                        r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'EMISSION'
                     else:
                         box.prop(principled.inputs[socket], "default_value", text="Value")
 

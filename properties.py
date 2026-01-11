@@ -45,10 +45,17 @@ def update_channel_map(self, context, input_name):
         return
 
     # AO is not a direct socket on BSDF, so we skip the socket check for it
-    if input_name != 'AO':
+    if input_name not in ('AO', 'Emission'):
         inp = principled.inputs.get(input_name)
         if not inp or not inp.is_linked:
             return
+    
+    # Map input name to actual BSDF socket name
+    socket_map = {
+        'Emission': 'Emission Color',
+    }
+    actual_socket_name = socket_map.get(input_name, input_name)
+    inp = principled.inputs.get(actual_socket_name)
 
     # Find the Image Texture node we created
     # Prioritize exact names like 'BaseTex', 'AOTex', or '{slot}Tex'
@@ -124,6 +131,35 @@ def update_channel_map(self, context, input_name):
         bpy.ops.pbr.arrange_nodes()
         return
 
+    # Emission uses the EmissionTintMix node
+    if input_name == 'Emission':
+        mix = nodes.get("EmissionTintMix")
+        if not mix: return
+        
+        target_sock = mix.inputs.get('A') or mix.inputs[0] # ShaderNodeMix uses A/B
+        if target_sock.is_linked:
+            links.remove(target_sock.links[0])
+            
+        if chan in ('FULL', 'A'):
+            # Cleanup split node
+            sep = nodes.get("EmissionSplit")
+            if sep: nodes.remove(sep)
+            
+            if chan == 'FULL':
+                links.new(tex_node.outputs['Color'], target_sock)
+            else: # 'A'
+                links.new(tex_node.outputs['Alpha'], target_sock)
+        else:
+            sep = nodes.get("EmissionSplit") or nodes.new('ShaderNodeSeparateRGB')
+            sep.name = "EmissionSplit"
+            sep.location = (tex_node.location.x + 150, tex_node.location.y)
+            if sep.inputs['Image'].is_linked:
+                links.remove(sep.inputs['Image'].links[0])
+            links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+            links.new(sep.outputs[chan], target_sock)
+        bpy.ops.pbr.arrange_nodes()
+        return
+
     # Roughness & Metallic use the Math node
     math = nodes.get(f"{input_name}Math")
     if not math:
@@ -171,6 +207,10 @@ def update_ao_channel(self, context):
     update_channel_map(self, context, 'AO')
 
 
+def update_emission_channel(self, context):
+    update_channel_map(self, context, 'Emission')
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Strength updates (Roughness/Metallic)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +226,13 @@ def update_strength(self, context, input_name):
         if node:
             # Math node ADD: input[1] is the value to add
             node.inputs[1].default_value = 1.0 - float(getattr(self, "ao_strength", 1.0))
+        return
+
+    if input_name == 'Emission':
+        # For Emission, strength often goes to the BSDF socket directly
+        principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if principled:
+            principled.inputs['Emission Strength'].default_value = float(getattr(self, "emission_strength", 1.0))
         return
 
     math = nodes.get(f"{input_name}Math")
@@ -241,6 +288,11 @@ class PBRMaterialSettings(PropertyGroup):
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'AO')
     )
+    emission_strength: FloatProperty(
+        name="Emission Strength",
+        default=1.0, min=0.0, max=1000.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'Emission')
+    )
 
     channel_items = [
         ('FULL', "Full", "Use full RGBA"),
@@ -272,6 +324,12 @@ class PBRMaterialSettings(PropertyGroup):
         items=channel_items,
         default='FULL',
         update=update_ao_channel
+    )
+    emission_channel: EnumProperty(
+        name="Emission Channel",
+        items=channel_items,
+        default='FULL',
+        update=update_emission_channel
     )
 
 

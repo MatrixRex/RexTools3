@@ -95,12 +95,12 @@ def update_channel_map(self, context, input_name):
         bpy.ops.pbr.arrange_nodes()
         return
 
-    # AO uses the AOMix node
+    # AO uses the AOAdd -> AOMix chain
     if input_name == 'AO':
-        mix = nodes.get("AOMix")
-        if not mix: return
+        add_node = nodes.get("AOAdd")
+        if not add_node: return
         
-        target_sock = mix.inputs.get('B') or mix.inputs[2] 
+        target_sock = add_node.inputs[0]
         if target_sock.is_linked:
             links.remove(target_sock.links[0])
             
@@ -182,11 +182,10 @@ def update_strength(self, context, input_name):
     nodes = mat.node_tree.nodes
 
     if input_name == 'AO':
-        node = nodes.get("AOMix")
+        node = nodes.get("AOAdd")
         if node:
-            # Modern Mix node stores Factor in inputs[0] or named 'Factor'
-            sock = node.inputs.get('Factor') or node.inputs[0]
-            sock.default_value = float(getattr(self, "ao_strength", 1.0))
+            # Math node ADD: input[1] is the value to add
+            node.inputs[1].default_value = 1.0 - float(getattr(self, "ao_strength", 1.0))
         return
 
     math = nodes.get(f"{input_name}Math")

@@ -60,7 +60,7 @@ class PBR_OT_RemoveTexture(Operator):
                     gather_local(b_sock.links[0].from_node, to_remove)
                 
                 # Clean up specifically named helper nodes if they weren't caught
-                for name in ["AOSplit", "AOMath"]:
+                for name in ["AOSplit", "AOAdd", "AOMath"]:
                     node = nodes.get(name)
                     if node: to_remove.add(node)
 

@@ -199,7 +199,7 @@ class PBR_OT_AssignTexture(Operator):
                     try: nodes.remove(n)
                     except: pass
                 # Clean up the specific named helper nodes too
-                for name in ["AOSplit", "AOMix", "AOTex"]:
+                for name in ["AOSplit", "AOMix", "AOAdd", "AOTex"]:
                     node = nodes.get(name)
                     if node:
                         try: nodes.remove(node)
@@ -269,14 +269,22 @@ class PBR_OT_AssignTexture(Operator):
             return True
 
         if input_name == 'AO':
-            # Create the AOMix node
+            # Create the AOMix node (Multiply)
             ao_mix = nodes.new('ShaderNodeMix')
             ao_mix.name = "AOMix"
             ao_mix.data_type = 'RGBA'
             ao_mix.blend_type = 'MULTIPLY'
-            ao_mix.location = (-50, y)
-            ao_mix.inputs['Factor'].default_value = getattr(settings, "ao_strength")
+            ao_mix.location = (0, y)
+            ao_mix.inputs['Factor'].default_value = 1.0
             
+            # Create the AOAdd node (Math ADD)
+            ao_add = nodes.new('ShaderNodeMath')
+            ao_add.name = "AOAdd"
+            ao_add.operation = 'ADD'
+            ao_add.use_clamp = True
+            ao_add.location = (-180, y - 50)
+            ao_add.inputs[1].default_value = 1.0 - getattr(settings, "ao_strength")
+
             # AO source (channeled or full)
             chan = getattr(settings, "ao_channel")
             src = tex_node.outputs['Color']
@@ -285,11 +293,18 @@ class PBR_OT_AssignTexture(Operator):
             elif chan != 'FULL':
                 sep = nodes.new('ShaderNodeSeparateRGB')
                 sep.name = "AOSplit"
-                sep.location = (-250, y)
+                sep.location = (-350, y)
                 links.new(tex_node.outputs['Color'], sep.inputs['Image'])
                 src = sep.outputs[chan]
             
-            # Mix Setup: slot A (Base Color chain) * slot B (AO) -> BSDF
+            # Chain Setup
+            # Link texture/channel to AOAdd
+            links.new(src, ao_add.inputs[0])
+
+            # Link AOAdd to AOMix Slot B
+            links.new(ao_add.outputs['Value'], ao_mix.inputs['B'])
+
+            # Mix Setup: slot A (Base Color chain) * slot B (AO Result) -> BSDF
             bc_inp = principled.inputs['Base Color']
             if bc_inp.is_linked:
                 old_out = bc_inp.links[0].from_socket
@@ -297,7 +312,6 @@ class PBR_OT_AssignTexture(Operator):
             else:
                 ao_mix.inputs['A'].default_value = bc_inp.default_value
                 
-            links.new(src, ao_mix.inputs['B'])
             links.new(ao_mix.outputs['Result'], bc_inp)
             return True
 

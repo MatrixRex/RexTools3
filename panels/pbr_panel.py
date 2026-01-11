@@ -47,9 +47,11 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", icon='ADD')
             return
 
-        # Header: separate-alpha toggle
-        box = layout.box()
-        box.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
+        # Header
+        row = layout.row(align=True)
+        row.prop(mat, "name", text="Material")
+        row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
+        
         layout.separator()
 
         # Ensure nodes
@@ -64,18 +66,16 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
-        # Top row: material name + arrange button + auto-load button
-        row = layout.row(align=True)
-        row.prop(mat, "name", text="Material")
-        row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
-
-        # Auto Load toggle and input field
-        row = layout.row(align=True)
+        # Auto Load Tools (Boxed)
+        al_box = layout.box()
+        al_box.label(text="Texture Auto Loader", icon='FILE_REFRESH')
+        
+        row = al_box.row(align=True)
         row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
-
-        auto_load_toggle = layout.prop(mat.pbr_settings, "use_auto_common_name", text="Use Auto-Detected Name", toggle=True)
+        row.prop(mat.pbr_settings, "use_auto_common_name", text="Auto-Detect", toggle=True)
+        
         if not mat.pbr_settings.use_auto_common_name:
-            layout.prop(mat.pbr_settings, "common_name", text="Common Name")
+            al_box.prop(mat.pbr_settings, "common_name", text="Common Name")
 
         layout.separator()
 
@@ -253,7 +253,7 @@ class PBR_PT_MaterialPanel(Panel):
 
             # If not linked, show assign UI
             else:
-                op = row.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
+                op = hdr.operator("pbr.assign_texture", text="Assign", icon='FILEBROWSER')
                 op.input_name = socket
                 op.colorspace = colorspace
 
@@ -274,11 +274,16 @@ class PBR_PT_MaterialPanel(Panel):
         # Material settings footer
         layout.separator()
         ms = layout.box()
-        ms.label(text="Material Settings", icon='MATERIAL')
+        ms.label(text="Material Properties", icon='MATERIAL')
+        
+        # Moved Separate Alpha here
+        ms.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
+        
         row = ms.row(align=True)
         row.label(text="Blend Mode")
         row.prop_enum(mat, "blend_method", 'BLEND',  text="Blend")
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
+        
         ms.prop(mat, "use_backface_culling", text="Backface Culling", toggle=True)
 
         layout.separator()

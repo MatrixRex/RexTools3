@@ -17,17 +17,45 @@ def update_use_sep_alpha(self, context):
     if not principled:
         return
 
-    alpha_inp = principled.inputs['Alpha']
+    alpha_inp = principled.inputs.get('Alpha')
+    if not alpha_inp:
+        return
+
+    # Clear current Alpha links
     for link in list(alpha_inp.links):
         links.remove(link)
 
     if not self.use_separate_alpha_map:
-        base_inp = principled.inputs['Base Color']
-        if base_inp.is_linked:
-            base_node = base_inp.links[0].from_node
-            if base_node.type == 'TEX_IMAGE':
-                links.new(base_node.outputs['Alpha'], alpha_inp)
-                mat.blend_method = 'HASHED'
+        # Find BaseTex node (might be behind BaseTintMix or AOMix)
+        base_tex = nodes.get("BaseTex")
+        if not base_tex:
+            # Fallback scan
+            for n in nodes:
+                if n.type == 'TEX_IMAGE' and "base" in n.name.lower():
+                    base_tex = n
+                    break
+        
+        if base_tex:
+            # Use AlphaMath for strength if it exists
+            math = nodes.get("AlphaMath")
+            if math:
+                # Link Base Alpha -> Math -> BSDF
+                if math.inputs[0].is_linked:
+                    links.remove(math.inputs[0].links[0])
+                links.new(base_tex.outputs['Alpha'], math.inputs[0])
+                links.new(math.outputs['Value'], alpha_inp)
+            else:
+                # Direct link if no math node
+                links.new(base_tex.outputs['Alpha'], alpha_inp)
+            
+            mat.blend_method = 'HASHED'
+        
+        # Cleanup Separate Alpha nodes if they exist
+        for name in ["AlphaTex", "AlphaSplit"]:
+            node = nodes.get(name)
+            if node:
+                try: nodes.remove(node)
+                except: pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────

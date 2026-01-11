@@ -112,12 +112,15 @@ class PBR_PT_MaterialPanel(Panel):
             if is_preview:
                 box.alert = True
                 
-            row = box.row()
-            row.label(text=label, icon='TEXTURE')
+            # ─── Slot Header Row (Boxed) ───
+            hdr_box = box.box()
+            hdr = hdr_box.row(align=True)
+            hdr.label(text=label)
             
             linked = False
             src_node = None
             
+            # ... (AO and Emission logic remains same) ...
             if socket == "AO":
                 # AO is special: check for AOMix node
                 ao_mix = nodes.get("AOMix")
@@ -186,7 +189,11 @@ class PBR_PT_MaterialPanel(Panel):
 
             # If already linked, show remove + controls
             if linked:
-                row.operator("pbr.remove_texture", text="", icon='TRASH').input_name = socket
+                # Red delete button (Anchored Right in Header)
+                del_row = hdr.row(align=True)
+                del_row.alignment = 'RIGHT'
+                del_row.alert = True
+                del_row.operator("pbr.remove_texture", text="", icon='TRASH').input_name = socket
                 
                 name = "Unknown"
                 if src_node:
@@ -196,14 +203,10 @@ class PBR_PT_MaterialPanel(Panel):
                     else:
                         name = src_node.type.replace('_', ' ').title()
                 
-                # ─── Consolidated Header Row (Name | Channel | Debug) ───
-                # Use a split to give the name priority on the left
+                # ─── Consolidated Content Row (Name | Channel | Debug) ───
                 split = box.row(align=True).split(factor=0.6)
-                
-                # Left Column: Texture Name
                 split.label(text=name, icon='IMAGE_DATA')
                 
-                # Right Column: Channel + Debug Buttons (Anchored Right)
                 right_row = split.row(align=True)
                 right_row.alignment = 'RIGHT'
                 
@@ -211,12 +214,12 @@ class PBR_PT_MaterialPanel(Panel):
                     right_row.prop(mat.pbr_settings, f"{socket.lower()}_channel", text="")
                 
                 # Debug Buttons
-                d_op = right_row.operator("pbr.debug_preview", text="", icon='SEQ_SPLITVIEW', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'DIRECT'))
+                d_op = right_row.operator("pbr.debug_preview", text="", icon='FORCE_TEXTURE', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'DIRECT'))
                 d_op.slot = label
                 d_op.mode = 'DIRECT'
                 
                 if label in ("Base Color", "Normal", "Emission"):
-                    m_op = right_row.operator("pbr.debug_preview", text="", icon='SHADING_RENDERED', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'MIXED'))
+                    m_op = right_row.operator("pbr.debug_preview", text="", icon='NODE_MATERIAL', depress=(is_preview and mat.pbr_settings.debug_preview_mode == 'MIXED'))
                     m_op.slot = label
                     m_op.mode = 'MIXED'
                 

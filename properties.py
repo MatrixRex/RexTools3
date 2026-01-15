@@ -418,6 +418,11 @@ class RexCommonSettings(PropertyGroup):
         description="Also remove modifiers that are hidden in the viewport",
         default=False
     )
+    smart_join_apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply all modifiers before joining in Smart Join",
+        default=False
+    )
 
 
 class RexExportSettings(PropertyGroup):

@@ -108,7 +108,11 @@ class PBR_OT_RemoveTexture(Operator):
 
         # ─── Cleanup any leftover channel-packing nodes ───────────────────
         # Remove our named SeparateRGB and Math nodes if they remain
-        for node_name in (f"{self.input_name}Split", f"{self.input_name}Math", "EmissionTintMix"):
+        leftover_names = [f"{self.input_name}Split", f"{self.input_name}Math", "EmissionTintMix"]
+        if self.input_name == 'Normal':
+            leftover_names.extend(["NormalInvertG", "NormalCombine"])
+            
+        for node_name in leftover_names:
             leftover = nodes.get(node_name)
             if leftover:
                 try:

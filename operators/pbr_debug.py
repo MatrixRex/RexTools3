@@ -134,10 +134,12 @@ class PBR_OT_DebugPreview(Operator):
         
         elif slot == 'Normal':
             if mode == 'DIRECT':
-                node = find_node("NormalTex", "Normal Texture")
+                # Prefer the combined result if flipping G is active
+                node = find_node("NormalCombine", "Normal Combine") or find_node("NormalTex", "Normal Texture")
                 if node: 
                     print(f"DEBUG: Success! Found '{slot}' -> '{node.name}'")
-                    return node.outputs.get('Color', node.outputs[0])
+                    # Combine node uses 'Image', Texture node uses 'Color'
+                    return node.outputs.get('Image') or node.outputs.get('Color') or node.outputs[0]
             else: # MIXED
                 node = find_node("NormalMap", "Normal Map Node")
                 if node: 

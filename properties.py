@@ -164,6 +164,80 @@ def update_emission_channel(self, context):
     update_channel_map(self, context, 'Emission')
 
 
+def update_flip_normal_g(self, context):
+    mat = self.id_data
+    if not mat or not mat.use_nodes:
+        return
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    nm_node = nodes.get("NormalMap")
+    tex_node = nodes.get("NormalTex")
+    
+    if not nm_node or not tex_node:
+        return
+        
+    # Remove existing link to NormalMap Color input
+    for link in list(nm_node.inputs['Color'].links):
+        links.remove(link)
+        
+    if self.flip_normal_g:
+        # Create helper nodes if they don't exist
+        sep = nodes.get("NormalSplit") or nodes.new('ShaderNodeSeparateRGB')
+        sep.name = "NormalSplit"
+        sep.label = "Normal Split"
+        
+        inv = nodes.get("NormalInvertG") or nodes.new('ShaderNodeMath')
+        inv.name = "NormalInvertG"
+        inv.label = "Invert G"
+        inv.operation = 'SUBTRACT'
+        inv.inputs[0].default_value = 1.0
+        
+        com = nodes.get("NormalCombine") or nodes.new('ShaderNodeCombineRGB')
+        com.name = "NormalCombine"
+        com.label = "Normal Combine"
+        
+        # Positions
+        sep.location = (tex_node.location.x + 200, tex_node.location.y)
+        inv.location = (sep.location.x + 200, sep.location.y - 100)
+        com.location = (inv.location.x + 200, inv.location.y + 100)
+        
+        # Links
+        links.new(tex_node.outputs['Color'], sep.inputs['Image'])
+        links.new(sep.outputs['R'], com.inputs['R'])
+        links.new(sep.outputs['G'], inv.inputs[1])
+        links.new(inv.outputs['Value'], com.inputs['G'])
+        links.new(sep.outputs['B'], com.inputs['B'])
+        links.new(com.outputs['Image'], nm_node.inputs['Color'])
+    else:
+        # Clear helper nodes
+        for name in ["NormalSplit", "NormalInvertG", "NormalCombine"]:
+            node = nodes.get(name)
+            if node:
+                try: nodes.remove(node)
+                except: pass
+        
+        # Link directly
+        links.new(tex_node.outputs['Color'], nm_node.inputs['Color'])
+
+    # Refresh debug preview if active to ensure it points to the correct node (Tex vs Combine)
+    if self.debug_preview_slot == 'Normal' and self.debug_preview_mode == 'DIRECT':
+        emission = nodes.get("DebugEmissionPreview")
+        if emission:
+            target_out = None
+            if self.flip_normal_g:
+                com = nodes.get("NormalCombine")
+                if com:
+                    target_out = com.outputs.get('Image') or com.outputs[0]
+            else:
+                target_out = tex_node.outputs.get('Color') or tex_node.outputs[0]
+            
+            if target_out:
+                links.new(target_out, emission.inputs['Color'])
+
+    bpy.ops.pbr.arrange_nodes()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Strength updates (Roughness/Metallic)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -255,6 +329,12 @@ class PBRMaterialSettings(PropertyGroup):
         name="Emission Strength",
         default=1.0, min=0.0, max=1000.0,
         update=lambda self, ctx: update_strength(self, ctx, 'Emission')
+    )
+    flip_normal_g: BoolProperty(
+        name="Flip Normal G",
+        description="Flipping the Green channel (Y) of the normal map for DirectX/OpenGL compatibility",
+        default=False,
+        update=update_flip_normal_g
     )
 
     channel_items = [

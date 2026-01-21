@@ -236,8 +236,11 @@ class PBR_PT_MaterialPanel(Panel):
                             r.prop(tint_sock, "default_value", text="Tint")
                             r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'BASE'
 
-                elif socket == "Normal" and src_node.type == 'NORMAL_MAP':
-                    box.prop(src_node.inputs['Strength'], "default_value", text="Strength")
+                elif socket == "Normal":
+                    nm_node = nodes.get("NormalMap")
+                    if nm_node:
+                        box.prop(nm_node.inputs['Strength'], "default_value", text="Strength")
+                    box.prop(mat.pbr_settings, "flip_normal_g", text="Flip Green (DirectX)", toggle=True)
                 elif socket == "Emission":
                     tint_node = nodes.get("EmissionTintMix")
                     if tint_node:

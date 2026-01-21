@@ -5,6 +5,7 @@ from pathlib import Path
 from bpy.types import Operator
 from bpy.props import StringProperty, BoolProperty
 from ..core import notify
+from .. import properties
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ class PBR_OT_AssignTexture(Operator):
             self.report({'ERROR'}, "No active material")
             return {'CANCELLED'}
 
-        ok = self.assign_texture_to_input(mat, self.input_name, self.filepath, self.colorspace)
+        ok = self.assign_texture_to_input(context, mat, self.input_name, self.filepath, self.colorspace)
         if not ok:
             self.report({'ERROR'}, "Failed to assign texture")
             return {'CANCELLED'}
@@ -156,7 +157,7 @@ class PBR_OT_AssignTexture(Operator):
         return {'RUNNING_MODAL'}
 
     @staticmethod
-    def assign_texture_to_input(material, input_name, image_path, colorspace='sRGB'):
+    def assign_texture_to_input(context, material, input_name, image_path, colorspace='sRGB'):
         material.use_nodes = True
         nodes = material.node_tree.nodes
         links = material.node_tree.links
@@ -276,8 +277,10 @@ class PBR_OT_AssignTexture(Operator):
             nm.name = "NormalMap"
             nm.label = "Normal Map Node"
             nm.location = (-150, y)
-            links.new(tex_node.outputs['Color'], nm.inputs['Color'])
             links.new(nm.outputs['Normal'], principled.inputs['Normal'])
+            
+            # Use the update function logic to link up the texture and apply Flip G if needed
+            properties.update_flip_normal_g(settings, context)
             return True
 
         if input_name == 'Alpha' or (input_name == 'Base Color' and not settings.use_separate_alpha_map):
@@ -511,7 +514,7 @@ class PBR_OT_AutoLoadTextures(Operator):
         any_assigned = False
         for slot, file_path in matches.items():
             colorspace = 'Non-Color' if slot in ('Roughness', 'Metallic', 'Normal', 'Alpha') else 'sRGB'
-            ok = PBR_OT_AssignTexture.assign_texture_to_input(mat, slot, str(file_path), colorspace)
+            ok = PBR_OT_AssignTexture.assign_texture_to_input(context, mat, slot, str(file_path), colorspace)
             if ok:
                 assigned_slots.append(f"{slot}")
                 any_assigned = True

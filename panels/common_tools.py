@@ -16,6 +16,7 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         wm = context.window_manager
         
         layout.operator("rextools3.open_folder", text="Open Folder")
+        layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
         layout.operator("outliner.orphans_purge", text="Purge Orphans")
         layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
         

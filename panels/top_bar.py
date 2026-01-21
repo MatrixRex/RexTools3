@@ -109,7 +109,7 @@ class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
 def draw_topbar_export(self, context):
     layout = self.layout
     row = layout.row(align=True)
-    row.operator("rextools3.export", text="", icon='EXPORT')
+    row.operator("rextools3.export", text="Export", icon='EXPORT')
     row.popover(panel="REXTOOLS3_PT_export_settings_popup", text="", icon='SETTINGS')
 
 def register():

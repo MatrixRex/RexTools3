@@ -176,18 +176,19 @@ class PBR_OT_DebugPreview(Operator):
                 return node.outputs.get('Result', node.outputs.get('Value', node.outputs[0]))
             
         elif slot == 'Alpha':
-            # Check for AlphaMath (Strength) node first
-            node = find_node("AlphaMath", "Alpha Strength")
-            if node:
-                print(f"DEBUG: Success! Found '{slot}' (Math) -> '{node.name}'")
-                return node.outputs.get('Value', node.outputs[0])
-            
-            # Fallback to texture
-            node = find_node("AlphaTex", "Alpha Texture")
-            if node: 
-                print(f"DEBUG: Success! Found '{slot}' (Texture) -> '{node.name}'")
-                return node.outputs.get('Color', node.outputs[0])
-            
+            if mode == 'DIRECT':
+                # Texture node
+                node = find_node("AlphaTex", "Alpha Texture") or find_node("BaseTex", "Base Color Texture")
+                if node:
+                    print(f"DEBUG: Success! Found '{slot}' (Texture) -> '{node.name}'")
+                    # Use Alpha channel if it's the base texture, or Color if it's AlphaTex
+                    return node.outputs.get('Alpha') if node.name == "BaseTex" else node.outputs.get('Color')
+            else: # MIXED
+                # Check for AlphaClip (most final) then AlphaMath (Strength)
+                node = find_node("AlphaClip", "Alpha Clip") or find_node("AlphaMath", "Alpha Strength")
+                if node:
+                    print(f"DEBUG: Success! Found '{slot}' (Math/Clip) -> '{node.name}'")
+                    return node.outputs.get('Value', node.outputs[0])
         print(f"DEBUG: FAILED to find target for slot '{slot}' in mode '{mode}'")
         return None
 

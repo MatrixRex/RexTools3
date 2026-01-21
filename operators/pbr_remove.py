@@ -111,6 +111,8 @@ class PBR_OT_RemoveTexture(Operator):
         leftover_names = [f"{self.input_name}Split", f"{self.input_name}Math", "EmissionTintMix"]
         if self.input_name == 'Normal':
             leftover_names.extend(["NormalInvertG", "NormalCombine"])
+        if self.input_name == 'Alpha':
+            leftover_names.append("AlphaClip")
             
         for node_name in leftover_names:
             leftover = nodes.get(node_name)

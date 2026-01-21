@@ -38,15 +38,30 @@ def update_use_sep_alpha(self, context):
         if base_tex:
             # Use AlphaMath for strength if it exists
             math = nodes.get("AlphaMath")
+            clip = nodes.get("AlphaClip")
+            
+            final_src = base_tex.outputs['Alpha']
+            
             if math:
-                # Link Base Alpha -> Math -> BSDF
                 if math.inputs[0].is_linked:
                     links.remove(math.inputs[0].links[0])
                 links.new(base_tex.outputs['Alpha'], math.inputs[0])
-                links.new(math.outputs['Value'], alpha_inp)
+                final_src = math.outputs['Value']
+            
+            if self.use_alpha_clip:
+                if not clip:
+                    clip = nodes.new('ShaderNodeMath')
+                    clip.name = "AlphaClip"
+                    clip.label = "Alpha Clip"
+                    clip.operation = 'GREATER_THAN'
+                    clip.inputs[1].default_value = self.alpha_threshold
+                links.new(final_src, clip.inputs[0])
+                links.new(clip.outputs['Value'], alpha_inp)
             else:
-                # Direct link if no math node
-                links.new(base_tex.outputs['Alpha'], alpha_inp)
+                if clip:
+                    try: nodes.remove(clip)
+                    except: pass
+                links.new(final_src, alpha_inp)
             
             mat.blend_method = 'HASHED'
         
@@ -162,6 +177,90 @@ def update_ao_channel(self, context):
 
 def update_emission_channel(self, context):
     update_channel_map(self, context, 'Emission')
+
+
+def update_alpha_clip(self, context):
+    mat = self.id_data
+    if not mat or not mat.use_nodes:
+        return
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not principled:
+        return
+        
+    alpha_inp = principled.inputs.get('Alpha')
+    if not alpha_inp:
+        return
+
+    # Find where the alpha chain currently ends (Strength math or Texture)
+    math = nodes.get("AlphaMath")
+    clip = nodes.get("AlphaClip")
+    
+    # 1. Determine Source
+    src_sock = None
+    if math:
+        src_sock = math.outputs[0]
+    else:
+        # Try finding AlphaTex or BaseTex
+        tex = nodes.get("AlphaTex") or nodes.get("BaseTex")
+        if tex:
+            if tex.name == "AlphaTex":
+                # Need to handle Alpha channel mapping logic here ideally, 
+                # but let's look at current links
+                src_sock = tex.outputs['Color'] # Default
+                # Re-check channel mapping? Simple version:
+                if self.alpha_channel == 'A':
+                    src_sock = tex.outputs['Alpha']
+            else:
+                src_sock = tex.outputs['Alpha']
+
+    if not src_sock:
+        # Hard fallback scan
+        for n in nodes:
+            if n.type == 'TEX_IMAGE' and ("base" in n.name.lower() or "alpha" in n.name.lower()):
+                src_sock = n.outputs['Alpha'] if "base" in n.name.lower() else n.outputs['Color']
+                break
+
+    if not src_sock:
+        return
+
+    if self.use_alpha_clip:
+        if not clip:
+            clip = nodes.new('ShaderNodeMath')
+            clip.name = "AlphaClip"
+            clip.label = "Alpha Clip"
+            clip.operation = 'GREATER_THAN'
+        clip.inputs[1].default_value = self.alpha_threshold
+        clip.location = (principled.location.x - 200, principled.location.y - 400)
+        
+        links.new(src_sock, clip.inputs[0])
+        links.new(clip.outputs[0], alpha_inp)
+    else:
+        if clip:
+            nodes.remove(clip)
+        links.new(src_sock, alpha_inp)
+
+    # Refresh debug preview if active to ensure it points to the correct node (Strength vs Clip)
+    if self.debug_preview_slot == 'Alpha' and self.debug_preview_mode == 'MIXED':
+        emission = nodes.get("DebugEmissionPreview")
+        if emission:
+            target_out = None
+            if self.use_alpha_clip:
+                clip = nodes.get("AlphaClip")
+                if clip:
+                    target_out = clip.outputs[0]
+            else:
+                math = nodes.get("AlphaMath")
+                if math:
+                    target_out = math.outputs[0]
+                else:
+                    target_out = src_sock
+            
+            if target_out:
+                links.new(target_out, emission.inputs['Color'])
+
+    bpy.ops.pbr.arrange_nodes()
 
 
 def update_flip_normal_g(self, context):
@@ -335,6 +434,16 @@ class PBRMaterialSettings(PropertyGroup):
         description="Flipping the Green channel (Y) of the normal map for DirectX/OpenGL compatibility",
         default=False,
         update=update_flip_normal_g
+    )
+    use_alpha_clip: BoolProperty(
+        name="Use Alpha Clip",
+        default=False,
+        update=update_alpha_clip
+    )
+    alpha_threshold: FloatProperty(
+        name="Alpha Threshold",
+        default=0.5, min=0.0, max=1.0,
+        update=update_alpha_clip
     )
 
     channel_items = [

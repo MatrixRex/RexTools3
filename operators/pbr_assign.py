@@ -314,7 +314,9 @@ class PBR_OT_AssignTexture(Operator):
                 material.blend_method = 'HASHED'
 
             math.inputs[1].default_value = settings.alpha_strength
-            links.new(math.outputs['Value'], principled.inputs['Alpha'])
+            
+            # Use the update function logic to handle Alpha Clip node
+            properties.update_alpha_clip(settings, context)
             
             if input_name == 'Alpha':
                 return True

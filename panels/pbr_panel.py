@@ -189,11 +189,16 @@ class PBR_PT_MaterialPanel(Panel):
 
             # If already linked, show remove + controls
             if linked:
-                # Red delete button (Anchored Right in Header)
-                del_row = hdr.row(align=True)
-                del_row.alignment = 'RIGHT'
-                del_row.alert = True
-                del_row.operator("pbr.remove_texture", text="", icon='TRASH').input_name = socket
+                # Reassign and Remove buttons (Anchored Right in Header)
+                head_ops = hdr.row(align=True)
+                head_ops.alignment = 'RIGHT'
+                
+                re_op = head_ops.operator("pbr.assign_texture", text="", icon='FILE_REFRESH')
+                re_op.input_name = socket
+                re_op.colorspace = colorspace
+                
+                head_ops.alert = True
+                head_ops.operator("pbr.remove_texture", text="", icon='TRASH').input_name = socket
                 
                 name = "Unknown"
                 if src_node:
@@ -281,6 +286,11 @@ class PBR_PT_MaterialPanel(Panel):
         
         # Moved Separate Alpha here
         ms.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
+        
+        row = ms.row(align=True)
+        row.prop(mat.pbr_settings, "use_alpha_clip", text="Alpha Clip", toggle=True)
+        if mat.pbr_settings.use_alpha_clip:
+            row.prop(mat.pbr_settings, "alpha_threshold", text="Threshold")
         
         row = ms.row(align=True)
         row.label(text="Blend Mode")

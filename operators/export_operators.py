@@ -67,6 +67,7 @@ def get_export_groups(context, settings):
             colls = obj.users_collection
             for coll in colls:
                 # Check collection level limits
+                if coll.name == "Scene Collection": continue
                 if limit == 'RENDER' and coll.hide_render: continue
                 if limit == 'VISIBLE' and coll.hide_viewport: continue
                 

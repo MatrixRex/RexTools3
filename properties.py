@@ -2,7 +2,8 @@ import bpy
 from bpy.props import (
     IntProperty, FloatProperty,
     BoolProperty, StringProperty,
-    PointerProperty, EnumProperty
+    PointerProperty, EnumProperty,
+    FloatVectorProperty
 )
 from bpy.types import PropertyGroup
 
@@ -401,6 +402,41 @@ def update_strength(self, context, input_name):
             principled.inputs['Alpha'].default_value = float(getattr(self, "alpha_strength", 1.0))
 
 
+def update_tiling(self, context):
+    mat = self.id_data
+    if not mat or not mat.use_nodes:
+        return
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    # 1. Ensure Mapping and Texture Coordinate nodes exist
+    mapping = nodes.get("PBRMapping") or nodes.new('ShaderNodeMapping')
+    mapping.name = "PBRMapping"
+    mapping.label = "PBR Mapping"
+
+    tex_coord = nodes.get("PBRTexCoord") or nodes.new('ShaderNodeTexCoord')
+    tex_coord.name = "PBRTexCoord"
+    tex_coord.label = "PBR Texture Coordinate"
+
+    # 2. Update Scaling
+    mapping.inputs['Scale'].default_value[0] = self.pbr_tiling[0]
+    mapping.inputs['Scale'].default_value[1] = self.pbr_tiling[1]
+
+    # 3. Link Coordinate to Mapping
+    if not mapping.inputs['Vector'].is_linked:
+        links.new(tex_coord.outputs['UV'], mapping.inputs['Vector'])
+
+    # 4. Ensure all image textures are linked to the mapping node
+    for n in nodes:
+        if n.type == 'TEX_IMAGE':
+            # Check if this texture is part of the PBR chain (Base, Normal, etc.)
+            # A simple way is to check if it's named with one of our suffixes or if it targets our BSDF
+            if not n.inputs['Vector'].is_linked:
+                links.new(mapping.outputs['Vector'], n.inputs['Vector'])
+
+    bpy.ops.pbr.arrange_nodes()
+
+
 class BoneRenameProperties(PropertyGroup):
     find_text: StringProperty(name="Find", default="")
     replace_text: StringProperty(name="Replace", default="")
@@ -423,6 +459,12 @@ class PBRMaterialSettings(PropertyGroup):
     common_name: StringProperty(
         name="Common Name",
         default="",
+    )
+    pbr_tiling: FloatVectorProperty(
+        name="Tiling",
+        size=2,
+        default=(1.0, 1.0),
+        update=update_tiling
     )
     use_separate_alpha_map: BoolProperty(
         name="Use Separate Alpha Map",

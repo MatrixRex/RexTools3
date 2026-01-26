@@ -347,6 +347,11 @@ class PBR_OT_AssignTexture(Operator):
             
         settings = material.pbr_settings
 
+        # Ensure Mapping link
+        mapping = nodes.get("PBRMapping")
+        if mapping:
+            links.new(mapping.outputs['Vector'], tex_node.inputs['Vector'])
+
         settings = material.pbr_settings
 
         if input_name == 'Normal':

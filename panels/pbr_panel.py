@@ -288,6 +288,7 @@ class PBR_PT_MaterialPanel(Panel):
         ms.label(text="Material Properties", icon='MATERIAL')
         
         # Moved Separate Alpha here
+        ms.prop(mat.pbr_settings, "pbr_tiling", text="Tiling")
         ms.prop(mat.pbr_settings, "use_separate_alpha_map", text="Use Separate Alpha Map")
         
         row = ms.row(align=True)

@@ -131,16 +131,17 @@ def update_channel_map(self, context, input_name):
     for link in list(target_sock.links):
         links.remove(link)
 
-    # 2) Full or A directly from the texture
+    # 2) Handle source and optional inversion
+    invert = False
+    if input_name in ('Roughness', 'Metallic', 'AO'):
+        invert = getattr(self, f"invert_{input_name.lower()}", False)
+
+    src_sock = None
     if chan in ('FULL', 'A'):
         # Cleanup split node
         sep = nodes.get(f"{input_name}Split")
         if sep: nodes.remove(sep)
-        
-        if chan == 'FULL':
-            links.new(tex_node.outputs['Color'], target_sock)
-        else: # 'A'
-            links.new(tex_node.outputs['Alpha'], target_sock)
+        src_sock = tex_node.outputs['Color'] if chan == 'FULL' else tex_node.outputs['Alpha']
     else:
         sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
         sep.name = f"{input_name}Split"
@@ -148,7 +149,31 @@ def update_channel_map(self, context, input_name):
         if sep.inputs['Image'].is_linked:
             links.remove(sep.inputs['Image'].links[0])
         links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-        links.new(sep.outputs[chan], target_sock)
+        src_sock = sep.outputs[chan]
+
+    # Invert logic
+    if invert:
+        inv_node = nodes.get(f"{input_name}Invert") or nodes.new('ShaderNodeInvert')
+        inv_node.name = f"{input_name}Invert"
+        inv_node.label = f"Invert {input_name}"
+        inv_node.location = (tex_node.location.x + 300, tex_node.location.y - 100)
+        inv_node.inputs['Fac'].default_value = 1.0
+        
+        # Link source to Invert
+        if inv_node.inputs['Color'].is_linked:
+            links.remove(inv_node.inputs['Color'].links[0])
+        links.new(src_sock, inv_node.inputs['Color'])
+        
+        # New source is the Invert output
+        src_sock = inv_node.outputs['Color']
+    else:
+        # Cleanup Invert node if it exists
+        inv_node = nodes.get(f"{input_name}Invert")
+        if inv_node:
+            try: nodes.remove(inv_node)
+            except: pass
+
+    links.new(src_sock, target_sock)
 
     if input_name == 'Alpha':
         mat.blend_method = 'BLEND'
@@ -444,6 +469,21 @@ class PBRMaterialSettings(PropertyGroup):
         name="Alpha Threshold",
         default=0.5, min=0.0, max=1.0,
         update=update_alpha_clip
+    )
+    invert_roughness: BoolProperty(
+        name="Invert Roughness",
+        default=False,
+        update=lambda self, ctx: update_channel_map(self, ctx, 'Roughness')
+    )
+    invert_metallic: BoolProperty(
+        name="Invert Metallic",
+        default=False,
+        update=lambda self, ctx: update_channel_map(self, ctx, 'Metallic')
+    )
+    invert_ao: BoolProperty(
+        name="Invert AO",
+        default=False,
+        update=lambda self, ctx: update_channel_map(self, ctx, 'AO')
     )
 
     channel_items = [

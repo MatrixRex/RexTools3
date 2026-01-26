@@ -257,7 +257,10 @@ class PBR_PT_MaterialPanel(Panel):
                     box.prop(mat.pbr_settings, "emission_strength", text="Strength")
                 elif socket in ("Roughness", "Metallic", "AO", "Alpha"):
                     key = socket.lower() + "_strength"
-                    box.prop(mat.pbr_settings, key, text="Strength", slider=True)
+                    r = box.row(align=True)
+                    r.prop(mat.pbr_settings, key, text="Strength", slider=True)
+                    if socket in ("Roughness", "Metallic", "AO"):
+                        r.prop(mat.pbr_settings, f"invert_{socket.lower()}", text="", icon='IMAGE_ALPHA', toggle=True)
 
             # If not linked, show assign UI
             else:

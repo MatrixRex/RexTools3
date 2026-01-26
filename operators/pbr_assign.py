@@ -354,23 +354,6 @@ class PBR_OT_AssignTexture(Operator):
             ao_add.location = (-180, y - 50)
             ao_add.inputs[1].default_value = 1.0 - getattr(settings, "ao_strength")
 
-            # AO source (channeled or full)
-            chan = getattr(settings, "ao_channel")
-            src = tex_node.outputs['Color']
-            if chan == 'A':
-                src = tex_node.outputs['Alpha']
-            elif chan != 'FULL':
-                sep = nodes.new('ShaderNodeSeparateRGB')
-                sep.name = "AOSplit"
-                sep.label = "AO Channel Split"
-                sep.location = (-350, y)
-                links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-                src = sep.outputs[chan]
-            
-            # Chain Setup
-            # Link texture/channel to AOAdd
-            links.new(src, ao_add.inputs[0])
-
             # Link AOAdd to AOMix Slot B
             links.new(ao_add.outputs['Value'], ao_mix.inputs['B'])
 
@@ -383,6 +366,9 @@ class PBR_OT_AssignTexture(Operator):
                 ao_mix.inputs['A'].default_value = bc_inp.default_value
                 
             links.new(ao_mix.outputs['Result'], bc_inp)
+            
+            # Use property update logic for channel and inversion
+            properties.update_channel_map(settings, context, 'AO')
             return True
 
         if input_name == 'Emission':
@@ -423,23 +409,11 @@ class PBR_OT_AssignTexture(Operator):
         math.name = f"{input_name}Math"
         math.label = f"{input_name} Strength"
 
-        chan = getattr(settings, f"{input_name.lower()}_channel")
-        if chan == 'FULL':
-            links.new(tex_node.outputs['Color'], math.inputs[0])
-        else:
-            if chan == 'A':
-                src = tex_node.outputs['Alpha']
-            else:
-                sep = nodes.new('ShaderNodeSeparateRGB')
-                sep.name = f"{input_name}Split"
-                sep.label = f"{input_name} Channel Split"
-                sep.location = (-250, y)
-                links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-                src = sep.outputs[chan]
-            links.new(src, math.inputs[0])
-
         math.inputs[1].default_value = getattr(settings, f"{input_name.lower()}_strength")
         links.new(math.outputs['Value'], principled.inputs[input_name])
+        
+        # Use property update logic for channel and inversion
+        properties.update_channel_map(settings, context, input_name)
         return True
 
 

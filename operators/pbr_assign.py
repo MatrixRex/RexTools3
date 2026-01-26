@@ -3,7 +3,7 @@ import os
 import re
 from pathlib import Path
 from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty
 from ..core import notify
 from .. import properties
 
@@ -123,6 +123,17 @@ def _find_matches_in_dir(stem_lower: str, folder: Path, mapping: dict) -> dict:
 # Assign Texture Operator (existing)
 # ─────────────────────────────────────────────────────────────────────────────
 
+PACKED_ITEMS = [
+    ('NONE', "None", ""),
+    ('Roughness', "Roughness", ""),
+    ('Metallic', "Metallic", ""),
+    ('AO', "AO", ""),
+    ('Alpha', "Alpha", ""),
+    ('Emission', "Emission", ""),
+    ('Normal', "Normal", ""),
+    ('Base Color', "Base Color", ""),
+]
+
 class PBR_OT_AssignTexture(Operator):
     bl_idname = "pbr.assign_texture"
     bl_label = "Assign Texture"
@@ -134,16 +145,82 @@ class PBR_OT_AssignTexture(Operator):
     filter_glob: StringProperty(default='*.png;*.jpg;*.jpeg;*.tga;*.tif;*.tiff;*.exr;*.bmp;*.webp', options={'HIDDEN'})
     filter_image: BoolProperty(default=True, options={'HIDDEN'})
 
+    use_packed: BoolProperty(name="Packed Setup", default=False)
+    packed_r: EnumProperty(name="R", items=PACKED_ITEMS, default='NONE')
+    packed_g: EnumProperty(name="G", items=PACKED_ITEMS, default='NONE')
+    packed_b: EnumProperty(name="B", items=PACKED_ITEMS, default='NONE')
+    packed_a: EnumProperty(name="A", items=PACKED_ITEMS, default='NONE')
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "input_name")
+        layout.prop(self, "colorspace")
+        
+        layout.separator()
+        layout.prop(self, "use_packed")
+        if self.use_packed:
+            box = layout.box()
+            # Making it look similar to the user's provided screenshot
+            col = box.column(align=True)
+            
+            row = col.row()
+            row.label(text="R", icon='COLOR_RED')
+            row.prop(self, "packed_r", text="")
+            
+            row = col.row()
+            row.label(text="G", icon='COLOR_GREEN')
+            row.prop(self, "packed_g", text="")
+            
+            row = col.row()
+            row.label(text="B", icon='COLOR_BLUE')
+            row.prop(self, "packed_b", text="")
+            
+            row = col.row()
+            row.label(text="A", icon='IMAGE_ALPHA')
+            row.prop(self, "packed_a", text="")
+
     def execute(self, context):
         mat = context.active_object.active_material
         if not mat:
             self.report({'ERROR'}, "No active material")
             return {'CANCELLED'}
 
-        ok = self.assign_texture_to_input(context, mat, self.input_name, self.filepath, self.colorspace)
-        if not ok:
-            self.report({'ERROR'}, "Failed to assign texture")
-            return {'CANCELLED'}
+        if self.use_packed:
+            maps = {
+                'R': self.packed_r,
+                'G': self.packed_g,
+                'B': self.packed_b,
+                'A': self.packed_a,
+            }
+            any_assigned = False
+            for chan, slot in maps.items():
+                if slot == 'NONE':
+                    continue
+                
+                # Update the channel mapping in material settings if applicable
+                # Note: 'Base Color' and 'Normal' don't use the channel property in properties.py loop currently
+                slot_key = slot.lower().replace(" ", "_")
+                prop_name = f"{slot_key}_channel"
+                if hasattr(mat.pbr_settings, prop_name):
+                    setattr(mat.pbr_settings, prop_name, chan)
+                
+                # For packed textures, we usually want Non-Color unless it's Base Color
+                cspace = 'Non-Color' if slot != 'Base Color' else 'sRGB'
+                
+                ok = self.assign_texture_to_input(context, mat, slot, self.filepath, cspace)
+                if ok:
+                    any_assigned = True
+            
+            if any_assigned:
+                notify.success(f"Packed textures assigned from {os.path.basename(self.filepath)}")
+            else:
+                self.report({'WARNING'}, "No slots assigned from packed texture")
+                return {'CANCELLED'}
+        else:
+            ok = self.assign_texture_to_input(context, mat, self.input_name, self.filepath, self.colorspace)
+            if not ok:
+                self.report({'ERROR'}, "Failed to assign texture")
+                return {'CANCELLED'}
 
         bpy.ops.pbr.arrange_nodes()
         return {'FINISHED'}

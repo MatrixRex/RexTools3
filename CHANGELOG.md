@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added "Arrange All Nodes" to Shader Editor context menu
 - Added "Arrange All Nodes" to RexTools3 sidebar tab in Shader Editor and 3D Viewport
 - **Added comprehensive README.md with tool locations and features**
+- **Added Packed Texture Setup to Easy PBR**: High-density UI in file selector for mapping R, G, B, A channels to PBR slots (e.g., ORM, RA, etc.).
+
 
 ### Changed
 - Moved "Arrange All Nodes" button from Easy PBR material panel to more accessible locations (Context Menu and RexTools3 Sidebar)

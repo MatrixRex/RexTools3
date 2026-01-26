@@ -23,6 +23,7 @@
 A dedicated panel for rapid PBR material setup and management.
 
 - **Texture Auto-Loader**: Load Base Color map, then user auto loader to load rest of the textures based on nameing convention.
+- **Packed Texture Setup**: High-density UI in file selector for mapping R, G, B, A channels to PBR slots (e.g., ORM, RA, etc.) during manual assignment.
 - **Channel Mapping**: Flexible routing of texture channels (R, G, B, A, or Full) to shader inputs.
 - **Invert Maps**: Toggleable inversion for Roughness, Metallic, and AO maps.
 - **Debug Preview**: Real-time visual debugging of individual texture slots or mixed shader outputs.

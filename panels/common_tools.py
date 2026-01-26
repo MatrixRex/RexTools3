@@ -19,6 +19,7 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
         layout.operator("outliner.orphans_purge", text="Purge Orphans")
         layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
+        layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')
         
         layout.separator()
         

@@ -88,6 +88,7 @@ Streamline bone management and constraint workflows.
 **Location:** `Shader Editor > RexTools3 panel`
 
 - **Node Socket Inspector**: View detailed socket info (names, IDs, types) for any selected node in the Shader Editor.
+- **Node Layout**: Automatically organize shader nodes into a clean, hierarchical layout. Accessible via Shader Editor context menu or the `RexTools3` sidebar.
 
 ## 📥 Installation
 

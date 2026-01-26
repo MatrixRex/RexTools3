@@ -80,3 +80,14 @@ class REXTOOLS3_PT_NodeHelper(bpy.types.Panel):
                 right.label(text=sock.type)
                 copy = right.operator("rextools3.copy_text", text="", icon='COPYDOWN')
                 copy.text = sock.name
+
+class REXTOOLS3_PT_NodeLayout(bpy.types.Panel):
+    bl_label = "Node Layout"
+    bl_idname = "NODE_PT_rextools3_node_layout"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "RexTools3"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')

@@ -50,7 +50,7 @@ class PBR_PT_MaterialPanel(Panel):
         # Header
         row = layout.row(align=True)
         row.prop(mat, "name", text="Material")
-        row.operator("pbr.arrange_nodes", text="", icon='NODETREE')
+        
         
         layout.separator()
 
@@ -303,7 +303,7 @@ class PBR_PT_MaterialPanel(Panel):
         ms.prop(mat, "use_backface_culling", text="Backface Culling", toggle=True)
 
         layout.separator()
-        layout.operator("pbr.arrange_nodes", text="Arrange All Nodes", icon='NODETREE')
+        
 
 
 

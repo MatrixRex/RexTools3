@@ -145,3 +145,13 @@ class PBR_OT_AutoArrangeNodes(Operator):
     
     def execute(self, context):
         return bpy.ops.pbr.arrange_nodes()
+
+def menu_func(self, context):
+    self.layout.separator()
+    self.layout.operator(PBR_OT_ArrangeNodes.bl_idname, text="Arrange All Nodes", icon='NODETREE')
+
+def register():
+    bpy.types.NODE_MT_context_menu.append(menu_func)
+
+def unregister():
+    bpy.types.NODE_MT_context_menu.remove(menu_func)

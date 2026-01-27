@@ -778,6 +778,47 @@ class RexExportSettings(PropertyGroup):
     )
 
 
+def update_xray_brush(self, context):
+    try:
+        # Weight paint brush settings are in context.tool_settings.weight_paint.brush
+        if context.mode != 'PAINT_WEIGHT':
+            return
+            
+        brush = context.tool_settings.weight_paint.brush
+        if not brush:
+            return
+
+        if self.xray_brush:
+            # Save original states
+            self.orig_use_frontface = brush.use_frontface
+            self.orig_falloff_shape = brush.falloff_shape
+            self.orig_use_frontface_falloff = brush.use_frontface_falloff
+            
+            # Apply XRay settings
+            brush.use_frontface = False
+            brush.falloff_shape = 'PROJECTED'
+            brush.use_frontface_falloff = False
+        else:
+            # Restore original states
+            brush.use_frontface = self.orig_use_frontface
+            brush.falloff_shape = self.orig_falloff_shape
+            brush.use_frontface_falloff = self.orig_use_frontface_falloff
+    except Exception as e:
+        print(f"Error in update_xray_brush: {e}")
+
+
+class WeightToolsProperties(bpy.types.PropertyGroup):
+    xray_brush: BoolProperty(
+        name="XRay Brush",
+        description="Toggle XRay Brush settings (Front Face Only: False, Falloff: Projected, Front Face Falloff: False)",
+        default=False,
+        update=update_xray_brush
+    )
+    orig_use_frontface: BoolProperty()
+    orig_falloff_shape: StringProperty()
+    orig_use_frontface_falloff: BoolProperty()
+
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
@@ -809,6 +850,7 @@ def register_properties():
         default=False
     )
     bpy.types.Scene.rex_cleanup_props = PointerProperty(type=CleanupProperties)
+    bpy.types.Scene.weight_tools_props = PointerProperty(type=WeightToolsProperties)
 
 
 def unregister_properties():
@@ -833,3 +875,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_common_settings
     del bpy.types.Scene.rex_auto_frame_range
     del bpy.types.Scene.rex_cleanup_props
+    del bpy.types.Scene.weight_tools_props

@@ -1,6 +1,32 @@
 import bpy
 from bpy.types import Operator
 
+def is_modifier_useless(mod):
+    # 1. Check for missing target objects (Broken modifiers)
+    target_props = ['object', 'target', 'map_object', 'vertex_group_object', 'control_object']
+    for prop in target_props:
+        if hasattr(mod, prop):
+            val = getattr(mod, prop)
+            if val is None:
+                # Specific types that absolutely need a target to function
+                if mod.type in {
+                    'BOOLEAN', 'SHRINKWRAP', 'ARMATURE', 'HOOK', 
+                    'DATA_TRANSFER', 'MESH_DEFORM', 'LATTICE', 
+                    'SURFACE_DEFORM', 'WARP', 'CURVE', 'CAST'
+                }:
+                    return True
+                if mod.type == 'MIRROR' and prop == 'mirror_object' and val is None:
+                    pass
+    # 2. Check for zeroed out influence/levels (Useless modifiers)
+    if mod.type == 'SUBSURF' and mod.levels == 0 and mod.render_levels == 0:
+        return True
+    if mod.type == 'BEVEL' and mod.width == 0.0:
+        return True
+    if mod.type == 'SOLIDIFY' and mod.thickness == 0.0:
+        return True
+    return False
+
+
 class REXTOOLS3_OT_CleanModifiers(Operator):
     bl_idname = "rextools3.clean_modifiers"
     bl_label = "Clean Modifiers"
@@ -14,6 +40,7 @@ class REXTOOLS3_OT_CleanModifiers(Operator):
         orig_selection = context.selected_objects[:]
         orig_active = context.active_object
         orig_mode = context.mode
+        orig_mode_ctx = context.mode
 
         # Determine target objects
         if all_objs:
@@ -41,7 +68,7 @@ class REXTOOLS3_OT_CleanModifiers(Operator):
                 if settings.clean_modifiers_hidden and not mod.show_viewport:
                     to_remove.append(mod)
                     continue
-                if self.is_useless(mod):
+                if is_modifier_useless(mod):
                     to_remove.append(mod)
             
             if to_remove:
@@ -52,8 +79,8 @@ class REXTOOLS3_OT_CleanModifiers(Operator):
 
         # Restore mode
         try:
-            if orig_mode != context.mode:
-                bpy.ops.object.mode_set(mode=orig_mode)
+            if orig_mode_ctx != context.mode:
+                bpy.ops.object.mode_set(mode=orig_mode_ctx)
         except:
             pass
 
@@ -68,28 +95,3 @@ class REXTOOLS3_OT_CleanModifiers(Operator):
 
         self.report({'INFO'}, f"Cleaned {removed_count} modifiers from {obj_count} objects")
         return {'FINISHED'}
-
-    def is_useless(self, mod):
-        # 1. Check for missing target objects (Broken modifiers)
-        target_props = ['object', 'target', 'map_object', 'vertex_group_object', 'control_object']
-        for prop in target_props:
-            if hasattr(mod, prop):
-                val = getattr(mod, prop)
-                if val is None:
-                    # Specific types that absolutely need a target to function
-                    if mod.type in {
-                        'BOOLEAN', 'SHRINKWRAP', 'ARMATURE', 'HOOK', 
-                        'DATA_TRANSFER', 'MESH_DEFORM', 'LATTICE', 
-                        'SURFACE_DEFORM', 'WARP', 'CURVE', 'CAST'
-                    }:
-                        return True
-                    if mod.type == 'MIRROR' and prop == 'mirror_object' and val is None:
-                        pass
-        # 2. Check for zeroed out influence/levels (Useless modifiers)
-        if mod.type == 'SUBSURF' and mod.levels == 0 and mod.render_levels == 0:
-            return True
-        if mod.type == 'BEVEL' and mod.width == 0.0:
-            return True
-        if mod.type == 'SOLIDIFY' and mod.thickness == 0.0:
-            return True
-        return False

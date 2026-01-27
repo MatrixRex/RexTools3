@@ -3,7 +3,7 @@ from bpy.props import (
     IntProperty, FloatProperty,
     BoolProperty, StringProperty,
     PointerProperty, EnumProperty,
-    FloatVectorProperty
+    FloatVectorProperty, CollectionProperty
 )
 from bpy.types import PropertyGroup
 
@@ -678,6 +678,28 @@ class CleanupProperties(PropertyGroup):
     mats: BoolProperty(name="Mats", default=True)
 
 
+class ModifierIgnoreItem(PropertyGroup):
+    modifier_type: EnumProperty(
+        name="Type",
+        items=[
+            ('ARMATURE', "Armature", ""),
+            ('BOOLEAN', "Boolean", ""),
+            ('BEVEL', "Bevel", ""),
+            ('MIRROR', "Mirror", ""),
+            ('SUBSURF', "Subdivision Surface", ""),
+            ('SOLIDIFY', "Solidify", ""),
+            ('ARRAY', "Array", ""),
+            ('CURVE', "Curve", ""),
+            ('DISPLACE', "Displace", ""),
+            ('DECIMATE', "Decimate", ""),
+            ('TRIANGULATE', "Triangulate", ""),
+            ('WELD', "Weld", ""),
+            ('SHRINKWRAP', "Shrinkwrap", ""),
+        ],
+        default='ARMATURE'
+    )
+
+
 class RexCommonSettings(PropertyGroup):
     clean_modifiers_all: BoolProperty(
         name="All",
@@ -694,6 +716,7 @@ class RexCommonSettings(PropertyGroup):
         description="Apply all modifiers before joining in Smart Join", 
         default=False
     )
+    apply_modifiers_ignore_list: CollectionProperty(type=ModifierIgnoreItem)
 
 
 class RexExportSettings(PropertyGroup):
@@ -831,6 +854,7 @@ def register_properties():
     wm.clear_inner_uv_area_seam   = BoolProperty(name="Clear Inner", default=False)
     wm.reseam_uv_area_seam        = BoolProperty(name="Reseam", default=False)
     wm.stop_loop_at_seam          = BoolProperty(name="Stop at Seam", default=True)
+    
     bpy.types.Material.pbr_settings = PointerProperty(type=PBRMaterialSettings)
 
     bpy.types.Scene.rex_export_settings = PointerProperty(type=RexExportSettings)

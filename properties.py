@@ -691,7 +691,7 @@ class RexCommonSettings(PropertyGroup):
     )
     smart_join_apply_modifiers: BoolProperty(
         name="Apply Modifiers",
-        description="Apply all modifiers before joining in Smart Join",
+        description="Apply all modifiers before joining in Smart Join", 
         default=False
     )
 

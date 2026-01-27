@@ -15,10 +15,4 @@ class RexTools3ObjectToolsPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        common = context.scene.rex_common_settings
-        
-        box = layout.box()
-        box.label(text="Join Tools", icon='AUTOMERGE_ON')
-        col = box.column(align=True)
-        col.prop(common, "smart_join_apply_modifiers", text="Apply Modifiers", icon='MODIFIER')
-        col.operator("object.rextools3_smart_join", text="Smart Join (UV Check)")
+        # Join Tools box removed as per request

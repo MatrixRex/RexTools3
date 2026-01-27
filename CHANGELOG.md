@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2026-01-27
 
 ### Added
+- **Apply Modifiers Tool**: A new tool to batch apply modifiers on selected mesh objects.
+  - Includes a customizable **Ignore List** in the RexTools3 sidebar.
+  - Smartly skips hidden, invalid, or zero-influence modifiers.
+  - Default ignore list includes "Armature" to protect rig bindings.
+- **Smart Join Improvements**: Refactored `Ctrl + J` to check for UV map mismatches.
+  - Warns the user via overlay if UV names or counts do not match between selected objects.
+  - Uses a custom operator to ensure predictability and discoverability.
 - **Weight Tools Section**: New panel visible only in Weight Paint mode.
 - **XRay Brush Toggle**: A toggle that saves current brush settings and force-disables Front Face Only, Front Face Falloff, and sets Falloff Shape to Projected. Restores previous settings when toggled off.
 

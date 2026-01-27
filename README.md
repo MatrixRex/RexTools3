@@ -61,7 +61,14 @@ Streamline bone management and constraint workflows.
 
 **Location:** `Object Mode > RexTools3 panel`
 
-* **Smart Join**: Combine objects with an option to automatically apply modifiers, also checks for possible failed uv merge due to uv naming missmatch. Replaces default Object Join Operation.
+- **Apply Modifiers**: Batch apply all modifiers from selected objects. Includes a customizable **Ignore List** (defaults to Armature) in the sidebar to skip specific types.
+- **Smart Join**: Combine objects while checking for UV name/count mismatches. Replaces the default `Ctrl+J` operation with a safer alternative that warns you of potential data loss during merging.
+
+### 🖌️ Weight Tools
+
+**Location:** `Weight Paint Mode > RexTools3 panel`
+
+- **XRay Brush Toggle**: A one-click toggle for "X-Ray" painting. Saves your current brush settings, then disables Front Face Only, Front Face Falloff, and sets Falloff to Projected. Toggling off restores your previous settings.
 
 ### 🧹 Cleanup Tools
 

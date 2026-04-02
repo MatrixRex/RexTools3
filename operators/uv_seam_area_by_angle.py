@@ -28,6 +28,7 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
             return {'CANCELLED'}
 
         # initial state
+        self.original_mode      = context.tool_settings.mesh_select_mode[:]
         self.start_mouse        = (event.mouse_region_x, event.mouse_region_y)
         self.current_mouse      = self.start_mouse
         self.threshold          = 0.0
@@ -133,6 +134,9 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
                 bpy.ops.mesh.mark_seam(clear=True)
             bpy.ops.mesh.region_to_loop()
             bpy.ops.mesh.mark_seam(clear=False)
+            
+            # restore mode
+            context.tool_settings.mesh_select_mode = self.original_mode
             return {'FINISHED'}
 
         # ——— cancel ———
@@ -140,6 +144,9 @@ class REXTOOLS3_OT_uvSeamAreaByAngle_modal(bpy.types.Operator):
             self._restore_seeds(context)
             bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
             if context.area: context.area.tag_redraw()
+            
+            # restore mode
+            context.tool_settings.mesh_select_mode = self.original_mode
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}

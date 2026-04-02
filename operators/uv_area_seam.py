@@ -8,6 +8,8 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
 
     def execute(self, context):
         wm = context.window_manager
+        # store original mode to restore later
+        original_mode = context.tool_settings.mesh_select_mode[:]
         
         obj = context.object
         # store original seeds
@@ -59,8 +61,8 @@ class REXTOOLS3_OT_uvAreaSeam(bpy.types.Operator):
             bpy.ops.mesh.region_to_loop()
             bpy.ops.mesh.mark_seam(clear=False)
 
-        # return to face-select mode
-        bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='FACE')
+        # restore selection mode
+        context.tool_settings.mesh_select_mode = original_mode
         return {'FINISHED'}
 
 

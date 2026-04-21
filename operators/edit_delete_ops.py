@@ -8,86 +8,65 @@ class VIEW3D_MT_delete_ops_pie(Menu):
     bl_label  = "Delete Ops"
 
     def draw(self, context):
-        pie = self.layout.menu_pie()  # start radial layout 
-
-        # ─── West: Separate ───
-        col = pie.column(align=True)
+        layout = self.layout
         
-        box = col.box()
-        box.label(text="Separate")
+        # --- DELETE ---
+        col = layout.column(align=True)
+        col.label(text="Delete", icon='TRASH')
+        col.operator("mesh.delete", text="&A Vertices").type          = 'VERT'
+        col.operator("mesh.delete", text="&W Edges").type             = 'EDGE'
+        col.operator("mesh.delete", text="&D Faces").type             = 'FACE'
+        col.operator("mesh.delete", text="&X Only Faces+Edges").type  = 'EDGE_FACE'
+        col.operator("mesh.delete", text="Only Faces").type           = 'ONLY_FACE'
         
-        sep = box.column(align=True)
+        layout.separator()
         
-        sep.operator("mesh.separate", text="Selection").type   = 'SELECTED'
-        sep.operator("mesh.separate", text="Loose Part").type  = 'LOOSE'
-        sep.operator("mesh.separate", text="Material").type    = 'MATERIAL'
+        # --- DISSOLVE ---
+        col = layout.column(align=True)
+        col.label(text="Dissolve", icon='MOD_SMOOTH')
+        col.operator("mesh.dissolve_verts", text="&Q Vertices")
+        col.operator("mesh.dissolve_edges", text="&S Edges")
+        col.operator("mesh.dissolve_faces", text="&E Faces")
+        col.operator("mesh.edge_collapse",  text="&C Collapse")
+        col.operator("mesh.dissolve_limited", text="&R Limited Dissolve")
 
-        # ─── East: Delete / Dissolve / Limited Dissolve ───
-        col = pie.row(align=True)
-        col.label(text="Delete Ops")
+        layout.separator()
 
-        # Box 1: Delete
-        b1 = col.box()
-        b1.label(text="Delete")
-        grid = b1.grid_flow(columns=2, align=True)
-        grid.operator("mesh.delete", text="Vert").type            = 'VERT'
-        grid.operator("mesh.delete", text="Edge").type            = 'EDGE'
-        grid.operator("mesh.delete", text="Face").type            = 'FACE'
-        
-        
-        grid.operator("mesh.delete", text="Only Face+Edge").type  = 'EDGE_FACE'
-        grid.operator("mesh.delete", text="Only Face").type        = 'ONLY_FACE'
+        # --- MERGE ---
+        col = layout.column(align=True)
+        col.label(text="Merge", icon='AUTOMERGE_ON')
+        col.operator("mesh.merge", text="&V Center").type    = 'CENTER'
+        col.operator("mesh.merge", text="At Cursor").type    = 'CURSOR'
+        col.operator("mesh.merge", text="Collapse").type     = 'COLLAPSE'
+        col.operator("mesh.remove_doubles", text="By Distance")
 
+        layout.separator()
 
-        # Box 2: Dissolve
-        b2 = col.box()
-        b2.label(text="Dissolve")
-        grid2 = b2.grid_flow(columns=2, align=True)
-        grid2.operator("mesh.dissolve_verts", text="Vert")
-        grid2.operator("mesh.dissolve_edges", text="Edge")
-        grid2.operator("mesh.dissolve_faces", text="Face")
+        # --- SEPARATE ---
+        col = layout.column(align=True)
+        col.label(text="Separate", icon='UNLINKED')
+        col.operator("mesh.separate", text="Selection").type   = 'SELECTED'
+        col.operator("mesh.separate", text="By Loose Parts").type  = 'LOOSE'
+        col.operator("mesh.separate", text="By Material").type    = 'MATERIAL'
 
-        # Box 3: Limited Dissolve
-        b3 = col.box()
-        b3.label(text="")
-        grid3 = b3.grid_flow(columns=1, align=True)
-        grid3.operator("mesh.edge_collapse",      text="Collapse Face+Edge")
-        grid3.operator("mesh.dissolve_limited", text="Limited Dissolve")
-        grid3.operator("mesh.delete_edgeloop",  text="Edge Loops")
+        layout.separator()
 
-        # ─── South: Merge & Split ───
-        row = pie.row(align=True)
+        # --- SPLIT ---
+        col = layout.column(align=True)
+        col.label(text="Split", icon='MESH_PLANE')
+        col.operator("mesh.split", text="Selection")
+        col.operator("mesh.edge_split", text="By Edges").type       = 'EDGE'
+        col.operator("mesh.edge_split", text="By Vertices").type    = 'VERT'
 
-        # Merge column
-        col_m = row.column(align=True)
-        m1 = col_m.box()
-        m1.label(text="Merge")
-        mcol = m1.column(align=True)
-        mcol.operator("mesh.merge", text="Center").type    = 'CENTER'
-        mcol.operator("mesh.merge", text="Cursor").type    = 'CURSOR'
-        mcol.operator("mesh.merge", text="Collapse").type  = 'COLLAPSE'
-        m2 = col_m.box()
-        # use remove_doubles for merge by distance
-        m2.operator("mesh.remove_doubles", text="By Distance")
+        layout.separator()
 
-        # Split box
-        bsplit = row.box()
-        bsplit.label(text="Split")
-        split = bsplit.column(align=True)
-        split.operator("mesh.split", text="Selection")
-        split.operator("mesh.edge_split", text="By Edges").type       = 'EDGE'
-        split.operator("mesh.edge_split", text="By Vertices").type    = 'VERT'
-
-        # ─── North: Custom ───
-        col_c = pie.column(align=True)
-        
-        box_c = col_c.box()
-        row_c = box_c.row(align=True)
-        row_c.operator("rextools3.delete_linked_ex", text="Delete Linked")
-        row_c.operator("rextools3.checker_dissolve", text="Checker Dissolve")
-        row_c.operator("rextools3.checker_dissolve_selected", text="Checker Dissolve Selected")
-        row_c.operator("rextools3.loop_dissolve_ex", text="Loop Dissolve")
-        row_c.operator("rextools3.fill_loop_inner_region", text="Fill Loop")
+        # --- REXTOOLS ---
+        col = layout.column(align=True)
+        col.label(text="RexTools Extras", icon='RESTRICT_SELECT_OFF')
+        col.operator("rextools3.delete_linked_ex", text="Delete Linked")
+        col.operator("rextools3.checker_dissolve", text="Checker Dissolve")
+        col.operator("rextools3.loop_dissolve_ex", text="Loop Dissolve")
+        col.operator("rextools3.fill_loop_inner_region", text="Fill Loop Region")
 
         # NW, NE, SW, SE left empty
 
@@ -96,7 +75,7 @@ def register():
     km = wm.keyconfigs.addon.keymaps.get('3D View')
     if km:
         kmi = km.keymap_items.new(
-            'wm.call_menu_pie', 'X', 'PRESS',
+            'wm.call_menu', 'X', 'PRESS',
         )
         kmi.properties.name = VIEW3D_MT_delete_ops_pie.bl_idname
         addon_keymaps.append((km, kmi))

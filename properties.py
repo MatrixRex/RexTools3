@@ -733,6 +733,11 @@ class RexCommonSettings(PropertyGroup):
         description="Apply all modifiers before joining in Smart Join", 
         default=False
     )
+    show_debug_notifications: BoolProperty(
+        name="Show Debug Notifications",
+        description="Show the debug notifications section in Common Tools",
+        default=False
+    )
     apply_modifiers_ignore_list: CollectionProperty(type=ModifierIgnoreItem)
 
 

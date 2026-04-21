@@ -13,23 +13,29 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        wm = context.window_manager
+        rex_common = context.scene.rex_common_settings
         
         layout.operator("rextools3.open_folder", text="Open Folder")
         layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
         layout.operator("outliner.orphans_purge", text="Purge Orphans")
         layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
         
-        layout.separator()
-        
-        # Debugging Notifications
-        box = layout.box()
-        box.label(text="Debug Notifications:", icon='INFO')
-        grid = box.grid_flow(columns=2, align=True)
-        grid.operator("rextools3.debug_toast", text="Info").type = 'INFO'
-        grid.operator("rextools3.debug_toast", text="Success").type = 'SUCCESS'
-        grid.operator("rextools3.debug_toast", text="Warning").type = 'WARNING'
-        grid.operator("rextools3.debug_toast", text="Error").type = 'ERROR'
+        if rex_common.show_debug_notifications:
+            layout.separator()
+            
+            # Debugging Notifications
+            box = layout.box()
+            box.label(text="Debug Notifications:", icon='INFO')
+            grid = box.grid_flow(columns=2, align=True)
+            grid.operator("rextools3.debug_toast", text="Info").type = 'INFO'
+            grid.operator("rextools3.debug_toast", text="Success").type = 'SUCCESS'
+            grid.operator("rextools3.debug_toast", text="Warning").type = 'WARNING'
+            grid.operator("rextools3.debug_toast", text="Error").type = 'ERROR'
+
+        # Small toggle for showing debug tools if needed
+        row = layout.row()
+        row.alignment = 'RIGHT'
+        row.prop(rex_common, "show_debug_notifications", text="", icon='SETTINGS', emboss=False)
 
         
         

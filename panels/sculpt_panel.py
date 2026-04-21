@@ -9,7 +9,7 @@ class RexTools3SculptToolsPanel(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == 'SCULPT'
     
     def draw(self, context):
         layout = self.layout

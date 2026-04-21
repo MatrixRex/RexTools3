@@ -72,6 +72,20 @@ class PBR_OT_RemoveTexture(Operator):
                     except: pass
             return {'FINISHED'}
 
+        if self.input_name == 'Height':
+            # Remove displacement setup
+            mat_out = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL'), None)
+            if mat_out:
+                disp_inp = mat_out.inputs.get('Displacement')
+                for link in list(disp_inp.links):
+                    links.remove(link)
+            for name in ["HeightDisplace", "HeightTex"]:
+                node = nodes.get(name)
+                if node:
+                    try: nodes.remove(node)
+                    except: pass
+            return {'FINISHED'}
+
         if self.input_name == 'Emission':
             inp_socket = principled.inputs.get('Emission Color')
         else:

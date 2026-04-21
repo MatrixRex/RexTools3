@@ -387,6 +387,12 @@ def update_strength(self, context, input_name):
             principled.inputs['Emission Strength'].default_value = float(getattr(self, "emission_strength", 1.0))
         return
 
+    if input_name == 'Height':
+        disp_node = nodes.get("HeightDisplace")
+        if disp_node:
+            disp_node.inputs['Scale'].default_value = float(getattr(self, "height_strength", 0.1))
+        return
+
     # Check for both slot-named Math node and generic principled input fallback
     math = nodes.get(f"{input_name}Math")
     if math:
@@ -495,6 +501,12 @@ class PBRMaterialSettings(PropertyGroup):
         name="AO Strength",
         default=1.0, min=0.0, max=1.0,
         update=lambda self, ctx: update_strength(self, ctx, 'AO')
+    )
+    height_strength: FloatProperty(
+        name="Height Strength",
+        description="Scale multiplier for the Displacement node",
+        default=0.1, min=0.0, max=2.0,
+        update=lambda self, ctx: update_strength(self, ctx, 'Height')
     )
     emission_strength: FloatProperty(
         name="Emission Strength",
@@ -971,6 +983,47 @@ class WeightToolsProperties(bpy.types.PropertyGroup):
     orig_use_frontface_falloff: BoolProperty()
 
 
+def update_pen_nav(self, context):
+    try:
+        prefs = context.preferences
+        inputs = prefs.inputs
+
+        if self.pen_nav:
+            # Back up current values before changing them
+            self.orig_emulate_3_button_mouse = inputs.use_mouse_emulate_3_button
+            self.orig_auto_depth = inputs.use_mouse_depth_navigate
+            self.orig_zoom_to_mouse = inputs.use_zoom_to_mouse
+
+            # Apply pen nav settings
+            inputs.use_mouse_emulate_3_button = True
+            inputs.use_mouse_depth_navigate = True
+            inputs.use_zoom_to_mouse = True
+        else:
+            # Restore original values
+            inputs.use_mouse_emulate_3_button = self.orig_emulate_3_button_mouse
+            inputs.use_mouse_depth_navigate = self.orig_auto_depth
+            inputs.use_zoom_to_mouse = self.orig_zoom_to_mouse
+    except Exception as e:
+        print(f"[RexTools3] Error in update_pen_nav: {e}")
+
+
+class SculptToolsProperties(bpy.types.PropertyGroup):
+    pen_nav: BoolProperty(
+        name="Pen Nav",
+        description=(
+            "Toggle pen-friendly navigation settings.\n"
+            "ON: Emulate 3 Button Mouse + Auto Depth + Zoom to Mouse\n"
+            "OFF: Restores previous values"
+        ),
+        default=False,
+        update=update_pen_nav
+    )
+    # Backup fields
+    orig_emulate_3_button_mouse: BoolProperty()
+    orig_auto_depth: BoolProperty()
+    orig_zoom_to_mouse: BoolProperty()
+
+
 class PoseToolsProperties(bpy.types.PropertyGroup):
     source_armature: PointerProperty(
         name="Source",
@@ -1006,6 +1059,7 @@ def register_properties():
     bpy.types.Scene.rex_cleanup_props = PointerProperty(type=CleanupProperties)
     bpy.types.Scene.weight_tools_props = PointerProperty(type=WeightToolsProperties)
     bpy.types.Scene.pose_tools_props = PointerProperty(type=PoseToolsProperties)
+    bpy.types.Scene.sculpt_tools_props = PointerProperty(type=SculptToolsProperties)
 
 
 def unregister_properties():
@@ -1031,3 +1085,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_cleanup_props
     del bpy.types.Scene.weight_tools_props
     del bpy.types.Scene.pose_tools_props
+    del bpy.types.Scene.sculpt_tools_props

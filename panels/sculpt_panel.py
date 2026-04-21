@@ -13,7 +13,17 @@ class RexTools3SculptToolsPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        
+        props = context.scene.sculpt_tools_props
+
+        # ── Pen Navigation ────────────────────────────────────────────────────
+        box = layout.box()
+        box.label(text="Navigation", icon='MOUSE_LMB_DRAG')
+        col = box.column(align=True)
+        is_on = props.pen_nav
+        icon = 'CHECKBOX_HLT' if is_on else 'CHECKBOX_DEHLT'
+        col.prop(props, "pen_nav", text="Pen Nav", icon=icon, toggle=True)
+
+        # ── Sculpt Assets ─────────────────────────────────────────────────────
         box = layout.box()
         box.label(text="Sculpt Assets", icon='ASSET_MANAGER')
         col = box.column(align=True)

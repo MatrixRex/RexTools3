@@ -323,6 +323,13 @@ class PBR_OT_AssignTexture(Operator):
                 if node:
                     try: nodes.remove(node)
                     except: pass
+        elif input_name == 'Height':
+            # Clean up old height-related nodes
+            for name in ["HeightDisplace", "HeightTex"]:
+                node = nodes.get(name)
+                if node:
+                    try: nodes.remove(node)
+                    except: pass
         else:
             # Standard BSDF socket logic
             inp_sock = principled.inputs.get(input_name)
@@ -345,6 +352,7 @@ class PBR_OT_AssignTexture(Operator):
             'Alpha':      -200,
             'AO':         250,
             'Emission':   350,
+            'Height':     -300,
         }
         y = base_pos.get(input_name, 0)
         tex_node = nodes.new('ShaderNodeTexImage')
@@ -498,6 +506,30 @@ class PBR_OT_AssignTexture(Operator):
             principled.inputs['Emission Strength'].default_value = getattr(settings, "emission_strength")
             return True
 
+        if input_name == 'Height':
+            # Clean up old height nodes
+            for name in ["HeightDisplace"]:
+                node = nodes.get(name)
+                if node:
+                    try: nodes.remove(node)
+                    except: pass
+
+            # Displacement node
+            disp = nodes.new('ShaderNodeDisplacement')
+            disp.name = "HeightDisplace"
+            disp.label = "Height Displacement"
+            disp.location = (-150, y)
+            disp.inputs['Scale'].default_value = getattr(settings, "height_strength", 0.1)
+            disp.inputs['Midlevel'].default_value = 0.5
+
+            links.new(tex_node.outputs['Color'], disp.inputs['Height'])
+
+            # Link to Material Output Displacement socket
+            mat_out = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL'), None)
+            if mat_out:
+                links.new(disp.outputs['Displacement'], mat_out.inputs['Displacement'])
+            return True
+
         # Roughness / Metallic (always via Math node)
         math = nodes.new('ShaderNodeMath')
         math.operation = 'MULTIPLY'
@@ -577,6 +609,7 @@ class PBR_OT_AutoLoadTextures(Operator):
             'Alpha':     ['alpha', 'opacity', 'transparency', 'a'],
             'AO':        ['ao', 'ambientocclusion', 'ambient_occlusion', 'occ'],
             'Emission':  ['emissive', 'emission', 'emit', 'glow', 'e'],
+            'Height':    ['height', 'disp', 'displacement', 'displace', 'h'],
         }
 
         matches = _find_matches_in_dir(stem_lower, folder, suffix_map)

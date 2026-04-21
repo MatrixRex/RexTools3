@@ -102,6 +102,7 @@ class PBR_PT_MaterialPanel(Panel):
             ("Roughness",  "Roughness",  "Non-Color"),
             ("Metallic",   "Metallic",   "Non-Color"),
             ("Emission",   "Emission",   "sRGB"),
+            ("Height",     "Height",     "Non-Color"),
         ]
         if mat.pbr_settings.use_separate_alpha_map:
             inputs.append(("Alpha", "Alpha", "Non-Color"))
@@ -147,6 +148,14 @@ class PBR_PT_MaterialPanel(Panel):
                         # Move backwards through 'A' slot
                         a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
                         curr = a_sock.links[0].from_node if a_sock and a_sock.is_linked else None
+            elif socket == "Height":
+                # Height: check for HeightDisplace node
+                disp_node = nodes.get("HeightDisplace")
+                if disp_node:
+                    h_sock = disp_node.inputs.get('Height')
+                    if h_sock and h_sock.is_linked:
+                        linked = True
+                        src_node = h_sock.links[0].from_node
             elif socket == "Emission":
                 em_inp = principled.inputs.get("Emission Color")
                 if em_inp and em_inp.is_linked:
@@ -222,7 +231,7 @@ class PBR_PT_MaterialPanel(Panel):
                 right_row = split.row(align=True)
                 right_row.alignment = 'RIGHT'
                 
-                if socket not in ("Base Color", "Normal"):
+                if socket not in ("Base Color", "Normal", "Height"):
                     right_row.prop(mat.pbr_settings, f"{socket.lower()}_channel", text="")
                 
                 # Debug Buttons
@@ -262,6 +271,8 @@ class PBR_PT_MaterialPanel(Panel):
                             r.prop(tint_sock, "default_value", text="Tint")
                             r.operator("pbr.reset_tint", text="", icon='FILE_REFRESH').mode = 'EMISSION'
                     box.prop(mat.pbr_settings, "emission_strength", text="Strength")
+                elif socket == "Height":
+                    box.prop(mat.pbr_settings, "height_strength", text="Strength", slider=True)
                 elif socket in ("Roughness", "Metallic", "AO", "Alpha"):
                     key = socket.lower() + "_strength"
                     r = box.row(align=True)
@@ -280,7 +291,7 @@ class PBR_PT_MaterialPanel(Panel):
                 op.colorspace = colorspace
                 op.use_packed = p_mode
 
-                if socket not in ("Normal", "AO"):
+                if socket not in ("Normal", "AO", "Height"):
                     if socket == "Base Color":
                         r = box.row(align=True)
                         r.prop(principled.inputs['Base Color'], "default_value", text="Color")

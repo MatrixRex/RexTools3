@@ -58,6 +58,7 @@ class REXTOOLS3_PT_ExportManager(Panel):
             if settings.export_format == 'FBX':
                 acol.prop(settings, "fbx_remove_armature_root")
 
+            acol.prop(settings, "rename_armature")
             acol.prop(settings, "reset_transform")
             acol.prop(settings, "pre_rotation")
             acol.prop(settings, "pre_scale")
@@ -205,6 +206,7 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
             if overrides.export_format == 'FBX':
                 col.prop(overrides, "fbx_remove_armature_root")
             
+            col.prop(overrides, "rename_armature")
             col.prop(overrides, "reset_transform")
             col.prop(overrides, "pre_rotation")
             col.prop(overrides, "pre_scale")

@@ -859,6 +859,11 @@ class RexCollectionExportOverrides(PropertyGroup):
         name="Expand Preview",
         default=True
     )
+    rename_armature: BoolProperty(
+        name="Rename Armature to 'Armature'",
+        description="Rename armature object and data to 'Armature' before export (useful for Unity root name)",
+        default=False
+    )
 
 
 class RexExportSettings(PropertyGroup):
@@ -944,6 +949,11 @@ class RexExportSettings(PropertyGroup):
         description="Scale objects by this factor before exporting, then restore after",
         default=1.0,
         min=0.001,
+    )
+    rename_armature: BoolProperty(
+        name="Rename Armature to 'Armature'",
+        description="Rename armature object and data to 'Armature' before export (useful for Unity root name)",
+        default=False
     )
 
 

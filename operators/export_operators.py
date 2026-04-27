@@ -47,7 +47,7 @@ def get_export_groups(context, settings):
 
     if mode == 'OBJECTS':
         for obj in objs_to_check:
-            if obj.type != 'MESH': continue
+            if obj.type not in {'MESH', 'ARMATURE', 'EMPTY'}: continue
             
             # Find effective settings from collections
             source = context.scene
@@ -100,7 +100,7 @@ def get_export_groups(context, settings):
                          if limit == 'RENDER' and child.hide_render: continue
                          export_groups[r_name]['objects'].append(child)
                 
-                if root_obj.type == 'MESH' and root_obj not in export_groups[r_name]['objects']:
+                if root_obj.type in {'MESH', 'ARMATURE', 'EMPTY'} and root_obj not in export_groups[r_name]['objects']:
                     if root_obj in context.view_layer.objects.values():
                         if limit == 'VISIBLE' and not root_obj.visible_get(): pass
                         elif limit == 'RENDER' and root_obj.hide_render: pass
@@ -133,7 +133,7 @@ def get_export_groups(context, settings):
             coll = bpy.data.collections.get(c_name)
             if coll:
                 for c_obj in coll.all_objects:
-                    if c_obj.type == 'MESH' and c_obj not in export_groups[c_name]['objects']:
+                    if c_obj.type in {'MESH', 'ARMATURE', 'EMPTY'} and c_obj not in export_groups[c_name]['objects']:
                          if c_obj not in context.view_layer.objects.values(): continue
                          if limit == 'VISIBLE' and not c_obj.visible_get(): continue
                          if limit == 'RENDER' and c_obj.hide_render: continue
@@ -220,6 +220,31 @@ class REXTOOLS3_OT_Export(Operator):
                     from ..core import notify
                     notify.error("Shape keys won't be exported. Modifier found in object.")
                     break
+
+            # --- Rename Armature ---
+            saved_armature_names = {} # { armature_obj: (orig_obj_name, orig_data_name) }
+            clash_backups = [] # [(object_or_data, original_name)]
+            
+            if item_settings.rename_armature:
+                # 1. Clear the 'Armature' name slot by renaming existing clashing items
+                # Objects
+                for obj in bpy.data.objects:
+                    if obj.name == "Armature":
+                        clash_backups.append((obj, obj.name))
+                        obj.name = "Armature_REX_TEMP"
+                
+                # Armature Data
+                for arm in bpy.data.armatures:
+                    if arm.name == "Armature":
+                        clash_backups.append((arm, arm.name))
+                        arm.name = "Armature_REX_TEMP"
+
+                # 2. Rename our target armatures to 'Armature'
+                for o in valid_objs:
+                    if o.type == 'ARMATURE':
+                        saved_armature_names[o] = (o.name, o.data.name)
+                        o.data.name = "Armature"
+                        o.name = "Armature"
 
             # --- Reset Transform ---
             import mathutils
@@ -312,6 +337,23 @@ class REXTOOLS3_OT_Export(Operator):
                             o.matrix_world = mat
                         except Exception as e:
                             print(f"Failed to restore transform for {o.name}: {e}")
+
+                # --- Restore Armature Names ---
+                if item_settings.rename_armature:
+                    # Restore our targets first
+                    for o, (orig_obj_name, orig_data_name) in saved_armature_names.items():
+                        try:
+                            o.name = orig_obj_name
+                            o.data.name = orig_data_name
+                        except Exception as e:
+                            print(f"Failed to restore armature name: {e}")
+                    
+                    # Restore clashing items (in reverse to avoid chain collisions)
+                    for item, orig_name in reversed(clash_backups):
+                        try:
+                            item.name = orig_name
+                        except Exception as e:
+                            print(f"Failed to restore clashing name: {e}")
 
         # Restore
         bpy.ops.object.select_all(action='DESELECT')

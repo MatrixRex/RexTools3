@@ -75,9 +75,8 @@ def register():
     km = wm.keyconfigs.addon.keymaps.get('3D View')
     if km:
         kmi = km.keymap_items.new(
-            'wm.call_menu', 'X', 'PRESS',
+            'rextools3.quick_delete_modal', 'X', 'PRESS',
         )
-        kmi.properties.name = VIEW3D_MT_delete_ops_pie.bl_idname
         addon_keymaps.append((km, kmi))
 
 def unregister():

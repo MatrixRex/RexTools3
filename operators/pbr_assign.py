@@ -597,7 +597,7 @@ class PBR_OT_AutoLoadTextures(Operator):
             _derive_stem_from_base(base_path.stem.lower())
             if use_auto
             else (custom if custom else base_path.stem.lower())
-        )
+        ).rstrip()
 
 
         # Slot -> acceptable suffix tokens (lowercase)

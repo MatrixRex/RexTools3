@@ -67,5 +67,13 @@ class REXTOOLS3_OT_ClearExportPath(Operator):
         if self.type == 'COLLECTION':
             coll = bpy.data.collections.get(self.name)
             if coll:
-                coll.rex_export_overrides.use_overrides = False
+                overrides = coll.rex_export_overrides
+                overrides.override_path = False
+                overrides.override_format = False
+                overrides.override_preset = False
+                overrides.override_remove_armature_root = False
+                overrides.override_rename_armature = False
+                overrides.override_reset_transform = False
+                overrides.override_pre_rotation = False
+                overrides.override_pre_scale = False
         return {'FINISHED'}

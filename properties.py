@@ -457,6 +457,27 @@ class HighLowRenamerProperties(PropertyGroup):
     low_prefix: StringProperty(name="Low Prefix", default="_low")
 
 
+class MaterialBatchItem(PropertyGroup):
+    material_name: StringProperty(name="Material Name")
+    status: StringProperty(name="Status", default="Pending")
+    is_assigned: BoolProperty(name="Is Assigned", default=False)
+
+
+class BatchMaterialProperties(PropertyGroup):
+    target_folder: StringProperty(
+        name="Texture Folder",
+        description="Folder to search for textures",
+        default="",
+        subtype='DIR_PATH'
+    )
+    recursive: BoolProperty(
+        name="Recursive Search",
+        description="Search for textures in subfolders",
+        default=True
+    )
+    items: CollectionProperty(type=MaterialBatchItem)
+
+
 class PBRMaterialSettings(PropertyGroup):
     use_auto_common_name: BoolProperty(
         name="Use Auto-Detected Name",
@@ -802,13 +823,36 @@ def get_export_presets(format_str):
     
     return presets
 
+def get_effective_export_format(coll):
+    """Recursively find the effective export format for a collection."""
+    import bpy
+    overrides = getattr(coll, "rex_export_overrides", None)
+    if overrides and overrides.override_format:
+        return overrides.export_format
+    
+    # Find parent
+    for c in bpy.data.collections:
+        if coll.name in c.children.keys():
+            if c.name == "Scene Collection" or c == bpy.context.scene.collection:
+                continue
+            return get_effective_export_format(c)
+            
+    # Fallback to scene
+    return bpy.context.scene.rex_export_settings.export_format
+
 
 class RexCollectionExportOverrides(PropertyGroup):
-    use_overrides: BoolProperty(
-        name="Use Overrides",
-        description="Enable custom export settings for this collection",
-        default=False
-    )
+    # Override Flags
+    override_path: BoolProperty(name="Override Path", default=False)
+    override_format: BoolProperty(name="Override Format", default=False)
+    override_preset: BoolProperty(name="Override Preset", default=False)
+    override_remove_armature_root: BoolProperty(name="Override Remove Armature Root", default=False)
+    override_reset_transform: BoolProperty(name="Override Reset Transform", default=False)
+    override_pre_rotation: BoolProperty(name="Override Pre Rotation", default=False)
+    override_pre_scale: BoolProperty(name="Override Pre Scale", default=False)
+    override_rename_armature: BoolProperty(name="Override Rename Armature", default=False)
+
+
     export_path: StringProperty(
         name="Export Path",
         description="Custom directory for this collection's export",
@@ -826,7 +870,15 @@ class RexCollectionExportOverrides(PropertyGroup):
     )
     
     def get_presets(self, context):
-        return get_export_presets(self.export_format)
+        if not context:
+            return get_export_presets(self.export_format)
+            
+        coll = getattr(context, "collection", None)
+        if not coll:
+            return get_export_presets(self.export_format)
+            
+        fmt = get_effective_export_format(coll)
+        return get_export_presets(fmt)
 
     export_preset: EnumProperty(
         name="Preset",
@@ -1075,6 +1127,7 @@ def register_properties():
     bpy.types.Scene.weight_tools_props = PointerProperty(type=WeightToolsProperties)
     bpy.types.Scene.pose_tools_props = PointerProperty(type=PoseToolsProperties)
     bpy.types.Scene.sculpt_tools_props = PointerProperty(type=SculptToolsProperties)
+    bpy.types.Scene.rex_batch_mat_props = PointerProperty(type=BatchMaterialProperties)
 
 
 def unregister_properties():
@@ -1101,3 +1154,4 @@ def unregister_properties():
     del bpy.types.Scene.weight_tools_props
     del bpy.types.Scene.pose_tools_props
     del bpy.types.Scene.sculpt_tools_props
+    del bpy.types.Scene.rex_batch_mat_props

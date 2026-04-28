@@ -1,5 +1,6 @@
 import bpy
 from bpy.types import Panel
+from ..properties import get_effective_export_format
 from ..ui import utils
 from ..core.theme import Theme
 
@@ -190,26 +191,43 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
             
         overrides = coll.rex_export_overrides
         
-        layout.prop(overrides, "use_overrides")
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
         
-        if overrides.use_overrides:
-            col = layout.column(align=True)
-            col.use_property_split = True
-            col.use_property_decorate = False
+        # Helper to draw a property with an override toggle
+        def draw_override_prop(layout, overrides, prop_name, override_name, text=None):
+            row = layout.row(align=True)
+            row.use_property_split = False
+            # Standard override toggle
+            row.prop(overrides, override_name, text="")
             
-            col.prop(overrides, "export_path", text="Path")
-            col.separator()
-            col.prop(overrides, "export_format", text="Format")
-            col.prop(overrides, "export_preset", text="Preset")
-            
-            col.separator()
-            if overrides.export_format == 'FBX':
-                col.prop(overrides, "fbx_remove_armature_root")
-            
-            col.prop(overrides, "rename_armature")
-            col.prop(overrides, "reset_transform")
-            col.prop(overrides, "pre_rotation")
-            col.prop(overrides, "pre_scale")
+            # Property widget
+            sub = row.row(align=True)
+            sub.active = getattr(overrides, override_name)
+            sub.use_property_split = True
+            if text:
+                sub.prop(overrides, prop_name, text=text)
+            else:
+                sub.prop(overrides, prop_name)
+
+        draw_override_prop(col, overrides, "export_path", "override_path", text="Path")
+        col.separator()
+        draw_override_prop(col, overrides, "export_format", "override_format", text="Format")
+        draw_override_prop(col, overrides, "export_preset", "override_preset", text="Preset")
+        
+        col.separator()
+        eff_format = get_effective_export_format(coll)
+        if eff_format == 'FBX':
+            draw_override_prop(col, overrides, "fbx_remove_armature_root", "override_remove_armature_root")
+        
+        draw_override_prop(col, overrides, "rename_armature", "override_rename_armature")
+        draw_override_prop(col, overrides, "reset_transform", "override_reset_transform")
+        draw_override_prop(col, overrides, "pre_rotation", "override_pre_rotation")
+        draw_override_prop(col, overrides, "pre_scale", "override_pre_scale")
+
+        layout.separator()
+        layout.operator("rextools3.clear_all_overrides", text="Clear All Overrides", icon='X')
 
 
 

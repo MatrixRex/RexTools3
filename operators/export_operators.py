@@ -3,20 +3,85 @@ import os
 from bpy.types import Operator
 from bpy.props import StringProperty
 
-def get_effective_overrides(coll, global_settings):
-    """Recursively find the first active override in the collection hierarchy."""
-    overrides = getattr(coll, "rex_export_overrides", None)
-    if overrides and overrides.use_overrides:
-        return coll, overrides
-    
-    # Look in parent collections
-    parents = [c for c in bpy.data.collections if coll.name in c.children]
-    # Also check the root scene collection
-    if coll.name in bpy.context.scene.collection.children:
-        parents.append(bpy.context.scene.collection)
+def has_any_override(overrides):
+    """Check if any individual override flag is enabled."""
+    if not overrides: return False
+    flags = [
+        'override_path', 'override_format', 'override_preset', 
+        'override_remove_armature_root', 'override_rename_armature', 
+        'override_reset_transform', 'override_pre_rotation', 'override_pre_scale'
+    ]
+    return any(getattr(overrides, f, False) for f in flags)
 
+def get_resolved_val(coll, prop_name, global_settings):
+    """Find the resolved value for a property by checking the collection and its parents."""
+    mapping = {
+        'export_path': 'override_path',
+        'export_format': 'override_format',
+        'export_preset': 'override_preset',
+        'fbx_remove_armature_root': 'override_remove_armature_root',
+        'rename_armature': 'override_rename_armature',
+        'reset_transform': 'override_reset_transform',
+        'pre_rotation': 'override_pre_rotation',
+        'pre_scale': 'override_pre_scale',
+    }
+    
+    flag = mapping.get(prop_name)
+    if not flag:
+        return getattr(global_settings, prop_name)
+
+    # 1. Check current collection
+    overrides = getattr(coll, "rex_export_overrides", None)
+    if overrides and getattr(overrides, flag, False):
+        return getattr(overrides, prop_name)
+    
+    # 2. Check parents recursively
+    parents = [c for c in bpy.data.collections if coll.name in c.children]
     for parent in parents:
-        # Avoid root Scene Collection which doesn't have overrides properties
+        if parent.name == "Scene Collection" or parent == bpy.context.scene.collection:
+            continue
+        val = _find_in_parents(parent, prop_name, flag)
+        if val is not None:
+            return val
+            
+    # 3. Fallback to global
+    return getattr(global_settings, prop_name)
+
+def _find_in_parents(coll, prop_name, flag):
+    overrides = getattr(coll, "rex_export_overrides", None)
+    if overrides and getattr(overrides, flag, False):
+        return getattr(overrides, prop_name)
+    
+    parents = [c for c in bpy.data.collections if coll.name in c.children]
+    for parent in parents:
+        if parent.name == "Scene Collection" or parent == bpy.context.scene.collection:
+            continue
+        return _find_in_parents(parent, prop_name, flag)
+    return None
+
+def get_effective_overrides(coll, global_settings):
+    """Recursively find the first active override in the collection hierarchy and resolve all properties."""
+    overrides = getattr(coll, "rex_export_overrides", None)
+    
+    # If this collection has any override enabled, it's our "source" and we resolve all props starting here
+    if has_any_override(overrides):
+        from types import SimpleNamespace
+        res = SimpleNamespace()
+        
+        props = [
+            'export_path', 'export_format', 'export_preset', 
+            'fbx_remove_armature_root', 'rename_armature', 
+            'reset_transform', 'pre_rotation', 'pre_scale'
+        ]
+        
+        for p in props:
+            setattr(res, p, get_resolved_val(coll, p, global_settings))
+            
+        return coll, res
+    
+    # Otherwise, check if any parent has overrides enabled
+    parents = [c for c in bpy.data.collections if coll.name in c.children]
+    for parent in parents:
         if parent.name == "Scene Collection" or parent == bpy.context.scene.collection:
             continue
         source, res = get_effective_overrides(parent, global_settings)
@@ -245,6 +310,13 @@ class REXTOOLS3_OT_Export(Operator):
                         saved_armature_names[o] = (o.name, o.data.name)
                         o.data.name = "Armature"
                         o.name = "Armature"
+            
+            # --- Check Armature Rest Position ---
+            saved_armature_pose_position = {} # { armature_obj: original_pose_position }
+            for o in valid_objs:
+                if o.type == 'ARMATURE' and o.data.pose_position == 'REST':
+                    saved_armature_pose_position[o] = 'REST'
+                    o.data.pose_position = 'POSE'
 
             # --- Reset Transform ---
             import mathutils
@@ -354,6 +426,13 @@ class REXTOOLS3_OT_Export(Operator):
                             item.name = orig_name
                         except Exception as e:
                             print(f"Failed to restore clashing name: {e}")
+                
+                # --- Restore Armature Pose Position ---
+                for o, orig_pos in saved_armature_pose_position.items():
+                    try:
+                        o.data.pose_position = orig_pos
+                    except Exception as e:
+                        print(f"Failed to restore armature pose position: {e}")
 
         # Restore
         bpy.ops.object.select_all(action='DESELECT')
@@ -448,7 +527,7 @@ class REXTOOLS3_OT_BrowseExportPath(Operator):
             coll = bpy.data.collections.get(name) or context.view_layer.active_layer_collection.collection
             if coll:
                 coll.rex_export_overrides.export_path = self.directory
-                coll.rex_export_overrides.use_overrides = True
+                coll.rex_export_overrides.override_path = True
             else:
                 self.report({'ERROR'}, "No valid collection found.")
                 return {'CANCELLED'}
@@ -479,4 +558,28 @@ class REXTOOLS3_OT_OpenExportFolder(Operator):
         else:
             subprocess.Popen(['xdg-open', path])
 
+        return {'FINISHED'}
+class REXTOOLS3_OT_ClearAllOverrides(Operator):
+    bl_idname = "rextools3.clear_all_overrides"
+    bl_label = "Clear All Overrides"
+    bl_description = "Disable all overrides and reset flags for this collection"
+    
+    @classmethod
+    def poll(cls, context):
+        return context.collection is not None
+
+    def execute(self, context):
+        coll = context.collection
+        overrides = coll.rex_export_overrides
+        
+        overrides.override_path = False
+        overrides.override_format = False
+        overrides.override_preset = False
+        overrides.override_remove_armature_root = False
+        overrides.override_rename_armature = False
+        overrides.override_reset_transform = False
+        overrides.override_pre_rotation = False
+        overrides.override_pre_scale = False
+        
+        self.report({'INFO'}, f"Cleared all overrides for {coll.name}")
         return {'FINISHED'}

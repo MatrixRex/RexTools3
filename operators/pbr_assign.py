@@ -637,7 +637,8 @@ class PBR_OT_AutoLoadTextures(Operator):
 
         if any_assigned:
             # Reporting which slots were filled
-            notify.success(f"Textures assigned: {', '.join(assigned_slots)}")
+            formatted_slots = [f"✓ {slot}" for slot in assigned_slots]
+            notify.success(", ".join(formatted_slots))
             bpy.ops.pbr.arrange_nodes()
             return {'FINISHED'}
         else:

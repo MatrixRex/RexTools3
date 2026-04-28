@@ -121,7 +121,8 @@ class PBR_OT_BatchAssignTextures(Operator):
                         slots_assigned.append(slot)
 
                 if any_ok:
-                    item.status = f"Assigned: {', '.join(slots_assigned)}"
+                    formatted_slots = [f"✓ {slot}" for slot in slots_assigned]
+                    item.status = ", ".join(formatted_slots)
                     item.is_assigned = True
                     assigned_count += 1
                 else:

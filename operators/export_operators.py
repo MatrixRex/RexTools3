@@ -107,8 +107,27 @@ def get_export_groups(context, settings):
     if not objs_to_check:
         return {}
 
+    # Filter by type early to avoid non-exportable objects (cameras, lights) triggering groups
+    objs_to_check = [o for o in objs_to_check if o.type in {'MESH', 'ARMATURE', 'EMPTY'}]
+    
+    if not objs_to_check:
+        return {}
+
     # Grouping
-    export_groups = {} # { name: {'objects': [], 'settings': settings, 'source': source} }
+    export_groups = {} # { name: {'objects': [], 'settings': settings, 'source': source, 'path': path} }
+
+    # Shared Armature Pre-check
+    shared_armature_obj = None
+    if settings.shared_armature:
+        armatures = [o for o in objs_to_check if o.type == 'ARMATURE']
+        if len(armatures) == 1:
+            shared_armature_obj = armatures[0]
+            # Remove the armature from main list so it doesn't create its own group
+            objs_to_check = [o for o in objs_to_check if o != shared_armature_obj]
+        else:
+            # If 0 or >1 armatures, shared armature mode is effectively disabled
+            # We could report here, but get_export_groups is usually called multiple times
+            pass
 
     if mode == 'OBJECTS':
         for obj in objs_to_check:
@@ -181,6 +200,10 @@ def get_export_groups(context, settings):
                 if limit == 'RENDER' and coll.hide_render: continue
                 if limit == 'VISIBLE' and coll.hide_viewport: continue
                 
+                # Shared Armature Exclusion: Skip collections that contain the shared armature
+                if shared_armature_obj and coll in shared_armature_obj.users_collection:
+                    continue
+                
                 if coll.name not in export_groups:
                     # Determine effective settings using hierarchy
                     source, eff_settings = get_effective_overrides(coll, settings)
@@ -205,7 +228,18 @@ def get_export_groups(context, settings):
                          export_groups[c_name]['objects'].append(c_obj)
                          
     # Remove empty groups (e.g. empty collections or collections with no valid meshes)
-    export_groups = {k: v for k, v in export_groups.items() if v['objects']}
+    if settings.shared_armature and shared_armature_obj:
+        # In shared armature mode, we only want to export groups that contain at least one mesh.
+        # This prevents the armature's own collection or collections with only helper empties from triggering an export.
+        export_groups = {k: v for k, v in export_groups.items() if any(o.type == 'MESH' for o in v['objects'])}
+    else:
+        export_groups = {k: v for k, v in export_groups.items() if v['objects']}
+
+    # Inject Shared Armature into every remaining group
+    if shared_armature_obj:
+        for data in export_groups.values():
+            if shared_armature_obj not in data['objects']:
+                data['objects'].append(shared_armature_obj)
     
     return export_groups
 

@@ -41,6 +41,27 @@ class REXTOOLS3_PT_ExportManager(Panel):
         scol.prop(settings, "export_format", text="Format")
         scol.prop(settings, "export_preset", text="Preset")
         
+        # Shared Armature Toggle (Moved here for better visibility)
+        layout.separator()
+        row = layout.row(align=True)
+        row.prop(settings, "shared_armature", text="Shared Armature", toggle=True, icon='ARMATURE_DATA')
+        
+        # Validation for Shared Armature
+        if settings.shared_armature:
+            objs = []
+            if settings.export_limit == 'VISIBLE':
+                objs = [o for o in context.view_layer.objects if o.visible_get()]
+            elif settings.export_limit == 'SELECTED':
+                objs = [o for o in context.selected_objects]
+            elif settings.export_limit == 'RENDER':
+                objs = [o for o in context.view_layer.objects if not o.hide_render]
+            
+            armatures = [o for o in objs if o.type == 'ARMATURE']
+            if len(armatures) == 0:
+                layout.label(text="No armature found for shared mode", icon='ERROR')
+            elif len(armatures) > 1:
+                layout.label(text="Multiple armatures found (must be 1)", icon='ERROR')
+
         layout.separator(factor=1.5)
 
         # --- ADDITIONAL SETTINGS ---
@@ -175,6 +196,8 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
         col.prop(settings, "export_limit", text="Limit")
         col.prop(settings, "export_format", text="Format")
         col.prop(settings, "export_preset", text="Preset")
+        col.separator()
+        col.prop(settings, "shared_armature")
 
 class REXTOOLS3_PT_CollectionExportPath(Panel):
     bl_label = "RexTools Export Settings"

@@ -952,6 +952,11 @@ class RexExportSettings(PropertyGroup):
         ],
         default='FBX'
     )
+    shared_armature: BoolProperty(
+        name="Shared Armature",
+        description="Every export target (Object/Collection) will include the single active armature. Only works if exactly one armature is selected/visible",
+        default=False
+    )
     
     def get_presets(self, context):
         return get_export_presets(self.export_format)

@@ -593,12 +593,15 @@ class PBR_OT_AutoLoadTextures(Operator):
         use_auto = getattr(mat.pbr_settings, "use_auto_common_name", True)
         custom  = (getattr(mat.pbr_settings, "common_name", "") or "").strip().lower()
 
-        stem_lower = (
+        raw_stem = (
             _derive_stem_from_base(base_path.stem.lower())
             if use_auto
             else (custom if custom else base_path.stem.lower())
-        ).rstrip()
-
+        )
+        
+        stems_to_try = [raw_stem]
+        if raw_stem != raw_stem.rstrip():
+            stems_to_try.append(raw_stem.rstrip())
 
         # Slot -> acceptable suffix tokens (lowercase)
         # We now use keywords only; matching logic handles separators like _ or -
@@ -612,7 +615,14 @@ class PBR_OT_AutoLoadTextures(Operator):
             'Height':    ['height', 'disp', 'displacement', 'displace', 'h'],
         }
 
-        matches = _find_matches_in_dir(stem_lower, folder, suffix_map)
+        matches = {}
+        for stem_val in stems_to_try:
+            stem_matches = _find_matches_in_dir(stem_val, folder, suffix_map)
+            for slot, path in stem_matches.items():
+                if slot not in matches:
+                    matches[slot] = path
+            if len(matches) == len(suffix_map):
+                break
 
         assigned_slots = []  # List to keep track of assigned texture slots
 

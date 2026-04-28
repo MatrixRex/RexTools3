@@ -90,20 +90,23 @@ class PBR_OT_BatchAssignTextures(Operator):
                 item.status = "Material not found in data"
                 continue
 
-            stem_lower = mat.name.rstrip().lower()
+            stems_to_try = [mat.name.lower()]
+            if mat.name.lower() != mat.name.rstrip().lower():
+                stems_to_try.append(mat.name.rstrip().lower())
+
             matches = {}
 
-            # Search in all collected folders
-            for f in search_folders:
-                folder_matches = _find_matches_in_dir(stem_lower, f, suffix_map)
-                # Merge matches, giving priority to those already found (or we could prioritize closest folder)
-                for slot, path in folder_matches.items():
-                    if slot not in matches:
-                        matches[slot] = path
-                
-                # If we found at least Base Color, we can stop searching for this material if we want,
-                # but better to search all folders for all slots to be thorough.
-                # However, for performance, we might stop if all slots filled.
+            # Search in all collected folders for each stem
+            for stem_val in stems_to_try:
+                for f in search_folders:
+                    folder_matches = _find_matches_in_dir(stem_val, f, suffix_map)
+                    # Merge matches
+                    for slot, path in folder_matches.items():
+                        if slot not in matches:
+                            matches[slot] = path
+                    
+                    if len(matches) == len(suffix_map):
+                        break
                 if len(matches) == len(suffix_map):
                     break
 

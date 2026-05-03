@@ -23,3 +23,4 @@ class RexTools3PoseToolsPanel(bpy.types.Panel):
         col = layout.column()
         col.operator("rextools3.init_weight_paint", text="Init Weight Paint", icon='WPAINT_HLT')
         col.operator("rextools3.setup_pose_copier", text="Setup Pose Copier", icon='POSE_HLT')
+        col.operator("rextools3.flipped_anim", text="Flipped Anim", icon='DUPLICATE')

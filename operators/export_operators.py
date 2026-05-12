@@ -52,11 +52,13 @@ def _find_in_parents(coll, prop_name, flag):
     if overrides and getattr(overrides, flag, False):
         return getattr(overrides, prop_name)
     
-    parents = [c for c in bpy.data.collections if coll.name in c.children]
+    parents = [c for c in bpy.data.collections if coll.name in c.children.keys()]
     for parent in parents:
         if parent.name == "Scene Collection" or parent == bpy.context.scene.collection:
             continue
-        return _find_in_parents(parent, prop_name, flag)
+        val = _find_in_parents(parent, prop_name, flag)
+        if val is not None:
+            return val
     return None
 
 def get_effective_overrides(coll, global_settings):
@@ -301,6 +303,18 @@ class REXTOOLS3_OT_Export(Operator):
             
             if not valid_objs:
                 continue
+            
+            # Sort by hierarchy depth (root first) to ensure parents are reset before children
+            def get_obj_depth(obj):
+                depth = 0
+                curr = obj
+                while curr.parent:
+                    curr = curr.parent
+                    depth += 1
+                return depth
+            
+            valid_objs.sort(key=get_obj_depth)
+            
             context.view_layer.objects.active = valid_objs[0]
             
             # Prepare export arguments
@@ -355,14 +369,44 @@ class REXTOOLS3_OT_Export(Operator):
             # --- Reset Transform ---
             import mathutils
             saved_transforms = {}
+            # In COLLECTIONS mode, we treat the entire collection as a single unit.
+            # We find the first top-level object to use as a shared pivot, then move everything by that offset.
+            # This prevents siblings from overlapping at the origin.
+            export_mode = global_settings.export_mode
+            source_coll = data['source'] if isinstance(data['source'], bpy.types.Collection) else None
+            
             if item_settings.reset_transform:
-                for o in valid_objs:
-                    try:
-                        saved_transforms[o] = o.matrix_world.copy()
-                        _, _, scl = o.matrix_world.decompose()
-                        o.matrix_world = mathutils.Matrix.LocRotScale((0, 0, 0), mathutils.Quaternion((1, 0, 0, 0)), scl)
-                    except Exception as e:
-                        print(f"Failed to reset transform for {o.name}: {e}")
+                # In COLLECTIONS mode, the user wants to treat the collection as the root (always at center).
+                # To center the model, we must move the "1st level children" (direct members of the collection) to the origin.
+                # Deeper children (parented to these 1st level objects) should follow their parents and not be reset individually.
+                if export_mode == 'COLLECTIONS' and source_coll:
+                    for o in source_coll.objects:
+                        # Safety: only process if the object is actually being exported
+                        if o in valid_objs:
+                            try:
+                                saved_transforms[o] = o.matrix_world.copy()
+                                _, _, scl = o.matrix_world.decompose()
+                                # Move to world origin (0,0,0) with identity rotation, preserving scale
+                                o.matrix_world = mathutils.Matrix.LocRotScale((0, 0, 0), mathutils.Quaternion((1, 0, 0, 0)), scl)
+                            except Exception as e:
+                                print(f"Failed to reset transform for collection member {o.name}: {e}")
+                else:
+                    # For OBJECTS or PARENTS mode, or if no collection is found:
+                    # Move every root object in the group to origin individually.
+                    for o in valid_objs:
+                        # Only reset transform for "root" objects in this group (no parent in group).
+                        if o.parent and o.parent in valid_objs:
+                            continue
+                            
+                        try:
+                            saved_transforms[o] = o.matrix_world.copy()
+                            _, _, scl = o.matrix_world.decompose()
+                            o.matrix_world = mathutils.Matrix.LocRotScale((0, 0, 0), mathutils.Quaternion((1, 0, 0, 0)), scl)
+                        except Exception as e:
+                            print(f"Failed to reset transform for {o.name}: {e}")
+                
+                # Ensure children transforms are updated based on moved parents before export
+                context.view_layer.update()
 
             # --- Pre-export transforms ---
             pre_rot = item_settings.pre_rotation
@@ -443,6 +487,9 @@ class REXTOOLS3_OT_Export(Operator):
                             o.matrix_world = mat
                         except Exception as e:
                             print(f"Failed to restore transform for {o.name}: {e}")
+                    
+                    # Ensure children transforms are updated after restoring parents
+                    context.view_layer.update()
 
                 # --- Restore Armature Names ---
                 if item_settings.rename_armature:

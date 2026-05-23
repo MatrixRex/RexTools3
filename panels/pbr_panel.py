@@ -78,6 +78,9 @@ class PBR_PT_MaterialPanel(Panel):
         if not mat.pbr_settings.use_auto_common_name:
             al_box.prop(mat.pbr_settings, "common_name", text="Common Name")
 
+        row = layout.row(align=True)
+        row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
+
         layout.separator()
 
         # Packing Mode Active Alert

@@ -80,6 +80,7 @@ class PBR_PT_MaterialPanel(Panel):
 
         row = layout.row(align=True)
         row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
+        row.operator("pbr.save_textures", text="Save Textures", icon='EXPORT')
 
         layout.separator()
 

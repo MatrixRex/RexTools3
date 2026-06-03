@@ -40,8 +40,11 @@ class PBR_OT_SaveTextures(Operator):
                 if not img.packed_file:
                     img.pack()
                 
-                # Unpack the image locally (saves to a 'textures' folder relative to the .blend file)
-                bpy.ops.image.unpack(id=img.name, method='USE_LOCAL')
+                # Unpack the image locally using context override
+                override = context.copy()
+                override["edit_image"] = img
+                with context.temp_override(**override):
+                    bpy.ops.image.unpack(id=img.name, method='USE_LOCAL')
                 saved_count += 1
             except Exception as e:
                 self.report({'ERROR'}, f"Failed to save texture {img.name}: {str(e)}")

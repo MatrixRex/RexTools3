@@ -48,6 +48,15 @@ Streamline bone management and constraint workflows.
 - **Auto Rename High/Low**: Automatically detect and rename high-poly and low-poly pairs based on vertex counts, essential for substance painter or marmoset baking.
 - **Prefix Management**: Customizable suffixes for High/Low versions.
 
+### 🖱️ Selection Tools
+
+**Location:** `Edit Mode > 3D Viewport (Double-click Left Mouse)`
+
+- **Context-Aware Selection**:
+  - **Vertex & Face Mode**: Double-click selects the connected linked geometry. Exposes boundary limitation (`delimit`) options (Normal, Material, Seam, Sharp, UV) in the Adjust Last Operation (Redo) panel.
+  - **Edge Mode**: Double-click selects the edge loop. Supports `Shift + Double-click` to extend/toggle loops, and exposes the `ring` selection toggle in the Redo panel.
+  - **Curve Edit Mode**: Double-click selects the connected linked control points (splines).
+
 ### 🛠️ Common Tools
 
 **Location:** ` RexTools3 panel`

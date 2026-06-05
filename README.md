@@ -23,12 +23,14 @@
 
 A dedicated panel for rapid PBR material setup and management.
 
-- **Texture Auto-Loader**: Load Base Color map, then user auto loader to load rest of the textures based on nameing convention.
+- **Texture Auto-Loader**: Load Base Color map, then use the auto loader to load the rest of the textures based on naming conventions.
 - **Packed Texture Setup**: High-density UI in file selector for mapping R, G, B, A channels to PBR slots (e.g., ORM, RA, etc.) during manual assignment.
 - **Channel Mapping**: Flexible routing of texture channels (R, G, B, A, or Full) to shader inputs.
 - **Invert Maps**: Toggleable inversion for Roughness, Metallic, and AO maps.
 - **Debug Preview**: Real-time visual debugging of individual texture slots or mixed shader outputs.
-- **More Controls**: Easy access to strength, tint, and alpha clipping parameters.
+- **Open in UV/Image Editor**: Instantly view any assigned texture slot in the UV/Image editor. Automatically detects and preserves active UV editor workspace views.
+- **Set Viewport Color**: One-click button to automatically sample, calculate, and update the material's viewport color, metallic, and roughness values to match its base color and active tints.
+- **More Controls**: Easy access to strength, tint, and alpha clipping parameters organized in clean, collapsible panels.
 
 ### 🦴 Rigging Tools
 

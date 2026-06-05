@@ -1,10 +1,13 @@
+# pyrefly: ignore [missing-import]
 import bpy
+# pyrefly: ignore [missing-import]
 from bpy.props import (
     IntProperty, FloatProperty,
     BoolProperty, StringProperty,
     PointerProperty, EnumProperty,
     FloatVectorProperty, CollectionProperty
 )
+# pyrefly: ignore [missing-import]
 from bpy.types import PropertyGroup
 
 
@@ -479,6 +482,18 @@ class BatchMaterialProperties(PropertyGroup):
 
 
 class PBRMaterialSettings(PropertyGroup):
+    show_texture_loader: BoolProperty(
+        name="Show Texture Loader",
+        default=True,
+    )
+    show_texture_utils: BoolProperty(
+        name="Show Texture Utilities",
+        default=True,
+    )
+    show_viewport_color: BoolProperty(
+        name="Show Viewport Color",
+        default=True,
+    )
     use_auto_common_name: BoolProperty(
         name="Use Auto-Detected Name",
         default=True,

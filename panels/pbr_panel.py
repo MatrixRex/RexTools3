@@ -67,28 +67,37 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
-        # Auto Load Tools (Boxed)
-        al_box = layout.box()
-        al_box.label(text="Texture Auto Loader", icon='FILE_REFRESH')
-        
-        row = al_box.row(align=True)
-        row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
-        row.prop(mat.pbr_settings, "use_auto_common_name", text="Auto-Detect", toggle=True)
-        
-        if not mat.pbr_settings.use_auto_common_name:
-            al_box.prop(mat.pbr_settings, "common_name", text="Common Name")
+        # Texture Auto Loader (Collapsible Section)
+        loader_box = layout.box()
+        loader_row = loader_box.row()
+        loader_row.prop(mat.pbr_settings, "show_texture_loader",
+                        icon='TRIA_DOWN' if mat.pbr_settings.show_texture_loader else 'TRIA_RIGHT',
+                        text="Texture Auto Loader",
+                        emboss=False)
+        if mat.pbr_settings.show_texture_loader:
+            col = loader_box.column(align=True)
+            row = col.row(align=True)
+            row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
+            row.prop(mat.pbr_settings, "use_auto_common_name", text="Auto-Detect", toggle=True)
+            
+            if not mat.pbr_settings.use_auto_common_name:
+                col.separator()
+                col.prop(mat.pbr_settings, "common_name", text="Common Name")
 
-        row = layout.row(align=True)
-        row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
-        row.operator("pbr.save_textures", text="Save Textures", icon='EXPORT')
+        # Texture Utilities (Collapsible Section)
+        utils_box = layout.box()
+        utils_row = utils_box.row()
+        utils_row.prop(mat.pbr_settings, "show_texture_utils",
+                       icon='TRIA_DOWN' if mat.pbr_settings.show_texture_utils else 'TRIA_RIGHT',
+                       text="Texture Utilities",
+                       emboss=False)
+        if mat.pbr_settings.show_texture_utils:
+            col = utils_box.column(align=True)
+            row = col.row(align=True)
+            row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
+            row.operator("pbr.save_textures", text="Save Textures", icon='EXPORT')
 
-        layout.separator()
 
-        # Packing Mode Active Alert
-        if mat.pbr_settings.use_packed_mode:
-            pbox = layout.box()
-            pbox.prop(mat.pbr_settings, "use_packed_mode", text="PACKING MODE ACTIVE", icon='PACKAGE', toggle=True)
-            layout.separator()
 
         # Debug Preview Active Alert
         if mat.pbr_settings.debug_preview_mode != 'OFF':
@@ -248,6 +257,9 @@ class PBR_PT_MaterialPanel(Panel):
                     m_op.slot = label
                     m_op.mode = 'MIXED'
                 
+                open_op = right_row.operator("pbr.open_in_image_editor", text="", icon='IMAGE_DATA')
+                open_op.socket_name = socket
+                
                 if is_preview:
                     right_row.operator("pbr.clear_debug_preview", text="", icon='X')
 
@@ -329,6 +341,18 @@ class PBR_PT_MaterialPanel(Panel):
         row.prop_enum(mat, "blend_method", 'HASHED', text="Hashed")
         
         ms.prop(mat, "use_backface_culling", text="Backface Culling", toggle=True)
+
+        # Viewport Color (Collapsible Section)
+        layout.separator()
+        vp_box = layout.box()
+        vp_row = vp_box.row()
+        vp_row.prop(mat.pbr_settings, "show_viewport_color",
+                    icon='TRIA_DOWN' if mat.pbr_settings.show_viewport_color else 'TRIA_RIGHT',
+                    text="Viewport Color",
+                    emboss=False)
+        if mat.pbr_settings.show_viewport_color:
+            col = vp_box.column(align=True)
+            col.operator("pbr.set_viewport_color", text="Set Viewport Color", icon='COLOR')
 
         layout.separator()
         

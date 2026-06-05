@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Face Mode**: Smartly detects adjacent faces and traverses the perpendicular face loop in both directions.
   - **Vertex Mode**: Smartly detects adjacent vertices and traverses the edge loop containing their connecting edge to select a vertex loop.
   - Retains all previous selections during smart selections.
+- **Easy PBR Improvements**:
+  - **Set Viewport Color**: Added a new operator `pbr.set_viewport_color` that samples the material's base color (averaging base texture pixels via 16x16 grid or using default solid colors, multiplied by any active Base Color Tint) to update the material's viewport display color, metallic, and roughness settings.
+  - **Open in UV/Image Editor**: Added a new operator `pbr.open_in_image_editor` that traces the node tree for a socket and displays its assigned texture in the UV/Image Editor.
+  - **UV Editor Preservation**: The open operator detects and prioritizes active UV Editors (`ui_type == 'UV'`) to display images without switching their workspace sub-type.
+  - **Collapsible Section Layout**: Grouped the PBR tools into three collapsible panels: "Texture Auto Loader", "Texture Utilities", and "Viewport Color" (positioned at the bottom).
+  - Removed the redundant `PACKING MODE ACTIVE` alert box.
 
 ## [0.2.4] - 2026-06-05
 

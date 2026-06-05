@@ -235,3 +235,174 @@ class PBR_OT_ClearDebugPreview(Operator):
             notify.info("Debug Preview Cleared")
             
         return {'FINISHED'}
+
+
+def get_image_for_socket(material, socket_name):
+    if not material or not material.use_nodes:
+        return None
+    nodes = material.node_tree.nodes
+    principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not principled:
+        return None
+
+    src_node = None
+    
+    if socket_name == "AO":
+        ao_mix = nodes.get("AOMix")
+        bc_inp = principled.inputs.get("Base Color")
+        if ao_mix and bc_inp and bc_inp.is_linked:
+            curr = bc_inp.links[0].from_node
+            while curr:
+                if curr == ao_mix:
+                    b_sock = curr.inputs.get('B') or curr.inputs[2]
+                    if b_sock and b_sock.is_linked:
+                        src_node = b_sock.links[0].from_node
+                    break
+                a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                curr = a_sock.links[0].from_node if a_sock and a_sock.is_linked else None
+    elif socket_name == "Height":
+        disp_node = nodes.get("HeightDisplace")
+        if disp_node:
+            h_sock = disp_node.inputs.get('Height')
+            if h_sock and h_sock.is_linked:
+                src_node = h_sock.links[0].from_node
+    elif socket_name == "Emission":
+        em_inp = principled.inputs.get("Emission Color")
+        if em_inp and em_inp.is_linked:
+            curr = em_inp.links[0].from_node
+            if curr.name == "EmissionTintMix":
+                a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                if a_sock and a_sock.is_linked:
+                    src_node = a_sock.links[0].from_node
+            else:
+                src_node = curr
+    else:
+        # Standard socket (Base Color, Roughness, Metallic, Normal, Alpha)
+        inp = principled.inputs.get(socket_name)
+        if inp and inp.is_linked:
+            if socket_name == "Base Color":
+                curr = inp.links[0].from_node
+                while curr:
+                    if curr.name == "BaseTex":
+                        src_node = curr
+                        break
+                    if curr.name == "BaseTintMix":
+                        a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                        if a_sock and a_sock.is_linked:
+                            curr = a_sock.links[0].from_node
+                            continue
+                    if curr.name == "AOMix":
+                        a_sock = curr.inputs.get('A') or curr.inputs.get('Color1')
+                        if a_sock and a_sock.is_linked:
+                            curr = a_sock.links[0].from_node
+                            continue
+                    if curr.type == 'TEX_IMAGE' and curr.name != "AOTex":
+                        src_node = curr
+                        break
+                    break
+            else:
+                src_node = inp.links[0].from_node
+
+    if not src_node:
+        return None
+
+    # Helper to crawl and find first Image Texture node in chain
+    visited = set()
+    current = src_node
+    while current and current not in visited:
+        visited.add(current)
+        if current.type == 'TEX_IMAGE':
+            return current.image if current.image else None
+        
+        next_node = None
+        for name in ['Color', 'Color1', 'Value', 'Image']:
+            inp = current.inputs.get(name)
+            if inp and inp.is_linked:
+                next_node = inp.links[0].from_node
+                break
+        if not next_node:
+            for inp in current.inputs:
+                if inp.is_linked:
+                    next_node = inp.links[0].from_node
+                    break
+        current = next_node
+
+    return None
+
+
+class PBR_OT_OpenInImageEditor(Operator):
+    """Open the selected texture in the UV/Image Editor"""
+    bl_idname = "pbr.open_in_image_editor"
+    bl_label = "Open in UV/Image Editor"
+    bl_description = "Open the material's texture for this slot in the UV/Image Editor"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    socket_name: StringProperty()
+
+    def execute(self, context):
+        mat = context.active_object.active_material
+        if not mat:
+            notify.error("No active material")
+            return {'CANCELLED'}
+
+        image = get_image_for_socket(mat, self.socket_name)
+        if not image:
+            notify.warning(f"No texture image found for {self.socket_name}")
+            return {'CANCELLED'}
+
+        # Find or establish an IMAGE_EDITOR area to view the image
+        image_editor_area = None
+        
+        # 1. Look for a UV Editor first (IMAGE_EDITOR with ui_type == 'UV')
+        for area in context.screen.areas:
+            if area.type == 'IMAGE_EDITOR' and area.ui_type == 'UV':
+                image_editor_area = area
+                break
+                
+        if not image_editor_area:
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    if area.type == 'IMAGE_EDITOR' and area.ui_type == 'UV':
+                        image_editor_area = area
+                        break
+                if image_editor_area:
+                    break
+                    
+        # 2. If no UV Editor is open, look for any Image Editor area (IMAGE_EDITOR)
+        if not image_editor_area:
+            for area in context.screen.areas:
+                if area.type == 'IMAGE_EDITOR':
+                    image_editor_area = area
+                    break
+                    
+        if not image_editor_area:
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    if area.type == 'IMAGE_EDITOR':
+                        image_editor_area = area
+                        break
+                if image_editor_area:
+                    break
+                    
+        if image_editor_area:
+            image_editor_area.spaces.active.image = image
+            # Only switch ui_mode to 'VIEW' if the editor's ui_type is 'VIEW' (Image Editor)
+            if image_editor_area.ui_type == 'VIEW':
+                if image_editor_area.spaces.active.ui_mode != 'VIEW':
+                    image_editor_area.spaces.active.ui_mode = 'VIEW'
+        else:
+            # Fallback: Find a VIEW_3D area and change its type to IMAGE_EDITOR
+            view_3d_area = next((a for a in context.screen.areas if a.type == 'VIEW_3D'), None)
+            if view_3d_area:
+                view_3d_area.type = 'IMAGE_EDITOR'
+                view_3d_area.ui_type = 'VIEW'
+                view_3d_area.spaces.active.image = image
+                view_3d_area.spaces.active.ui_mode = 'VIEW'
+            else:
+                context.area.type = 'IMAGE_EDITOR'
+                context.area.ui_type = 'VIEW'
+                context.area.spaces.active.image = image
+                context.area.spaces.active.ui_mode = 'VIEW'
+
+        notify.success(f"Opened texture '{image.name}' in UV/Image Editor")
+        return {'FINISHED'}

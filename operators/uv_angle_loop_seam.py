@@ -81,5 +81,44 @@ class MESH_OT_uv_angle_loop_seam(bpy.types.Operator):
             e.seam = True
 
         bmesh.update_edit_mesh(obj.data)
+
+        # Check if live unwrap is toggled on
+        if context.scene.tool_settings.use_edge_path_live_unwrap:
+            selected_edge_indices = [e.index for e in edges_to_select]
+            original_select_mode = context.tool_settings.mesh_select_mode[:]
+            
+            # Select all faces so unwrap uses every island
+            bpy.ops.mesh.select_all(action='SELECT')
+            
+            try:
+                bpy.ops.uv.unwrap(
+                    method='MINIMUM_STRETCH',
+                    fill_holes=True,
+                    correct_aspect=True,
+                    use_subsurf_data=False,
+                    margin=0,
+                    no_flip=False,
+                    iterations=10,
+                    use_weights=False,
+                    weight_group="uv_importance",
+                    weight_factor=1
+                )
+            except Exception as e:
+                self.report({'WARNING'}, f"Unwrap failed: {e}")
+            
+            # Deselect all to clear face selection
+            bpy.ops.mesh.select_all(action='DESELECT')
+            
+            # Re-select the crawled edges using a fresh bmesh so we don't overwrite UVs
+            bm_fresh = bmesh.from_edit_mesh(obj.data)
+            bm_fresh.edges.ensure_lookup_table()
+            for idx in selected_edge_indices:
+                if idx < len(bm_fresh.edges):
+                    bm_fresh.edges[idx].select = True
+            bmesh.update_edit_mesh(obj.data)
+            
+            # Restore selection mode
+            context.tool_settings.mesh_select_mode = original_select_mode
+
         return {'FINISHED'}
 

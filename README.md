@@ -55,8 +55,14 @@ Streamline bone management and constraint workflows.
 
 - **Context-Aware Selection**:
   - **Vertex & Face Mode**: Double-click selects the connected linked geometry. Exposes boundary limitation (`delimit`) options (Normal, Material, Seam, Sharp, UV) in the Adjust Last Operation (Redo) panel.
-  - **Edge Mode**: Double-click selects the edge loop. Supports `Shift + Double-click` to extend/toggle loops, and exposes the `ring` selection toggle in the Redo panel.
+  - **Edge Mode**: Double-click selects the edge loop. Exposes the `ring` selection toggle in the Redo panel.
   - **Curve Edit Mode**: Double-click selects the connected linked control points (splines).
+- **Smart Loop Selection (Shift + Double-click)**:
+  - Retains any previous selection and intelligently selects a new loop/ring based on your last two selections:
+    - **Edge Mode**: Automatically performs an **Edge Ring** selection if the newly double-clicked edge is parallel to the previously selected edge; otherwise, performs a standard **Edge Loop** selection.
+    - **Face Mode**: If the last two selected faces are adjacent, it automatically selects the entire perpendicular **Face Loop** running through them.
+    - **Vertex Mode**: If the last two selected vertices share an edge, it automatically selects the **Vertex Loop** running along that edge.
+    - **Curve Edit Mode**: Retains the previous selection and selects the linked control points of the newly double-clicked spline.
 
 ### 🛠️ Common Tools
 

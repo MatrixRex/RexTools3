@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-06-05
+
+### Added
+- **Smart Loop Selection**:
+  - Implemented smart loop/ring selection for Vertex, Edge, and Face selection modes under `Shift + Double-click`.
+  - **Edge Mode**: Automatically performs edge ring selection if the two selected edges are parallel, otherwise performs edge loop selection.
+  - **Face Mode**: Smartly detects adjacent faces and traverses the perpendicular face loop in both directions.
+  - **Vertex Mode**: Smartly detects adjacent vertices and traverses the edge loop containing their connecting edge to select a vertex loop.
+  - Retains all previous selections during smart selections.
+
 ## [0.2.4] - 2026-06-05
 
 ### Added

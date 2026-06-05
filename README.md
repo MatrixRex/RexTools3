@@ -66,6 +66,18 @@ Streamline bone management and constraint workflows.
     - **Vertex Mode**: If the last two selected vertices share an edge, it automatically selects the **Vertex Loop** running along that edge.
     - **Curve Edit Mode**: Retains the previous selection and selects the linked control points of the newly double-clicked spline.
 
+### 🥧 Pie Menus
+
+**Location:** `3D Viewport > Z or W`
+
+- **Rex Shading Pie (`Z`)**: Acts as a drop-in replacement for Blender's native shading pie. Replicates all standard shading modes (Solid, Wireframe, Material Preview, Rendered, Toggle X-Ray, Toggle Overlays) and introduces:
+  - **Retopo Toggle**: Dynamically appears in the South-West slot while in **Edit Mode**.
+  - **Weight Contours Toggle**: Dynamically appears in the South-West slot while in **Weight Paint Mode**.
+  - **Wireframe Overlay**: A permanent toggle in the South-East slot to overlay wires on top of solid/material preview.
+- **Rex View Pie (`W`)**: A new pie menu for viewport camera navigation and orbit controls:
+  - **Radial camera directions**: Switch to Left, Right, Bottom, Top, Front, and Back viewpoints.
+  - **Orbit 90° Left / Right**: Rotate the viewport camera 90 degrees left or right (positioned on the middle row).
+
 ### 🛠️ Common Tools
 
 **Location:** ` RexTools3 panel`

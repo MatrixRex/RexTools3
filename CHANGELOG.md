@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.5] - 2026-06-05
 
 ### Added
+- **Rex Shading & View Pie Menus**:
+  - **Rex Shading Pie (`Z` key)**: Created custom pie menu `VIEW3D_MT_rex_shading_pie` to replace Blender's native shading pie. Includes Solid, Wireframe, Material Preview, Rendered, Toggle X-Ray, Toggle Overlays, and a permanent **Wireframe Overlay** toggle in the South-East slot. In Edit Mode, dynamically shows a **Retopo** toggle. In Weight Paint Mode, dynamically shows a **Contours** toggle.
+  - **Rex View Pie (`W` key)**: Created custom pie menu `VIEW3D_MT_rex_view_pie` to replace default selection tool cycle. Contains Left, Right, Bottom, Top, Front, and Back viewpoint camera control buttons, plus **Orbit 90° Left** and **Orbit 90° Right** buttons placed in the middle row (West/East slots).
+  - **Keymap Registration**: Correctly registers both overrides on 3D View addon keymaps and cleanly removes them on unregistration.
 - **Smart Loop Selection**:
   - Implemented smart loop/ring selection for Vertex, Edge, and Face selection modes under `Shift + Double-click`.
   - **Edge Mode**: Automatically performs edge ring selection if the two selected edges are parallel, otherwise performs edge loop selection.
@@ -22,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed the redundant `PACKING MODE ACTIVE` alert box.
 
 ### Fixed
+- **Headless / Background Startup**:
+  - Wrapped GPU shader compilations in `ui/drawing.py` in safe try-except blocks to prevent import crashes when running Blender headlessly (background/no GPU context).
+- **Keymap Registration Cleanup**:
+  - Moved module-level keymap registration in `operators/pie_test.py` into standard `register()` and `unregister()` functions to avoid startup crashes in clean/factory environments.
 - **Custom Viewport Overlay / Popup System**:
   - Aligned drawn text font size with the measured layout wrapping size, resolving right-side text overflow in `MessageBox` popups.
   - Added smart line wrapping for paragraphs/hard newlines (`\n`) and automatic wrapping at path separators/special characters (`\`, `/`, `.`, `-`, `_`) for long tokens (such as file paths).

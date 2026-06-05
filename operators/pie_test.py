@@ -38,14 +38,27 @@ class VIEW3D_MT_my_grouped_pie(Menu):
         box.operator("wm.open_mainfile", text="Open")
 
 
-# get the addon keymap for 3D View
-km = bpy.context.window_manager.keyconfigs.addon.keymaps['3D View']
+addon_keymaps = []
 
-# create a new keymap item: Shift+X → call our pie menu
-kmi = km.keymap_items.new(
-    idname="wm.call_menu_pie", 
-    type='X', 
-    value='PRESS', 
-    shift=True
-)
-kmi.properties.name = VIEW3D_MT_my_grouped_pie.bl_idname  # :contentReference[oaicite:2]{index=2}
+def register():
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        km = kc.keymaps.get('3D View')
+        if not km:
+            km = kc.keymaps.new(name='3D View', space_type='VIEW_3D')
+        
+        kmi = km.keymap_items.new(
+            idname="wm.call_menu_pie", 
+            type='X', 
+            value='PRESS', 
+            shift=True
+        )
+        kmi.properties.name = VIEW3D_MT_my_grouped_pie.bl_idname
+        addon_keymaps.append((km, kmi))
+
+
+def unregister():
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()  # :contentReference[oaicite:2]{index=2}

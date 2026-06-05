@@ -12,11 +12,18 @@ try:
 except:
     _shader_sdf = None
 
-_shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
+try:
+    _shader_2d = gpu.shader.from_builtin('UNIFORM_COLOR')
+except:
+    _shader_2d = None
+
 try:
     _shader_img_color = gpu.shader.from_builtin('IMAGE_COLOR')
 except:
-    _shader_img_color = gpu.shader.from_builtin('2D_IMAGE_COLOR')
+    try:
+        _shader_img_color = gpu.shader.from_builtin('2D_IMAGE_COLOR')
+    except:
+        _shader_img_color = None
 
 # ---------- Asset Management ----------
 

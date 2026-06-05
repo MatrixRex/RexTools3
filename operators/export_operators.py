@@ -7,7 +7,7 @@ def has_any_override(overrides):
     """Check if any individual override flag is enabled."""
     if not overrides: return False
     flags = [
-        'override_path', 'override_format', 'override_preset', 
+        'override_path', 'override_texture_copy_path', 'override_format', 'override_preset', 
         'override_remove_armature_root', 'override_rename_armature', 
         'override_reset_transform', 'override_pre_rotation', 'override_pre_scale'
     ]
@@ -17,6 +17,7 @@ def get_resolved_val(coll, prop_name, global_settings):
     """Find the resolved value for a property by checking the collection and its parents."""
     mapping = {
         'export_path': 'override_path',
+        'texture_copy_path': 'override_texture_copy_path',
         'export_format': 'override_format',
         'export_preset': 'override_preset',
         'fbx_remove_armature_root': 'override_remove_armature_root',
@@ -71,7 +72,7 @@ def get_effective_overrides(coll, global_settings):
         res = SimpleNamespace()
         
         props = [
-            'export_path', 'export_format', 'export_preset', 
+            'export_path', 'texture_copy_path', 'export_format', 'export_preset', 
             'fbx_remove_armature_root', 'rename_armature', 
             'reset_transform', 'pre_rotation', 'pre_scale'
         ]
@@ -654,6 +655,7 @@ class REXTOOLS3_OT_ClearAllOverrides(Operator):
         overrides = coll.rex_export_overrides
         
         overrides.override_path = False
+        overrides.override_texture_copy_path = False
         overrides.override_format = False
         overrides.override_preset = False
         overrides.override_remove_armature_root = False
@@ -664,3 +666,110 @@ class REXTOOLS3_OT_ClearAllOverrides(Operator):
         
         self.report({'INFO'}, f"Cleared all overrides for {coll.name}")
         return {'FINISHED'}
+
+class REXTOOLS3_OT_CopyTextures(Operator):
+    bl_idname = "rextools3.copy_textures"
+    bl_label = "Copy Textures"
+    bl_description = "Copy textures used by materials on the current export targets to a specified folder"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        import shutil
+        from ..core import notify
+        
+        settings = context.scene.rex_export_settings
+        export_groups = get_export_groups(context, settings)
+        if not export_groups:
+            self.report({'ERROR'}, "No export targets found with current settings.")
+            return {'CANCELLED'}
+            
+        # Collect textures per-destination directory
+        # { resolved_dest_dir: set_of_images }
+        dest_images = {}
+        
+        for name, data in export_groups.items():
+            item_settings = data['settings']
+            # Resolve destination directory, fallback to global scene-level setting if empty
+            dest_dir = bpy.path.abspath(item_settings.texture_copy_path) if hasattr(item_settings, 'texture_copy_path') and item_settings.texture_copy_path else bpy.path.abspath(settings.texture_copy_path)
+            
+            if not dest_dir:
+                self.report({'WARNING'}, f"Skipping texture copy for group '{name}': No copy path defined.")
+                continue
+                
+            if dest_dir not in dest_images:
+                dest_images[dest_dir] = set()
+                
+            # Collect mesh objects for this group
+            for obj in data['objects']:
+                if obj.type == 'MESH':
+                    for mat in obj.data.materials:
+                        if mat and mat.use_nodes and mat.node_tree:
+                            for node in mat.node_tree.nodes:
+                                if node.type == 'TEX_IMAGE' and node.image:
+                                    img = node.image
+                                    if img.source in {'FILE', 'SEQUENCE', 'TILED'}:
+                                        dest_images[dest_dir].add(img)
+                                        
+        total_images = sum(len(imgs) for imgs in dest_images.values())
+        if total_images == 0:
+            self.report({'WARNING'}, "No file-based textures found in materials.")
+            return {'FINISHED'}
+            
+        copied_count = 0
+        skipped_count = 0
+        missing_count = 0
+        dest_dir_names = set()
+        
+        for dest_dir, images in dest_images.items():
+            if not images:
+                continue
+                
+            # Ensure destination directory exists
+            if not os.path.exists(dest_dir):
+                try:
+                    os.makedirs(dest_dir, exist_ok=True)
+                except Exception as e:
+                    self.report({'ERROR'}, f"Failed to create directory {dest_dir}: {str(e)}")
+                    continue
+                    
+            dest_dir_names.add(os.path.basename(dest_dir))
+            
+            for img in images:
+                if not img.filepath:
+                    missing_count += 1
+                    continue
+                    
+                filepath = bpy.path.abspath(img.filepath)
+                if not filepath or not os.path.exists(filepath) or os.path.isdir(filepath):
+                    print(f"[RexTools3] Texture file not found: {filepath}")
+                    missing_count += 1
+                    continue
+                    
+                filename = os.path.basename(filepath)
+                dest_path = os.path.join(dest_dir, filename)
+                
+                try:
+                    if not os.path.exists(dest_path) or not os.path.samefile(filepath, dest_path):
+                        shutil.copy2(filepath, dest_path)
+                        copied_count += 1
+                    else:
+                        skipped_count += 1
+                except Exception as e:
+                    self.report({'WARNING'}, f"Failed to copy {filename}: {str(e)}")
+                    
+        dest_desc = ", ".join(f"'{name}'" for name in dest_dir_names)
+        msg = f"Copied {copied_count} texture(s)"
+        if skipped_count > 0:
+            msg += f", {skipped_count} already existed"
+        if missing_count > 0:
+            msg += f", {missing_count} missing on disk"
+        msg += f" in {dest_desc}."
+        
+        self.report({'INFO'}, msg)
+        notify.success(msg)
+        return {'FINISHED'}
+

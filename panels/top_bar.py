@@ -58,6 +58,16 @@ class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
 
         layout.separator()
 
+        # --- TEXTURE COPY ---
+        col = utils.draw_section(layout, "Texture Copy", icon='IMAGE_DATA')
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(settings, "texture_copy_path", text="Path")
+        col.separator()
+        col.operator("rextools3.copy_textures", text="Copy Textures", icon='DUPLICATE')
+
+        layout.separator()
+
         # --- EXPORT PREVIEW ---
         from ..operators.export_operators import get_export_groups
         groups = get_export_groups(context, settings)

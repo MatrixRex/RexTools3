@@ -87,6 +87,14 @@ class REXTOOLS3_PT_ExportManager(Panel):
 
         layout.separator(factor=1.5)
 
+        # --- TEXTURE COPY ---
+        col = utils.draw_section(layout, "Texture Copy", icon='IMAGE_DATA')
+        col.prop(settings, "texture_copy_path", text="")
+        col.separator()
+        col.operator("rextools3.copy_textures", text="Copy Textures", icon='DUPLICATE')
+
+        layout.separator(factor=1.5)
+
         # --- MERGED EXPORT PREVIEW & OVERRIDES ---
         from ..operators.export_operators import get_export_groups
         groups = get_export_groups(context, settings)
@@ -191,6 +199,7 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
         col.use_property_decorate = False
         
         col.prop(settings, "export_path", text="Global Path")
+        col.prop(settings, "texture_copy_path", text="Texture Copy Path")
         col.separator()
         col.prop(settings, "export_mode", text="Mode")
         col.prop(settings, "export_limit", text="Limit")
@@ -235,6 +244,7 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
                 sub.prop(overrides, prop_name)
 
         draw_override_prop(col, overrides, "export_path", "override_path", text="Path")
+        draw_override_prop(col, overrides, "texture_copy_path", "override_texture_copy_path", text="Texture Path")
         col.separator()
         draw_override_prop(col, overrides, "export_format", "override_format", text="Format")
         draw_override_prop(col, overrides, "export_preset", "override_preset", text="Preset")

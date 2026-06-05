@@ -769,6 +769,12 @@ class RexExportSettings(PropertyGroup):
         default="",
         subtype='DIR_PATH'
     )
+    texture_copy_path: StringProperty(
+        name="Texture Copy Path",
+        description="Folder where textures will be copied",
+        default="",
+        subtype='DIR_PATH'
+    )
     export_mode: EnumProperty(
         name="Export Mode",
         items=[
@@ -844,6 +850,7 @@ def get_effective_export_format(coll):
 class RexCollectionExportOverrides(PropertyGroup):
     # Override Flags
     override_path: BoolProperty(name="Override Path", default=False)
+    override_texture_copy_path: BoolProperty(name="Override Texture Copy Path", default=False)
     override_format: BoolProperty(name="Override Format", default=False)
     override_preset: BoolProperty(name="Override Preset", default=False)
     override_remove_armature_root: BoolProperty(name="Override Remove Armature Root", default=False)
@@ -856,6 +863,12 @@ class RexCollectionExportOverrides(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
         description="Custom directory for this collection's export",
+        default="",
+        subtype='DIR_PATH'
+    )
+    texture_copy_path: StringProperty(
+        name="Texture Copy Path",
+        description="Custom directory for copying textures",
         default="",
         subtype='DIR_PATH'
     )
@@ -922,6 +935,12 @@ class RexExportSettings(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
         description="Global directory for exports",
+        default="",
+        subtype='DIR_PATH'
+    )
+    texture_copy_path: StringProperty(
+        name="Texture Copy Path",
+        description="Folder where textures will be copied",
         default="",
         subtype='DIR_PATH'
     )

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-06-05
+
+### Added
+- **Batch Export: Copy Textures Tool**:
+  - New operator `rextools3.copy_textures` that scans materials used by current export targets.
+  - Automatically identifies all file-based, sequence-based, and tiled (`.udim`) textures.
+  - Copies textures to a selected destination folder.
+  - Supports global destination setting (`texture_copy_path`) and per-collection overrides with override toggle logic.
+  - Exposes folder picker and copy buttons in the Export Manager sidebar, Scene settings properties, and Topbar quick export settings popup.
+
 ## [0.2.3] - 2026-06-04
 
 ### Added

@@ -1,6 +1,7 @@
 import gpu
 import bpy
 import time
+from bpy.app.handlers import persistent
 from ..core.theme import Theme
 
 class OverlayManager:
@@ -11,6 +12,7 @@ class OverlayManager:
             cls._instance.overlays = []
             cls._instance.handle = None
             cls._instance.mouse_pos = (0, 0)
+            cls._instance.watcher_running = False
         return cls._instance
 
     def _force_redraw(self):
@@ -30,8 +32,11 @@ class OverlayManager:
             self.handle = bpy.types.SpaceView3D.draw_handler_add(self.draw, (), 'WINDOW', 'POST_PIXEL')
         if not bpy.app.timers.is_registered(self._check_timeouts):
             bpy.app.timers.register(self._check_timeouts, first_interval=0.1)
-        if any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in self.overlays):
-            bpy.ops.rextools3.overlay_event_watcher('INVOKE_DEFAULT')
+        if not self.watcher_running and any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in self.overlays):
+            try:
+                bpy.ops.rextools3.overlay_event_watcher('INVOKE_DEFAULT')
+            except Exception:
+                pass
         self._force_redraw()
         return overlay
 
@@ -42,6 +47,15 @@ class OverlayManager:
         if to_remove:
             for ov in to_remove: self.remove_overlay(ov)
             self._force_redraw()
+            
+        # Restart watcher if it should be running but isn't (e.g. after a workspace/window change)
+        if not self.watcher_running and any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in self.overlays):
+            try:
+                if bpy.context.window:
+                    bpy.ops.rextools3.overlay_event_watcher('INVOKE_DEFAULT')
+            except Exception:
+                pass
+                
         return 0.1
 
     def remove_overlay(self, overlay):
@@ -54,8 +68,12 @@ class OverlayManager:
     def clear(self):
         self.overlays.clear()
         if self.handle:
-            bpy.types.SpaceView3D.draw_handler_remove(self.handle, 'WINDOW')
+            try:
+                bpy.types.SpaceView3D.draw_handler_remove(self.handle, 'WINDOW')
+            except Exception:
+                pass
             self.handle = None
+        self.watcher_running = False
         self._force_redraw()
 
     def draw(self):
@@ -74,21 +92,53 @@ class OverlayManager:
 class REXTOOLS3_OT_OverlayEventWatcher(bpy.types.Operator):
     bl_idname = "rextools3.overlay_event_watcher"
     bl_label = "Overlay Event Watcher"
+    
     def modal(self, context, event):
         manager = OverlayManager()
-        if not manager.overlays: return {'FINISHED'}
+        if not manager.overlays:
+            manager.watcher_running = False
+            return {'FINISHED'}
+            
         manager.mouse_pos = (event.mouse_region_x, event.mouse_region_y)
         if any(ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in manager.overlays):
             self._force_redraw_areas(context)
+            
         if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE'} and event.value == 'PRESS':
             to_remove = [ov for ov in manager.overlays if ov.close_on_click]
             for ov in to_remove: ov.hide()
             self._force_redraw_areas(context)
-            if not any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in manager.overlays): return {'FINISHED'}
+            if not any(ov.close_on_click or ov.anchor_x == 'MOUSE' or ov.anchor_y == 'MOUSE' for ov in manager.overlays):
+                manager.watcher_running = False
+                return {'FINISHED'}
+                
         return {'PASS_THROUGH'}
+        
     def _force_redraw_areas(self, context):
         for area in context.screen.areas:
             if area.type == 'VIEW_3D': area.tag_redraw()
+            
     def invoke(self, context, event):
+        manager = OverlayManager()
+        manager.watcher_running = True
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
+        
+    def cancel(self, context):
+        manager = OverlayManager()
+        manager.watcher_running = False
+
+@persistent
+def on_file_load(dummy1, dummy2=None):
+    OverlayManager().clear()
+
+def register():
+    if on_file_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(on_file_load)
+
+def unregister():
+    manager = OverlayManager()
+    manager.clear()
+    if bpy.app.timers.is_registered(manager._check_timeouts):
+        bpy.app.timers.unregister(manager._check_timeouts)
+    if on_file_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(on_file_load)

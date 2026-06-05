@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Collapsible Section Layout**: Grouped the PBR tools into three collapsible panels: "Texture Auto Loader", "Texture Utilities", and "Viewport Color" (positioned at the bottom).
   - Removed the redundant `PACKING MODE ACTIVE` alert box.
 
+### Fixed
+- **Custom Viewport Overlay / Popup System**:
+  - Aligned drawn text font size with the measured layout wrapping size, resolving right-side text overflow in `MessageBox` popups.
+  - Added smart line wrapping for paragraphs/hard newlines (`\n`) and automatic wrapping at path separators/special characters (`\`, `/`, `.`, `-`, `_`) for long tokens (such as file paths).
+  - Implemented automatic recovery/restart for the modal viewport event watcher when terminated by window/workspace changes, preventing click-to-close labels from getting stuck.
+  - Added a persistent blend-file load handler to automatically clear stale overlays.
+
 ## [0.2.4] - 2026-06-05
 
 ### Added

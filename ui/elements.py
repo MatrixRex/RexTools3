@@ -120,14 +120,74 @@ class MessageBox(UIElement):
         self._wrap_text()
     def update_dimensions(self): self._wrap_text()
     def _wrap_text(self):
-        blf.size(0, Theme.FONT_SIZE_NORMAL); words = self.text.split(' '); lines = []; curr_line = ""
-        max_w = self.width - 2 * self.padding
-        for w in words:
-            test_line = curr_line + (" " if curr_line else "") + w
-            tw, _ = blf.dimensions(0, test_line)
-            if tw < max_w: curr_line = test_line
-            else: lines.append(curr_line); curr_line = w
-        if curr_line: lines.append(curr_line)
+        blf.size(0, Theme.FONT_SIZE_NORMAL)
+        
+        # Calculate the actual offset from the left edge of the messagebox
+        text_x_offset = self.padding + 5
+        if self.show_icon:
+            text_x_offset += 18 + 15  # 18 is icon_size, 15 is spacing after icon
+            
+        # The remaining width for text is: total width - left offset - right padding
+        max_w = max(20, self.width - text_x_offset - self.padding)
+        
+        def wrap_word(word, max_w):
+            tw, _ = blf.dimensions(0, word)
+            if tw < max_w:
+                return [word]
+            
+            chunks = []
+            curr_chunk = ""
+            delimiters = {'\\', '/', '_', '-', '.'}
+            for char in word:
+                test_chunk = curr_chunk + char
+                cw, _ = blf.dimensions(0, test_chunk)
+                if cw < max_w:
+                    curr_chunk = test_chunk
+                else:
+                    # Try to find the last delimiter to split cleanly
+                    break_idx = -1
+                    for d in delimiters:
+                        idx = curr_chunk.rfind(d)
+                        if idx > break_idx:
+                            break_idx = idx
+                    
+                    if break_idx > 0:
+                        chunks.append(curr_chunk[:break_idx + 1])
+                        curr_chunk = curr_chunk[break_idx + 1:] + char
+                    else:
+                        if curr_chunk:
+                            chunks.append(curr_chunk)
+                        curr_chunk = char
+            if curr_chunk:
+                chunks.append(curr_chunk)
+            return chunks
+
+        lines = []
+        # Split by explicit newline first
+        paragraphs = self.text.split('\n')
+        for paragraph in paragraphs:
+            if not paragraph:
+                lines.append("")
+                continue
+                
+            words = paragraph.split(' ')
+            curr_line = ""
+            for w in words:
+                if not w:
+                    continue
+                w_chunks = wrap_word(w, max_w)
+                for chunk in w_chunks:
+                    test_line = curr_line + (" " if curr_line else "") + chunk
+                    tw, _ = blf.dimensions(0, test_line)
+                    if tw < max_w:
+                        curr_line = test_line
+                    else:
+                        if curr_line:
+                            lines.append(curr_line)
+                        curr_line = chunk
+            if curr_line:
+                lines.append(curr_line)
+                
         self.lines = lines
         self.height = len(lines) * Theme.FONT_SIZE_NORMAL + (len(lines)-1)*Theme.SPACING + 2*self.padding
     def draw(self):
@@ -142,4 +202,4 @@ class MessageBox(UIElement):
             text_x_offset += icon_size + 15
         for i, line in enumerate(self.lines):
             ly = self.y - self.padding - (i+1) * Theme.FONT_SIZE_NORMAL - i * Theme.SPACING
-            draw_text(line, self.x + text_x_offset, ly + 4, color=Theme.COLOR_TEXT)
+            draw_text(line, self.x + text_x_offset, ly + 4, size=Theme.FONT_SIZE_NORMAL, color=Theme.COLOR_TEXT)

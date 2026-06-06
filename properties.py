@@ -777,47 +777,6 @@ class RexCommonSettings(PropertyGroup):
     apply_modifiers_ignore_list: CollectionProperty(type=ModifierIgnoreItem)
 
 
-class RexExportSettings(PropertyGroup):
-    export_path: StringProperty(
-        name="Export Path",
-        description="Global directory for exports",
-        default="",
-        subtype='DIR_PATH'
-    )
-    texture_copy_path: StringProperty(
-        name="Texture Copy Path",
-        description="Folder where textures will be copied",
-        default="",
-        subtype='DIR_PATH'
-    )
-    export_mode: EnumProperty(
-        name="Export Mode",
-        items=[
-            ('OBJECTS', "Objects", "Each object as 1 mesh"),
-            ('PARENTS', "Parents", "Each top most parent as 1 mesh"),
-            ('COLLECTIONS', "Collections", "Each collection as 1 mesh"),
-        ],
-        default='OBJECTS'
-    )
-    export_limit: EnumProperty(
-        name="Limit",
-        items=[
-            ('VISIBLE', "Visible", "All scene visible objects"),
-            ('SELECTED', "Selected", "Only selected objects"),
-            ('RENDER', "Render Visible", "Only objects visible for render"),
-        ],
-        default='SELECTED'
-    )
-    export_format: EnumProperty(
-        name="Format",
-        items=[
-            ('FBX', "FBX", "Export as FBX"),
-            ('GLTF', "GLTF", "Export as GLTF"),
-            ('OBJ', "OBJ", "Export as OBJ"),
-        ],
-        default='FBX'
-    )
-    
 def get_export_presets(format_str):
     import os
     import bpy

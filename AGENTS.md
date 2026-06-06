@@ -90,6 +90,7 @@ def unregister_properties():
   - Install the add-on in Blender (use `Edit → Preferences → Add-ons → Install...` pointing to this folder or zip).
   - Enable the add-on and open `3D Viewport → Sidebar → RexTools3` to exercise panels and operators.
   - Save a `.blend` file when testing file-system operators (e.g., `rextools3.open_folder`).
+- **Automatic Blender Reload**: After completing any code changes or tasks, you MUST run `python .agent/scripts/reload_addon.py` from the workspace root to trigger Blender's addon reload. Tell the user that the reload was triggered.
 - Useful local commands (PowerShell):
 
 ```powershell

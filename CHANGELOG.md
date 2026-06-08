@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added smart line wrapping for paragraphs/hard newlines (`\n`) and automatic wrapping at path separators/special characters (`\`, `/`, `.`, `-`, `_`) for long tokens (such as file paths).
   - Implemented automatic recovery/restart for the modal viewport event watcher when terminated by window/workspace changes, preventing click-to-close labels from getting stuck.
   - Added a persistent blend-file load handler to automatically clear stale overlays.
+- **Easy PBR Save Textures Fallback**:
+  - Fixed a bug where saving textures failed (or crashed Blender GUI) if the source texture file was renamed or missing from disk.
+  - Implemented a robust direct saving mechanism using safe `filepath_raw` manipulation to write raw pixels from memory to the local `textures/` folder in their original file formats.
+  - Ensures the saved files use the current renamed image block name (`img.name`) inside Blender.
 
 ## [0.2.4] - 2026-06-05
 

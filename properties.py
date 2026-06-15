@@ -1097,6 +1097,115 @@ class PoseToolsProperties(bpy.types.PropertyGroup):
     )
 
 
+class Rextools3MissingTextureItem(bpy.types.PropertyGroup):
+    image_name: StringProperty(name="Image Name", default="")
+    filepath: StringProperty(name="File Path", default="")
+    materials: StringProperty(name="Materials", default="")
+
+
+class Rextools3MissingTextureScanner(bpy.types.PropertyGroup):
+    items: CollectionProperty(type=Rextools3MissingTextureItem)
+    has_scanned: BoolProperty(name="Has Scanned", default=False)
+
+
+_library_enum_cache = []
+
+def _library_items(self, context):
+    """Build the dropdown of asset libraries configured in Preferences."""
+    _library_enum_cache.clear()
+    _library_enum_cache.append(("__CUSTOM__", "Custom Folder...", "Use the custom folder set below"))
+    for lib in context.preferences.filepaths.asset_libraries:
+        if lib.path:
+            _library_enum_cache.append((lib.name, lib.name, lib.path))
+    return _library_enum_cache
+
+
+_catalog_enum_cache = []
+
+def _catalog_items(self, context):
+    """Build the dropdown of catalogs found in the selected asset library."""
+    import os
+    _catalog_enum_cache.clear()
+    _catalog_enum_cache.append(("__CUSTOM__", "New Catalog...", "Enter a custom catalog path below"))
+    
+    if self.library == "__CUSTOM__":
+        path = self.custom_path
+    else:
+        path = ""
+        for lib in context.preferences.filepaths.asset_libraries:
+            if lib.name == self.library:
+                path = lib.path
+                break
+    
+    target = bpy.path.abspath(path) if path else ""
+    if target and os.path.isdir(target):
+        cats_file = os.path.join(target, "blender_assets.cats.txt")
+        if os.path.exists(cats_file):
+            try:
+                with open(cats_file, "r", encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                for line in lines:
+                    s = line.strip()
+                    if not s or s.startswith("#") or s.startswith("VERSION"):
+                        continue
+                    parts = s.split(":")
+                    if len(parts) >= 2:
+                        cat_path = parts[1].strip()
+                        if cat_path:
+                            if not any(item[0] == cat_path for item in _catalog_enum_cache):
+                                _catalog_enum_cache.append((cat_path, cat_path, cat_path))
+            except Exception as e:
+                print("[Quick Asset Export] Failed to read catalogs:", e)
+                
+    return _catalog_enum_cache
+
+
+class RexAssetExportSettings(bpy.types.PropertyGroup):
+    library: EnumProperty(
+        name="Asset Library",
+        description="Where to save the asset. Libraries come from "
+                    "Preferences > File Paths > Asset Libraries",
+        items=_library_items,
+    )
+    custom_path: StringProperty(
+        name="Custom Folder",
+        description="Folder to write asset .blend files into",
+        subtype='DIR_PATH',
+        default="",
+    )
+    catalog_selection: EnumProperty(
+        name="Catalog",
+        description="Select an existing catalog or create a new one",
+        items=_catalog_items,
+    )
+    catalog: StringProperty(
+        name="New Catalog Path",
+        description="Optional catalog path, e.g. 'Props/Furniture'. "
+                    "It is created automatically if it does not exist. Leave empty for none",
+        default="",
+    )
+    separate_files: BoolProperty(
+        name="One file per object",
+        description="Write each selected object to its own .blend "
+                    "(off = put them all into a single .blend)",
+        default=True,
+    )
+    clear_after: BoolProperty(
+        name="Keep working file clean",
+        description="Remove the asset marking from the objects in your working file "
+                    "after exporting, so your scene stays uncluttered",
+        default=True,
+    )
+    preview_wait: FloatProperty(
+        name="Preview wait (seconds)",
+        description="How long to wait for thumbnails to render before writing the file. "
+                    "If your asset thumbnails come out blank, increase this",
+        default=1.5,
+        min=0.1,
+        max=10.0,
+    )
+
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
@@ -1126,6 +1235,8 @@ def register_properties():
     bpy.types.Scene.pose_tools_props = PointerProperty(type=PoseToolsProperties)
     bpy.types.Scene.sculpt_tools_props = PointerProperty(type=SculptToolsProperties)
     bpy.types.Scene.rex_batch_mat_props = PointerProperty(type=BatchMaterialProperties)
+    bpy.types.Scene.rex_missing_texture_scanner = PointerProperty(type=Rextools3MissingTextureScanner)
+    bpy.types.Scene.rex_asset_export_settings = PointerProperty(type=RexAssetExportSettings)
 
 
 def unregister_properties():
@@ -1153,3 +1264,5 @@ def unregister_properties():
     del bpy.types.Scene.pose_tools_props
     del bpy.types.Scene.sculpt_tools_props
     del bpy.types.Scene.rex_batch_mat_props
+    del bpy.types.Scene.rex_missing_texture_scanner
+    del bpy.types.Scene.rex_asset_export_settings

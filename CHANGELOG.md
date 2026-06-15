@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.5] - 2026-06-05
+## [0.2.5] - 2026-06-15
 
 ### Added
+- **Quick Asset Export**:
+  - Mark selected objects in the active file as assets and write them straight into an asset library without leaving or cluttering the workspace.
+  - Dynamically retrieves configured asset libraries from Blender preferences.
+  - Dynamically reads and lists existing catalogs from `blender_assets.cats.txt` in a dropdown menu.
+  - Supports custom library folders, custom catalog creation, separate or combined file exports, and automatic clean-up of asset markings in the working file.
+  - Integrated into the Object and Object Context menus, and as a dedicated panel in the RexTools3 sidebar.
+  - Displays progress and success overlays using the custom viewport notification system.
 - **Rex Shading & View Pie Menus**:
   - **Rex Shading Pie (`Z` key)**: Created custom pie menu `VIEW3D_MT_rex_shading_pie` to replace Blender's native shading pie. Includes Solid, Wireframe, Material Preview, Rendered, Toggle X-Ray, Toggle Overlays, and a permanent **Wireframe Overlay** toggle in the South-East slot. In Edit Mode, dynamically shows a **Retopo** toggle. In Weight Paint Mode, dynamically shows a **Contours** toggle.
   - **Rex View Pie (`W` key)**: Created custom pie menu `VIEW3D_MT_rex_view_pie` to replace default selection tool cycle. Contains Left, Right, Bottom, Top, Front, and Back viewpoint camera control buttons, plus **Orbit 90° Left** and **Orbit 90° Right** buttons placed in the middle row (West/East slots).

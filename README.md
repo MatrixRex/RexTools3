@@ -17,6 +17,20 @@
 - **Options saved in file**: all options are saved with blender file. So no more guessing what export settings were used.
 - **Copy Textures**: Copy all texture images used by materials on the current export targets to a selected folder. Supports global destination setting and per-collection overrides.
 
+### 📦 Quick Asset Export
+
+**Location:** `RexTools3 panel > Quick Asset Export Settings` and `Object / Object Context menu > Save Selected as Asset`
+
+Mark selected objects in your working file as assets and write them straight into an asset library without leaving (or cluttering) your current file.
+
+- **Dynamic Catalog Browser**: Dynamically reads and lists all existing catalogs from `blender_assets.cats.txt` in a dropdown menu.
+- **Custom Catalog Creation**: Create new catalog subfolders dynamically by specifying a custom catalog path.
+- **Auto-populate Libraries**: Automatically displays all configured asset libraries from Blender File Preferences.
+- **Clean Working File**: Option to automatically clear local asset markings after export to keep the scene uncluttered.
+- **Background Rendering**: Waits for Blender's background engine to render thumbnails before saving, avoiding empty previews.
+- **Flexible File Layout**: Export each object to its own `.blend` file or group them into a single `.blend`.
+- **Viewport Notifications**: Displays progress and success overlays using RexTools' custom viewport message toast.
+
 ### 🛠️ Easy PBR
 
 **Location:** `Material Properties > Easy PBR`

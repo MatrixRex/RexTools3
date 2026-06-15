@@ -1,4 +1,5 @@
 import bpy
+from ..ui import utils
 
 class RexTools3CleanupToolsPanel(bpy.types.Panel):
     bl_label = "Cleanup Tools"
@@ -39,3 +40,37 @@ class RexTools3CleanupToolsPanel(bpy.types.Panel):
         row = box.row(align=True)
         row.prop(common, "clean_modifiers_all", text="All", toggle=True)
         row.prop(common, "clean_modifiers_hidden", text="Hidden", toggle=True)
+
+        layout.separator(factor=1.5)
+
+        scanner = context.scene.rex_missing_texture_scanner
+        col = utils.draw_section(layout, "Missing Textures", icon='IMAGE_DATA')
+        
+        # Scan Button
+        col.operator("rextools3.scan_missing_textures", text="Scan Missing Textures", icon='VIEWZOOM')
+
+        if scanner.has_scanned:
+            col.separator()
+            if not scanner.items:
+                row = col.row()
+                row.label(text="No missing textures found", icon='CHECKMARK')
+            else:
+                utils.draw_call_to_action(col, "rextools3.clean_missing_textures", "Clean All Missing", icon='TRASH', type='PRIMARY')
+                col.separator()
+
+                # List each missing image
+                for item in scanner.items:
+                    card = col.box()
+                    
+                    row = card.row(align=True)
+                    row.label(text=item.image_name, icon='IMAGE_BACKGROUND')
+                    
+                    reassign_op = row.operator("rextools3.reassign_missing_texture", text="", icon='FILE_FOLDER')
+                    reassign_op.image_name = item.image_name
+                    
+                    if item.materials:
+                        mat_box = card.box()
+                        for mat_name in item.materials.split(", "):
+                            mat_box.label(text=mat_name, icon='MATERIAL')
+                    else:
+                        card.label(text="Not referenced in materials", icon='ERROR')

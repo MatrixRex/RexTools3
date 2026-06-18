@@ -116,12 +116,22 @@ def register():
         if not km:
             km = kc.keymaps.new(name='3D View', space_type='VIEW_3D')
         
+        # Load preference state
+        active_state = True
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = bpy.context.preferences.addons[addon_name].preferences
+            active_state = prefs.enable_shading_pie
+        except Exception:
+            pass
+
         kmi = km.keymap_items.new(
             idname="wm.call_menu_pie",
             type='Z',
             value='PRESS',
         )
         kmi.properties.name = VIEW3D_MT_rex_shading_pie.bl_idname
+        kmi.active = active_state
         addon_keymaps.append((km, kmi))
 
         kmi_view = km.keymap_items.new(
@@ -130,6 +140,7 @@ def register():
             value='PRESS',
         )
         kmi_view.properties.name = VIEW3D_MT_rex_view_pie.bl_idname
+        kmi_view.active = active_state
         addon_keymaps.append((km, kmi_view))
 
 

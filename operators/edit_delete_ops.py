@@ -77,6 +77,12 @@ def register():
         kmi = km.keymap_items.new(
             'rextools3.quick_delete_modal', 'X', 'PRESS',
         )
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = bpy.context.preferences.addons[addon_name].preferences
+            kmi.active = prefs.enable_quick_delete
+        except Exception:
+            pass
         addon_keymaps.append((km, kmi))
 
 def unregister():

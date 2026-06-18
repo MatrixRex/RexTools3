@@ -11,6 +11,17 @@ class REXTOOLS3_PT_ExportManager(Panel):
     bl_region_type = 'UI'
     bl_category = "RexTools3"
     
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_export_panel:
+                return False
+        except Exception:
+            pass
+        return True
+    
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -190,6 +201,17 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
     bl_region_type = 'WINDOW'
     bl_context = "scene"
     
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_export_panel:
+                return False
+        except Exception:
+            pass
+        return True
+    
     def draw(self, context):
         layout = self.layout
         settings = context.scene.rex_export_settings
@@ -214,6 +236,17 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "collection"
+    
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_export_panel:
+                return False
+        except Exception:
+            pass
+        return True
     
     def draw(self, context):
         layout = self.layout

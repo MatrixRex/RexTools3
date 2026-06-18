@@ -10,6 +10,17 @@ class PBR_PT_MaterialPanel(Panel):
     bl_context = "material"
     bl_category = "PBR Tools"  # This ensures the panel appears under the "PBR Tools" tab
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_pbr_tools:
+                return False
+        except Exception:
+            pass
+        return True
+
     def find_texture_node(self, node):
         """Finds the first Image Texture node in the chain starting from node."""
         visited = set()

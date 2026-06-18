@@ -107,6 +107,17 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
     bl_description = "Double-click to select linked (vertices/faces/curves) or loops (edges)"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_context_select:
+                return False
+        except Exception:
+            pass
+        return True
+
     # Linked Selection properties (Vertex/Face Mode)
     delimit: bpy.props.EnumProperty(
         name="Delimit",
@@ -311,6 +322,15 @@ def register():
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
+        # Load preference state
+        active_state = True
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = bpy.context.preferences.addons[addon_name].preferences
+            active_state = prefs.enable_context_select
+        except Exception:
+            pass
+
         # 1. Mesh Edit Mode Keymap
         km_mesh = kc.keymaps.get('Mesh')
         if not km_mesh:
@@ -322,6 +342,7 @@ def register():
             value='DOUBLE_CLICK',
             any=True
         )
+        kmi_mesh.active = active_state
         addon_keymaps.append((km_mesh, kmi_mesh))
 
         # 2. Curve Edit Mode Keymap
@@ -335,6 +356,7 @@ def register():
             value='DOUBLE_CLICK',
             any=True
         )
+        kmi_curve.active = active_state
         addon_keymaps.append((km_curve, kmi_curve))
 
 

@@ -1,6 +1,13 @@
 import bpy
 
 def draw_uv_menu(self, context):
+    try:
+        addon_name = __package__.partition('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        if not prefs.enable_uv_mesh_tools:
+            return
+    except Exception:
+        pass
     layout = self.layout
     layout.separator()
     layout.operator(

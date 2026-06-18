@@ -9,6 +9,13 @@ class REXTOOLS3_PT_NodeHelper(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_node_helper:
+                return False
+        except Exception:
+            pass
         # Only show in Shader Editor and when a node is selected
         if not context.space_data or context.space_data.type != 'NODE_EDITOR':
             return False
@@ -87,6 +94,17 @@ class REXTOOLS3_PT_NodeLayout(bpy.types.Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "RexTools3"
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_node_helper:
+                return False
+        except Exception:
+            pass
+        return True
 
     def draw(self, context):
         layout = self.layout

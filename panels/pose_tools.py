@@ -9,6 +9,13 @@ class RexTools3PoseToolsPanel(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_pose_tools:
+                return False
+        except Exception:
+            pass
         return context.mode == 'POSE'
     
     def draw(self, context):

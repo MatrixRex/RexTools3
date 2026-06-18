@@ -149,6 +149,13 @@ class REXTOOLS3_PT_ExportSettingsPopup(bpy.types.Panel):
         layout.separator()
 
 def draw_topbar_export(self, context):
+    try:
+        addon_name = __package__.partition('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        if not prefs.enable_export_panel:
+            return
+    except Exception:
+        pass
     layout = self.layout
     row = layout.row(align=True)
     row.operator("rextools3.export", text="Export", icon='EXPORT')

@@ -13,6 +13,13 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
 
     @classmethod
     def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_quick_delete:
+                return False
+        except Exception:
+            pass
         return context.mode == 'EDIT_MESH'
 
     def modal(self, context, event):

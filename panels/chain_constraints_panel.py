@@ -9,6 +9,17 @@ class REXTOOLS3_PT_ChainConstraintsAdder(Panel):
     bl_category = "RexTools3"
     bl_context = "posemode"
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_chain_constraints:
+                return False
+        except Exception:
+            pass
+        return True
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene

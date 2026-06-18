@@ -8,8 +8,16 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
     bl_region_type = 'UI'  # sidebar
     bl_category = "RexTools3"  # tab name
     
-    
-    
+    @classmethod
+    def poll(cls, context):
+        try:
+            addon_name = __package__.partition('.')[0]
+            prefs = context.preferences.addons[addon_name].preferences
+            if not prefs.enable_common_tools:
+                return False
+        except Exception:
+            pass
+        return True
     
     def draw(self, context):
         layout = self.layout

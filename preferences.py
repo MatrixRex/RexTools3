@@ -233,7 +233,10 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 
                 if getattr(self, enable_prop):
                     if info_text:
-                        box.label(text=info_text, icon='INFO')
+                        lines = info_text.split("\n")
+                        box.label(text=lines[0], icon='INFO')
+                        for line in lines[1:]:
+                            box.label(text="    " + line)
                     if sub_props:
                         sub_col = box.column(align=True)
                         sub_col.separator(factor=0.5)

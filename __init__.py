@@ -28,6 +28,9 @@ auto_load.init()
 
 
 def register():
+    from .preferences import pre_apply_panel_categories
+    pre_apply_panel_categories()
+    
     auto_load.register()
     properties.register_properties()
     

@@ -1,5 +1,69 @@
 import bpy
-from bpy.props import BoolProperty, EnumProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty
+
+PANEL_CATEGORY_MAPPINGS = [
+    ("common_tools", "RexTools3CommonToolsPanel", "category_common_tools"),
+    ("batch_material_panel", "PBR_PT_BatchMaterialPanel", "category_batch_material"),
+    ("quick_asset_export", "REXTOOLS3_PT_QuickAssetExport", "category_quick_asset_export"),
+    ("object_tools", "RexTools3ObjectToolsPanel", "category_object_tools"),
+    ("rename_tools", "RexTools3RenameToolsPanel", "category_rename_tools"),
+    ("uv_tools", "RexTools3UVToolsPanel", "category_uv_tools"),
+    ("edit_tools", "RexTools3EditToolsPanel", "category_edit_tools"),
+    ("uv_mesh_tools", "RexTools3UVMeshToolsPanel", "category_uv_mesh_tools"),
+    ("cleanup_tools", "RexTools3CleanupToolsPanel", "category_cleanup_tools"),
+    ("pose_tools", "RexTools3PoseToolsPanel", "category_pose_tools"),
+    ("chain_constraints_panel", "RexTools3ChainConstraintsPanel", "category_chain_constraints"),
+    ("sculpt_panel", "RexTools3SculptToolsPanel", "category_sculpt_tools"),
+    ("weight_tools", "RexTools3WeightToolsPanel", "category_weight_tools"),
+    ("node_helper_panel", "REXTOOLS3_PT_NodeHelper", "category_node_helper"),
+    ("node_helper_panel", "REXTOOLS3_PT_NodeLayout", "category_node_helper"),
+    ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport")
+]
+
+def update_category_realtime(self, context):
+    import importlib
+    for module_name, class_name, pref_attr in PANEL_CATEGORY_MAPPINGS:
+        try:
+            module = importlib.import_module(f".panels.{module_name}", __package__)
+            cls = getattr(module, class_name)
+            default_val = "RExport" if pref_attr == "category_rexport" else "RexTools3"
+            new_cat = getattr(self, pref_attr, default_val)
+            if not new_cat:
+                new_cat = default_val
+                
+            if cls.bl_category != new_cat:
+                try:
+                    bpy.utils.unregister_class(cls)
+                except Exception:
+                    pass
+                cls.bl_category = new_cat
+                try:
+                    bpy.utils.register_class(cls)
+                except Exception as re_ex:
+                    print(f"[RexTools3] Error re-registering {class_name}: {re_ex}")
+        except Exception as e:
+            print(f"[RexTools3] Error in update_category_realtime for {class_name}: {e}")
+            
+    update_panel_redraw(self, context)
+
+def pre_apply_panel_categories():
+    import importlib
+    try:
+        addon_name = __package__ or "RexTools3"
+        prefs = bpy.context.preferences.addons[addon_name].preferences
+        for module_name, class_name, pref_attr in PANEL_CATEGORY_MAPPINGS:
+            default_val = "RExport" if pref_attr == "category_rexport" else "RexTools3"
+            custom_cat = getattr(prefs, pref_attr, default_val)
+            if not custom_cat:
+                custom_cat = default_val
+            try:
+                module = importlib.import_module(f".panels.{module_name}", __package__)
+                cls = getattr(module, class_name)
+                cls.bl_category = custom_cat
+            except Exception as ex:
+                print(f"[RexTools3] Failed to pre-set category for {class_name}: {ex}")
+    except Exception as e:
+        print(f"[RexTools3] Error pre-applying panel categories: {e}")
 
 def update_keymap_active_states(self, context):
     try:
@@ -31,6 +95,7 @@ def update_panel_redraw(self, context):
                     area.tag_redraw()
     except Exception as e:
         print("[RexTools3] Error tagging redraw:", e)
+
 
 
 
@@ -146,6 +211,97 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         update=update_panel_redraw,
     )
 
+    category_common_tools: StringProperty(
+        name="Common Tools Category",
+        description="Sidebar tab category for the Common Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_batch_material: StringProperty(
+        name="Material Tools Category",
+        description="Sidebar tab category for the Material Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_quick_asset_export: StringProperty(
+        name="Quick Asset Export Category",
+        description="Sidebar tab category for the Quick Asset Export panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_object_tools: StringProperty(
+        name="Object Tools Category",
+        description="Sidebar tab category for the Object Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_rename_tools: StringProperty(
+        name="Rename Tools Category",
+        description="Sidebar tab category for the Rename Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_uv_tools: StringProperty(
+        name="UV Tools Category",
+        description="Sidebar tab category for the UV Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_edit_tools: StringProperty(
+        name="Edit Tools Category",
+        description="Sidebar tab category for the Edit Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_uv_mesh_tools: StringProperty(
+        name="UV Mesh Tools Category",
+        description="Sidebar tab category for the UV Mesh Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_cleanup_tools: StringProperty(
+        name="Cleanup Tools Category",
+        description="Sidebar tab category for the Cleanup Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_pose_tools: StringProperty(
+        name="Pose Tools Category",
+        description="Sidebar tab category for the Pose Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_chain_constraints: StringProperty(
+        name="Chain Constraints Category",
+        description="Sidebar tab category for the Chain Constraints panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_sculpt_tools: StringProperty(
+        name="Sculpt Tools Category",
+        description="Sidebar tab category for the Sculpt Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_weight_tools: StringProperty(
+        name="Weight Tools Category",
+        description="Sidebar tab category for the Weight Tools panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_node_helper: StringProperty(
+        name="Node Helper Category",
+        description="Sidebar tab category for the Shader Editor Node Helper panels",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_rexport: StringProperty(
+        name="RExport Category",
+        description="Sidebar tab category for the RExport panel",
+        default="RExport",
+        update=update_category_realtime,
+    )
+
     # Common Tools Sub-tools
     enable_tool_open_folder: BoolProperty(name="Open Folder", default=True, update=update_panel_redraw)
     enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True, update=update_panel_redraw)
@@ -224,12 +380,18 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col = layout.column()
             col.label(text="Sidebar Panel Tools Visibility", icon='PREFERENCES')
             
-            def draw_panel_category(layout, label, icon, enable_prop, sub_props=None, info_text=None):
+            def draw_panel_category(layout, label, icon, enable_prop, sub_props=None, info_text=None, category_prop=None):
                 box = layout.box()
                 hdr = box.row()
                 hdr.prop(self, enable_prop, text=label, icon=icon)
                 
                 if getattr(self, enable_prop):
+                    if category_prop:
+                        # Draw Sidebar Tab category input field
+                        row = box.row(align=True)
+                        row.prop(self, category_prop, text="Sidebar Tab")
+                        box.separator()
+                        
                     if info_text:
                         lines = info_text.split("\n")
                         box.label(text=lines[0], icon='INFO')
@@ -255,25 +417,25 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_any, "Common Tools", 'SETTINGS', "enable_common_tools", [
                 ("enable_tool_open_folder", "Open Folder"),
                 ("enable_tool_purge_orphans", "Purge Orphans")
-            ])
+            ], category_prop="category_common_tools")
             draw_panel_category(col_any, "Material Tools", 'TEXTURE_DATA', "enable_batch_material", [
                 ("enable_tool_extract_textures", "Extract Textures"),
                 ("enable_tool_replace_materials", "Replace Materials"),
                 ("enable_tool_batch_texture_assign", "Batch Texture Assign")
-            ])
-            draw_panel_category(col_any, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
-
+            ], category_prop="category_batch_material")
+            draw_panel_category(col_any, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export", category_prop="category_quick_asset_export")
+ 
             # Sub-group: Object Mode
             box_obj = col_3d.box()
             box_obj.label(text="Object Mode Tools", icon='OBJECT_DATA')
             col_obj = box_obj.column()
-            draw_panel_category(col_obj, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
-            draw_panel_category(col_obj, "UV Tools", 'UV_DATA', "enable_uv_tools")
+            draw_panel_category(col_obj, "Object Tools", 'OBJECT_DATA', "enable_object_tools", category_prop="category_object_tools")
+            draw_panel_category(col_obj, "UV Tools", 'UV_DATA', "enable_uv_tools", category_prop="category_uv_tools")
             draw_panel_category(col_obj, "Rename Tools", 'FONT_DATA', "enable_rename_tools", [
                 ("enable_tool_bone_batch_rename", "Bone Batch Rename"),
                 ("enable_tool_mesh_highlow_rename", "Mesh High/Low Rename")
-            ])
-
+            ], category_prop="category_rename_tools")
+ 
             # Sub-group: Edit Mode
             box_edit = col_3d.box()
             box_edit.label(text="Edit Mode Tools", icon='EDITMODE_HLT')
@@ -281,15 +443,15 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_edit, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
                 ("enable_tool_angle_loop_select", "Angle Loop Select"),
                 ("enable_tool_subdivide_tube", "Subdivide Tube")
-            ])
+            ], category_prop="category_edit_tools")
             draw_panel_category(col_edit, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
                 ("enable_tool_uv_mesh_area_seam", "Area Seam"),
                 ("enable_tool_uv_mesh_angle_loop_seam", "Angle Loop Seam"),
                 ("enable_tool_uv_mesh_seam_island_sharp", "Seam From Island & Sharp"),
                 ("enable_tool_uv_mesh_area_seam_angle", "Area Seam by Angle"),
                 ("enable_tool_uv_mesh_unwrap_quad", "Live Unwrap & Quad")
-            ])
-
+            ], category_prop="category_uv_mesh_tools")
+ 
             # Sub-group: Object & Edit Mode
             box_obj_edit = col_3d.box()
             box_obj_edit.label(text="Object & Edit Mode Tools", icon='LOOP_BACK')
@@ -300,8 +462,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_clear_seams", "Clear Seams"),
                 ("enable_tool_clean_modifiers", "Clean Modifiers"),
                 ("enable_tool_missing_textures", "Missing Textures Scanner")
-            ])
-
+            ], category_prop="category_cleanup_tools")
+ 
             # Sub-group: Pose Mode
             box_pose = col_3d.box()
             box_pose.label(text="Pose Mode Tools", icon='POSE_HLT')
@@ -310,9 +472,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_pose_init_weight", "Init Weight Paint"),
                 ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
                 ("enable_tool_flipped_anim", "Flipped Anim")
-            ])
-            draw_panel_category(col_pose, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
-
+            ], category_prop="category_pose_tools")
+            draw_panel_category(col_pose, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints", category_prop="category_chain_constraints")
+ 
             # Sub-group: Paint & Sculpt Modes
             box_paint = col_3d.box()
             box_paint.label(text="Paint & Sculpt Mode Tools", icon='SCULPTMODE_HLT')
@@ -320,11 +482,11 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_paint, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
                 ("enable_tool_sculpt_navigation", "Pen Navigation"),
                 ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
-            ])
+            ], category_prop="category_sculpt_tools")
             draw_panel_category(col_paint, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
                 ("enable_tool_weight_init_weight", "Init Weight Paint"),
                 ("enable_tool_weight_xray_brush", "X-Ray Brush Toggle")
-            ])
+            ], category_prop="category_weight_tools")
             
             # --- Group 2: RExport Panel & Tools ---
             col.separator()
@@ -333,7 +495,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col_rexport = box_rexport.column()
             
             draw_panel_category(col_rexport, "RExport", 'EXPORT', "enable_rexport",
-                                info_text="Locations:\n1. 3D View > side panel > RExport\n2. TopBar header > RExport\n3. Collection properties > RExport\n4. Scene properties > RExport")
+                                info_text="Locations:\n1. 3D View > side panel > RExport\n2. TopBar header > RExport\n3. Collection properties > RExport\n4. Scene properties > RExport",
+                                category_prop="category_rexport")
             
             # --- Group 3: EasyPBR Panel & Tools ---
             col.separator()
@@ -351,7 +514,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col_other = box_other.column()
             
             draw_panel_category(col_other, "Node Helper & Layout", 'NODETREE', "enable_node_helper",
-                                info_text="Location:\n1. Shader Editor > Sidebar > RexTools3 Tab")
+                                info_text="Location:\n1. Shader Editor > Sidebar > RexTools3 Tab", category_prop="category_node_helper")
             
         elif self.active_tab == 'SHORTCUTS':
             # --- Shortcut Tools Section ---

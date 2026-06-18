@@ -34,10 +34,11 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     active_tab: EnumProperty(
         name="Tab",
         items=[
-            ('TOOLS', "Tools & Panels", "Enable or disable tool panels in the sidebar", 'SETTINGS', 0),
-            ('KEYMAP', "Keyboard Shortcuts", "Manage shortcut keys for tools", 'KEY_SHIFT', 1),
+            ('PANELS', "Panel Tools", "Enable or disable sidebar panel tools", 'PREFERENCES', 0),
+            ('SHORTCUTS', "Shortcut Tools", "Manage shortcut tools and their hotkeys", 'TOOL_SETTINGS', 1),
+            ('PIES', "Pie Menus", "Manage pie menus and their hotkeys", 'MENU_PANEL', 2),
         ],
-        default='TOOLS',
+        default='PANELS',
     )
 
     # Tool Category Toggles (Panels)
@@ -167,10 +168,10 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         row.prop(self, "active_tab", expand=True)
         layout.separator()
 
-        if self.active_tab == 'TOOLS':
+        if self.active_tab == 'PANELS':
             # --- Panels Enable/Disable Section ---
             col = layout.column(align=True)
-            col.label(text="Tool Panels Visibility", icon='PREFERENCES')
+            col.label(text="Sidebar Panel Tools Visibility", icon='PREFERENCES')
             
             box = col.box()
             grid = box.grid_flow(columns=2, align=True)
@@ -193,22 +194,53 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             grid.prop(self, "enable_weight_tools")
             grid.prop(self, "enable_rename_tools")
             
-        elif self.active_tab == 'KEYMAP':
-            # --- Keyboard Shortcuts Management Section ---
+        elif self.active_tab == 'SHORTCUTS':
+            # --- Shortcut Tools Section ---
             col = layout.column()
-            col.label(text="Shortcut Keys Configuration", icon='KEY_SHIFT')
+            col.label(text="Shortcut Tools Configuration", icon='TOOL_SETTINGS')
             
-            from .operators import smart_join, rex_shading_pie, pie_test, edit_delete_ops, context_aware_select
+            from .operators import smart_join, edit_delete_ops, context_aware_select
 
             shortcut_tools = [
                 (self.enable_smart_join, "enable_smart_join", smart_join, "Smart Join (Object Mode: Ctrl+J)"),
-                (self.enable_shading_pie, "enable_shading_pie", rex_shading_pie, "Rex Shading & View Pies (3D View: Z / W)"),
-                (self.enable_pie_test, "enable_pie_test", pie_test, "Pie Test (3D View: Shift+X)"),
                 (self.enable_quick_delete, "enable_quick_delete", edit_delete_ops, "Quick Delete Modal (3D View: X)"),
                 (self.enable_context_select, "enable_context_select", context_aware_select, "Context Aware Select (Mesh/Curve: Double Click)"),
             ]
 
             for enabled, toggle_prop_name, module, title in shortcut_tools:
+                box = col.box()
+                
+                # Header row with enable/disable toggle
+                hdr = box.row()
+                hdr.prop(self, toggle_prop_name, text=title)
+                
+                if enabled and hasattr(module, 'addon_keymaps'):
+                    keymap_col = box.column(align=True)
+                    for km, kmi in module.addon_keymaps:
+                        row = keymap_col.row(align=True)
+                        row.prop(kmi, "active", text="")
+                        row.prop(kmi, "map_type", text="")
+                        row.prop(kmi, "type", text="", full_event=True)
+                        
+                        if kmi.map_type == 'KEYBOARD':
+                            row.prop(kmi, "ctrl", text="Ctrl", toggle=True)
+                            row.prop(kmi, "shift", text="Shift", toggle=True)
+                            row.prop(kmi, "alt", text="Alt", toggle=True)
+                            row.prop(kmi, "oskey", text="Cmd", toggle=True)
+
+        elif self.active_tab == 'PIES':
+            # --- Pie Menus Section ---
+            col = layout.column()
+            col.label(text="Pie Menus Configuration", icon='MENU_PANEL')
+            
+            from .operators import rex_shading_pie, pie_test
+
+            pie_tools = [
+                (self.enable_shading_pie, "enable_shading_pie", rex_shading_pie, "Rex Shading & View Pies (3D View: Z / W)"),
+                (self.enable_pie_test, "enable_pie_test", pie_test, "Pie Test (3D View: Shift+X)"),
+            ]
+
+            for enabled, toggle_prop_name, module, title in pie_tools:
                 box = col.box()
                 
                 # Header row with enable/disable toggle

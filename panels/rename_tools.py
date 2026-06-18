@@ -23,9 +23,15 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         
+        addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+            
         # 1. Bone Batch Rename Section (Armature only)
         active_obj = context.active_object
-        if active_obj and active_obj.type == 'ARMATURE':
+        if (not prefs or prefs.enable_tool_bone_batch_rename) and active_obj and active_obj.type == 'ARMATURE':
             bone_props = context.scene.bone_rename_props
             
             bone_box = layout.box()
@@ -120,49 +126,50 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
             layout.separator()
             
         # 2. Mesh High/Low Rename Section
-        props = context.scene.highlow_renamer_props
-        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        
-        mesh_box = layout.box()
-        mesh_row = mesh_box.row()
-        mesh_row.prop(props, "show_in_panel",
-                      icon='TRIA_DOWN' if props.show_in_panel else 'TRIA_RIGHT',
-                      text="Mesh High/Low Rename",
-                      emboss=False)
-                      
-        if props.show_in_panel:
-            col_mesh = mesh_box.column(align=True)
-            col_mesh.label(text="Selected Objects:")
+        if not prefs or prefs.enable_tool_mesh_highlow_rename:
+            props = context.scene.highlow_renamer_props
+            selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
             
-            if len(selected_meshes) == 0:
-                col_mesh.label(text="No mesh objects selected", icon='ERROR')
-            elif len(selected_meshes) == 1:
-                depsgraph = context.evaluated_depsgraph_get()
-                obj_eval = selected_meshes[0].evaluated_get(depsgraph)
-                vertex_count = len(obj_eval.data.vertices)
-                col_mesh.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
-            elif len(selected_meshes) == 2:
-                depsgraph = context.evaluated_depsgraph_get()
-                for obj in selected_meshes:
-                    obj_eval = obj.evaluated_get(depsgraph)
-                    vertex_count = len(obj_eval.data.vertices)
-                    col_mesh.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
-            else:
-                col_mesh.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
-                col_mesh.label(text="Select only 2 meshes")
+            mesh_box = layout.box()
+            mesh_row = mesh_box.row()
+            mesh_row.prop(props, "show_in_panel",
+                          icon='TRIA_DOWN' if props.show_in_panel else 'TRIA_RIGHT',
+                          text="Mesh High/Low Rename",
+                          emboss=False)
+                          
+            if props.show_in_panel:
+                col_mesh = mesh_box.column(align=True)
+                col_mesh.label(text="Selected Objects:")
                 
-            col_mesh.separator()
-            row = col_mesh.row(align=True)
-            row.prop(props, "obj_name")
-            row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
-            op = row.operator("wm.context_set_string", text="", icon='X')
-            op.data_path = "scene.highlow_renamer_props.obj_name"
-            op.value = ""
-            
-            col_mesh.prop(props, "high_prefix")
-            col_mesh.prop(props, "low_prefix")
-            
-            col_mesh.separator()
-            utils.draw_call_to_action(col_mesh, "mesh.auto_rename_high_low", "Auto Rename High/Low", icon='FILE_REFRESH', type='PRIMARY')
+                if len(selected_meshes) == 0:
+                    col_mesh.label(text="No mesh objects selected", icon='ERROR')
+                elif len(selected_meshes) == 1:
+                    depsgraph = context.evaluated_depsgraph_get()
+                    obj_eval = selected_meshes[0].evaluated_get(depsgraph)
+                    vertex_count = len(obj_eval.data.vertices)
+                    col_mesh.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
+                elif len(selected_meshes) == 2:
+                    depsgraph = context.evaluated_depsgraph_get()
+                    for obj in selected_meshes:
+                        obj_eval = obj.evaluated_get(depsgraph)
+                        vertex_count = len(obj_eval.data.vertices)
+                        col_mesh.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
+                else:
+                    col_mesh.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
+                    col_mesh.label(text="Select only 2 meshes")
+                    
+                col_mesh.separator()
+                row = col_mesh.row(align=True)
+                row.prop(props, "obj_name")
+                row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+                op = row.operator("wm.context_set_string", text="", icon='X')
+                op.data_path = "scene.highlow_renamer_props.obj_name"
+                op.value = ""
+                
+                col_mesh.prop(props, "high_prefix")
+                col_mesh.prop(props, "low_prefix")
+                
+                col_mesh.separator()
+                utils.draw_call_to_action(col_mesh, "mesh.auto_rename_high_low", "Auto Rename High/Low", icon='FILE_REFRESH', type='PRIMARY')
 
 

@@ -21,7 +21,6 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        rex_common = context.scene.rex_common_settings
         
         addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
         try:
@@ -31,12 +30,8 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
 
         if not prefs or prefs.enable_tool_open_folder:
             layout.operator("rextools3.open_folder", text="Open Folder")
-        if not prefs or prefs.enable_tool_extract_textures:
-            layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
         if not prefs or prefs.enable_tool_purge_orphans:
             layout.operator("outliner.orphans_purge", text="Purge Orphans")
-        if not prefs or prefs.enable_tool_replace_materials:
-            layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
 
         
         

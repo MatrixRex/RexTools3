@@ -8,7 +8,7 @@ from .pbr_assign import PBR_OT_AssignTexture, _find_matches_in_dir
 class PBR_OT_BatchInit(Operator):
     """Gather unique materials from selected objects"""
     bl_idname = "pbr.batch_init"
-    bl_label = "Init Batch Texture Assign"
+    bl_label = "Get Materials"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):

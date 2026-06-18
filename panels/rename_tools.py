@@ -1,4 +1,5 @@
 import bpy
+from ..ui import utils
 
 
 class RexTools3RenameToolsPanel(bpy.types.Panel):
@@ -19,45 +20,149 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
             pass
         return context.mode == 'OBJECT'
     
-    
     def draw(self, context):
         layout = self.layout
-        props = context.scene.highlow_renamer_props
-
-        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
-
-        box = layout.box()
-        box.label(text="Selected Objects:")
-
-        if len(selected_meshes) == 0:
-            box.label(text="No mesh objects selected", icon='ERROR')
-        elif len(selected_meshes) == 1:
-            depsgraph = context.evaluated_depsgraph_get()
-            obj_eval = selected_meshes[0].evaluated_get(depsgraph)
-            vertex_count = len(obj_eval.data.vertices)
-            box.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
-        elif len(selected_meshes) == 2:
-            depsgraph = context.evaluated_depsgraph_get()
-            for obj in selected_meshes:
-                obj_eval = obj.evaluated_get(depsgraph)
-                vertex_count = len(obj_eval.data.vertices)
-                box.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
-        else:
-            box.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
-            box.label(text="Select only 2 meshes")
-
-        layout.separator()
-        row = layout.row(align=True)
-        row.prop(props, "obj_name")
-        row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
-        # Add a clear button to make resetting to auto-fill easier
-        op = row.operator("wm.context_set_string", text="", icon='X')
-        op.data_path = "scene.highlow_renamer_props.obj_name"
-        op.value = ""
         
-        layout.prop(props, "high_prefix")
-        layout.prop(props, "low_prefix")
+        # 1. Bone Batch Rename Section (Armature only)
+        active_obj = context.active_object
+        if active_obj and active_obj.type == 'ARMATURE':
+            bone_props = context.scene.bone_rename_props
+            
+            bone_box = layout.box()
+            bone_row = bone_box.row()
+            bone_row.prop(bone_props, "show_in_panel",
+                          icon='TRIA_DOWN' if bone_props.show_in_panel else 'TRIA_RIGHT',
+                          text="Bone Batch Rename",
+                          emboss=False)
+            
+            if bone_props.show_in_panel:
+                col_bone = bone_box.column(align=True)
+                col_bone.label(text=f"Armature: {active_obj.name}", icon='ARMATURE_DATA')
+                col_bone.label(text=f"Bones: {len(active_obj.data.bones)}")
+                
+                col_bone.separator()
+                
+                has_find_replace = bool(bone_props.find_text)
+                has_prefix_suffix = bool(bone_props.prefix_text or bone_props.suffix_text)
+                
+                col_bone.label(text="Find & Replace:")
+                col_fr = col_bone.column(align=True)
+                col_fr.prop(bone_props, "find_text")
+                col_fr.prop(bone_props, "replace_text")
+                
+                col_bone.separator()
+                
+                col_bone.label(text="Prefix & Suffix:")
+                col_ps = col_bone.column(align=True)
+                col_ps.prop(bone_props, "prefix_text")
+                col_ps.prop(bone_props, "suffix_text")
+                
+                if has_find_replace and has_prefix_suffix:
+                    col_ps.separator()
+                    col_ps.prop(bone_props, "apply_prefix_suffix_to_matches_only")
+                    
+                col_bone.separator()
+                
+                if has_find_replace or has_prefix_suffix:
+                    preview_box = col_bone.box()
+                    preview_box.label(text="Preview:", icon='ZOOM_IN')
+                    preview_count = 0
+                    
+                    for bone in active_obj.data.bones:
+                        old_name = bone.name
+                        new_name = old_name
+                        should_show = False
+                        found_match = False
+                        
+                        if has_find_replace and bone_props.find_text in old_name:
+                            new_name = new_name.replace(bone_props.find_text, bone_props.replace_text)
+                            should_show = True
+                            found_match = True
+                            
+                        if has_prefix_suffix:
+                            should_apply = bone_props.apply_prefix_suffix_to_matches_only and found_match or not bone_props.apply_prefix_suffix_to_matches_only
+                            if should_apply:
+                                if bone_props.prefix_text:
+                                    new_name = bone_props.prefix_text + new_name
+                                if bone_props.suffix_text:
+                                    new_name = new_name + bone_props.suffix_text
+                                should_show = True
+                                
+                        if should_show and new_name != old_name:
+                            preview_count += 1
+                            if preview_count <= 5:
+                                row_p = preview_box.row()
+                                row_p.scale_y = 0.8
+                                row_p.label(text=f"{old_name} → {new_name}", icon='BONE_DATA')
+                                
+                    if preview_count > 5:
+                        preview_box.label(text=f"... and {preview_count - 5} more", icon='THREE_DOTS')
+                    elif preview_count == 0:
+                        msg = "No matches found" if has_find_replace else "Will add prefix/suffix to all bones"
+                        preview_box.label(text=msg, icon='INFO')
+                        
+                col_bone.separator()
+                
+                btn_row = col_bone.row()
+                btn_row.scale_y = 1.5
+                btn_row.enabled = has_find_replace or has_prefix_suffix
+                btn_row.operator("armature.batch_rename_bones", icon='FILE_REFRESH')
+                
+                col_bone.separator()
+                
+                info_box = col_bone.box()
+                info_box.label(text="Info:", icon='INFO')
+                col_info = info_box.column(align=True)
+                col_info.scale_y = 0.8
+                col_info.label(text="• Vertex groups will be automatically updated")
+                col_info.label(text="• Make sure to be in Object mode")
+            
+            layout.separator()
+            
+        # 2. Mesh High/Low Rename Section
+        props = context.scene.highlow_renamer_props
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        mesh_box = layout.box()
+        mesh_row = mesh_box.row()
+        mesh_row.prop(props, "show_in_panel",
+                      icon='TRIA_DOWN' if props.show_in_panel else 'TRIA_RIGHT',
+                      text="Mesh High/Low Rename",
+                      emboss=False)
+                      
+        if props.show_in_panel:
+            col_mesh = mesh_box.column(align=True)
+            col_mesh.label(text="Selected Objects:")
+            
+            if len(selected_meshes) == 0:
+                col_mesh.label(text="No mesh objects selected", icon='ERROR')
+            elif len(selected_meshes) == 1:
+                depsgraph = context.evaluated_depsgraph_get()
+                obj_eval = selected_meshes[0].evaluated_get(depsgraph)
+                vertex_count = len(obj_eval.data.vertices)
+                col_mesh.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
+            elif len(selected_meshes) == 2:
+                depsgraph = context.evaluated_depsgraph_get()
+                for obj in selected_meshes:
+                    obj_eval = obj.evaluated_get(depsgraph)
+                    vertex_count = len(obj_eval.data.vertices)
+                    col_mesh.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
+            else:
+                col_mesh.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
+                col_mesh.label(text="Select only 2 meshes")
+                
+            col_mesh.separator()
+            row = col_mesh.row(align=True)
+            row.prop(props, "obj_name")
+            row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+            op = row.operator("wm.context_set_string", text="", icon='X')
+            op.data_path = "scene.highlow_renamer_props.obj_name"
+            op.value = ""
+            
+            col_mesh.prop(props, "high_prefix")
+            col_mesh.prop(props, "low_prefix")
+            
+            col_mesh.separator()
+            utils.draw_call_to_action(col_mesh, "mesh.auto_rename_high_low", "Auto Rename High/Low", icon='FILE_REFRESH', type='PRIMARY')
 
-        layout.separator()
-        layout.operator("mesh.auto_rename_high_low", text="Auto Rename High/Low", icon='FILE_REFRESH')
 

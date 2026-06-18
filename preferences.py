@@ -67,8 +67,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         update=update_panel_redraw,
     )
     enable_batch_material: BoolProperty(
-        name="Batch Material Panel",
-        description="Enable/Disable the Batch Material Panel",
+        name="Material Tools",
+        description="Enable/Disable the Material Tools panel",
         default=True,
         update=update_panel_redraw,
     )
@@ -108,12 +108,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
-    enable_rig_tools: BoolProperty(
-        name="Rigging Tools (Batch Rename)",
-        description="Enable/Disable the Bone Batch Rename panel",
-        default=True,
-        update=update_panel_redraw,
-    )
+
     enable_chain_constraints: BoolProperty(
         name="Chain Constraints Adder",
         description="Enable/Disable the Chain Constraints Adder panel",
@@ -156,6 +151,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True, update=update_panel_redraw)
     enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True, update=update_panel_redraw)
     enable_tool_replace_materials: BoolProperty(name="Replace Materials", default=True, update=update_panel_redraw)
+    enable_tool_batch_texture_assign: BoolProperty(name="Batch Texture Assign", default=True, update=update_panel_redraw)
 
     # Cleanup Tools Sub-tools
     enable_tool_clean_objects: BoolProperty(name="Clean Objects", default=True, update=update_panel_redraw)
@@ -256,11 +252,13 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col_any = box_any.column()
             draw_panel_category(col_any, "Common Tools", 'SETTINGS', "enable_common_tools", [
                 ("enable_tool_open_folder", "Open Folder"),
-                ("enable_tool_extract_textures", "Extract Textures"),
-                ("enable_tool_purge_orphans", "Purge Orphans"),
-                ("enable_tool_replace_materials", "Replace Materials")
+                ("enable_tool_purge_orphans", "Purge Orphans")
             ])
-            draw_panel_category(col_any, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
+            draw_panel_category(col_any, "Material Tools", 'TEXTURE_DATA', "enable_batch_material", [
+                ("enable_tool_extract_textures", "Extract Textures"),
+                ("enable_tool_replace_materials", "Replace Materials"),
+                ("enable_tool_batch_texture_assign", "Batch Texture Assign")
+            ])
             draw_panel_category(col_any, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
 
             # Sub-group: Object Mode
@@ -268,7 +266,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             box_obj.label(text="Object Mode Tools", icon='OBJECT_DATA')
             col_obj = box_obj.column()
             draw_panel_category(col_obj, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
-            draw_panel_category(col_obj, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
             draw_panel_category(col_obj, "UV Tools", 'UV_DATA', "enable_uv_tools")
             draw_panel_category(col_obj, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
 

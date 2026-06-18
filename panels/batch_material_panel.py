@@ -23,47 +23,66 @@ class PBR_PT_BatchMaterialPanel(Panel):
         layout = self.layout
         props = context.scene.rex_batch_mat_props
 
-        # Init Section
-        col = layout.column(align=True)
-        col.operator("pbr.batch_init", icon='FILE_REFRESH', text="Init Batch Texture Assign")
+        addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
+        # 1. Material Utilities Section
+        utils_box = layout.box()
+        utils_box.label(text="Material Utilities", icon='MATERIAL')
+        utils_col = utils_box.column(align=True)
         
-        if not props.items:
-            return
+        if not prefs or prefs.enable_tool_extract_textures:
+            utils_col.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
+        if not prefs or prefs.enable_tool_replace_materials:
+            utils_col.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
 
-        layout.separator()
-
-        # Material List Section
-        box = layout.box()
-        box.label(text=f"Gathered Materials ({len(props.items)})", icon='MATERIAL')
-        
-        # Simple scrollable list via a column in a box
-        mat_col = box.column(align=True)
-        for item in props.items:
-            row = mat_col.row(align=True)
-            # material name
-            row.label(text=item.material_name, icon='MATERIAL')
+        # 2. Batch Texture Assign Box
+        if not prefs or prefs.enable_tool_batch_texture_assign:
+            layout.separator()
+            batch_box = layout.box()
+            batch_box.label(text="Batch Texture Assign", icon='TEXTURE_DATA')
             
-            # status
-            row.label(text=item.status)
+            col = batch_box.column(align=True)
+            col.operator("pbr.batch_init", icon='FILE_REFRESH', text="Get Materials")
             
-            # Button to select the material as active
-            op = row.operator("pbr.select_material_from_batch", text="", icon='RESTRICT_SELECT_OFF')
-            op.material_name = item.material_name
+            if props.items:
+                batch_box.separator()
 
-        layout.separator()
+                # Material List Section
+                mat_box = batch_box.box()
+                mat_box.label(text=f"Gathered Materials ({len(props.items)})", icon='MATERIAL')
+                
+                # Simple scrollable list via a column in a box
+                mat_col = mat_box.column(align=True)
+                for item in props.items:
+                    row = mat_col.row(align=True)
+                    # material name
+                    row.label(text=item.material_name, icon='MATERIAL')
+                    
+                    # status
+                    row.label(text=item.status)
+                    
+                    # Button to select the material as active
+                    op = row.operator("pbr.select_material_from_batch", text="", icon='RESTRICT_SELECT_OFF')
+                    op.material_name = item.material_name
 
-        # Settings Section
-        sbox = layout.box()
-        sbox.label(text="Batch Settings", icon='SETTINGS')
-        sbox.prop(props, "target_folder")
-        sbox.prop(props, "recursive")
+                batch_box.separator()
 
-        layout.separator()
+                # Settings Section
+                sbox = batch_box.box()
+                sbox.label(text="Batch Settings", icon='SETTINGS')
+                sbox.prop(props, "target_folder")
+                sbox.prop(props, "recursive")
 
-        # Execute Section
-        row = layout.row()
-        row.scale_y = 1.5
-        row.operator("pbr.batch_assign_textures", icon='TEXTURE_DATA', text="Batch Assign Textures")
+                batch_box.separator()
+
+                # Execute Section
+                row = batch_box.row()
+                row.scale_y = 1.5
+                row.operator("pbr.batch_assign_textures", icon='TEXTURE_DATA', text="Batch Assign Textures")
 
 
 class PBR_OT_SelectMaterialFromBatch(bpy.types.Operator):

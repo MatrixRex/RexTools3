@@ -452,12 +452,14 @@ class BoneRenameProperties(PropertyGroup):
     prefix_text: StringProperty(name="Prefix", default="")
     suffix_text: StringProperty(name="Suffix", default="")
     apply_prefix_suffix_to_matches_only: BoolProperty(default=False)
+    show_in_panel: BoolProperty(default=True)
 
 
 class HighLowRenamerProperties(PropertyGroup):
     obj_name: StringProperty(name="Object Name", default="")
     high_prefix: StringProperty(name="High Prefix", default="_high")
     low_prefix: StringProperty(name="Low Prefix", default="_low")
+    show_in_panel: BoolProperty(default=True)
 
 
 class MaterialBatchItem(PropertyGroup):

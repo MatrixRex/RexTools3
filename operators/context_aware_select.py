@@ -4,56 +4,7 @@ from bpy.types import Operator
 
 addon_keymaps = []
 
-def opposite_edge_in_quad(face, edge):
-    for e in face.edges:
-        if not any(v in edge.verts for v in e.verts):
-            return e
-    return None
-
-def traverse_face_loop(bm, start_face, start_edge):
-    loop_faces = [start_face]
-    current_face = start_face
-    current_edge = start_edge
-
-    # Limit to prevent infinite loop
-    for _ in range(1000):
-        next_faces = [f for f in current_edge.link_faces if f != current_face]
-        if not next_faces:
-            break
-        next_face = next_faces[0]
-        
-        if next_face in loop_faces:
-            break
-            
-        if len(next_face.edges) != 4:
-            loop_faces.append(next_face)
-            break
-            
-        loop_faces.append(next_face)
-        opp_edge = opposite_edge_in_quad(next_face, current_edge)
-        if not opp_edge:
-            break
-        current_face = next_face
-        current_edge = opp_edge
-        
-    return loop_faces
-
-def get_face_loop_from_adjacent(bm, face_a, face_b):
-    shared_edges = [e for e in face_a.edges if e in face_b.edges]
-    if len(shared_edges) != 1:
-        return None
-    shared_edge = shared_edges[0]
-    
-    if len(face_a.edges) != 4 or len(face_b.edges) != 4:
-        return {face_a, face_b}
-        
-    opp_edge_a = opposite_edge_in_quad(face_a, shared_edge)
-    opp_edge_b = opposite_edge_in_quad(face_b, shared_edge)
-    
-    loop_dir_a = traverse_face_loop(bm, face_a, opp_edge_a)
-    loop_dir_b = traverse_face_loop(bm, face_b, opp_edge_b)
-    
-    return set(loop_dir_a + loop_dir_b)
+# --- Helper Functions adapted from Context Select (GPL-2.0-or-later) ---
 
 def are_edges_parallel(edge1, edge2):
     # If they share a vertex, they are connected, so not parallel
@@ -71,40 +22,940 @@ def are_edges_parallel(edge1, edge2):
     v2 = (edge2.verts[1].co - edge2.verts[0].co).normalized()
     return abs(v1.dot(v2)) > 0.707
 
-def traverse_edge_loop(bm, start_edge):
-    loop_edges = {start_edge}
-    
-    # Traverse in both directions from the start edge's vertices
-    for start_vert in start_edge.verts:
-        current_edge = start_edge
-        current_vert = start_vert
-        
-        while True:
-            next_edge = None
-            edges_at_vert = list(current_vert.link_edges)
-            if len(edges_at_vert) == 4:
-                current_faces = set(current_edge.link_faces)
-                if current_faces:
-                    for e in edges_at_vert:
-                        if e != current_edge:
-                            if not current_faces.intersection(set(e.link_faces)):
-                                next_edge = e
-                                break
-            
-            if not next_edge or next_edge in loop_edges:
+def get_neighbour_verts(vertex):
+    edges = vertex.link_edges
+    relevant_neighbour_verts = {v for e in edges for v in e.verts if v != vertex}
+    return relevant_neighbour_verts
+
+def get_neighbour_faces(face):
+    face_edges = face.edges
+    relevant_neighbour_faces = {f for e in face_edges for f in e.link_faces if f != face}
+    return relevant_neighbour_faces
+
+def get_neighbour_edges(prefs, edge, mode=''):
+    edge_faces = edge.link_faces
+    face_edges = {e for f in edge_faces for e in f.edges}
+
+    ring_edges = []
+    if len(edge_faces) > 0:
+        for f in edge_faces:
+            if len(f.verts) == 4:
+                target_verts = [v for v in f.verts if v not in edge.verts]
+                ring_edges.extend([e for e in f.edges if target_verts[0] in e.verts and target_verts[1] in e.verts])
+
+    if edge.is_manifold:
+        loop_edges = [e for v in edge.verts for e in v.link_edges
+                     if len(v.link_edges) == 4 and e.is_manifold and e not in face_edges]
+    elif edge.is_boundary:
+        edge_verts = edge.verts
+        if not prefs.ignore_boundary_wires:
+            loop_edges = []
+            for v in edge_verts:
+                linked_edges = v.link_edges
+                for e in linked_edges:
+                    if not any([e for e in linked_edges if e.is_wire]):
+                        if e.is_boundary and e is not edge:
+                            loop_edges.append(e)
+        elif prefs.ignore_boundary_wires:
+            loop_edges = [e for v in edge_verts for e in v.link_edges
+                         if e.is_boundary and e is not edge]
+    elif edge.is_wire:
+        loop_edges = []
+        for vert in edge.verts:
+            linked_edges = vert.link_edges
+            if len(linked_edges) == 2:
+                loop_edges.extend([e for e in linked_edges if e.is_wire and e is not edge])
+    elif len(edge_faces) > 2:
+        loop_edges = [e for v in edge.verts for e in v.link_edges
+                     if not e.is_manifold and not e.is_wire and e not in face_edges]
+
+    relevant_neighbour_edges = set(ring_edges + loop_edges)
+    if mode == '':
+        return relevant_neighbour_edges
+    elif mode == 'LOOP':
+        return loop_edges
+    elif mode == 'RING':
+        return ring_edges
+
+def get_bounded_selection(prefs, component0, component1, mode):
+    if not component0 or not component1 or component0.index == component1.index:
+        return None
+    if mode not in ['VERT', 'EDGE', 'FACE']:
+        return None
+    if type(component0) != type(component1):
+        return None
+
+    ends = [component0, component1]
+    c0 = component0
+    c1 = component1
+
+    if mode == 'VERT':
+        c0_edges = c0.link_edges
+        c0_boundary = [e for e in c0_edges if e.is_boundary]
+        c0_wire = [e for e in c0_edges if e.is_wire]
+
+        c1_edges = c1.link_edges
+        c1_boundary = [e for e in c1_edges if e.is_boundary]
+        c1_wire = [e for e in c1_edges if e.is_wire]
+
+        if len(c0_edges) == 0 or len(c1_edges) == 0:
+            return None
+
+        if (c0.is_manifold and not c0.is_boundary) or (c1.is_manifold and not c1.is_boundary):
+            if c0.is_manifold and c1.is_manifold and not c0.is_boundary and not c1.is_boundary:
+                if len(c0_edges) == 4:
+                    starting_vert = c0
+                elif len(c0_edges) != 4 and len(c1_edges) == 4:
+                    starting_vert = c1
+                elif len(c0_edges) != 4 and len(c1_edges) != 4:
+                    return None
+            elif c0.is_manifold and not c0.is_boundary:
+                starting_vert = c0
+            elif c1.is_manifold and not c1.is_boundary:
+                starting_vert = c1
+            connected_loops = bounded_loop_vert_manifold(prefs, starting_vert, ends)
+
+        elif c0.is_boundary and c1.is_boundary:
+            if c0.is_manifold:
+                starting_vert = c0
+            elif c1.is_manifold:
+                starting_vert = c1
+            elif len(c0_wire) > 0 and len(c0_boundary) == 2:
+                starting_vert = c0
+            elif len(c1_wire) > 0 and len(c1_boundary) == 2:
+                starting_vert = c1
+            else:
+                starting_vert = c0
+            connected_loops = bounded_loop_vert_boundary(prefs, starting_vert, ends)
+
+        elif c0.is_wire or c1.is_wire:
+            if c0.is_wire and c1.is_wire:
+                if 0 < len(c0_wire) < 3:
+                    starting_vert = c0
+                elif 0 < len(c1_wire) < 3:
+                    starting_vert = c1
+                elif len(c0_wire) > 2 and len(c1_wire) > 2:
+                    return None
+            elif (c0.is_wire or c1.is_wire) and (not c0.is_wire or not c1.is_wire):
+                return None
+            connected_loops = bounded_loop_vert_wire(prefs, starting_vert, ends)
+
+        elif not c0.is_manifold and not c1.is_manifold and not c0.is_boundary and not c1.is_boundary\
+             and len(c0_wire) == 0 and len(c1_wire) == 0:
+            return None
+
+        elif (not c0.is_boundary and len(c0_wire) > 0) or (not c1.is_boundary and len(c1_wire) > 0):
+            if not c0.is_boundary and len(c0_wire) > 0 and not c1.is_boundary and len(c1_wire) > 0:
+                starting_vert = c0
+            elif c0.is_boundary:
+                starting_vert = c1
+            elif c1.is_boundary:
+                starting_vert = c0
+            elif not c0.is_manifold and len(c0_wire) == 0 and not c1.is_boundary and len(c1_wire) > 0:
+                starting_vert = c1
+            elif not c1.is_manifold and len(c1_wire) == 0 and not c0.is_boundary and len(c0_wire) > 0:
+                starting_vert = c0
+            connected_loops = bounded_loop_vert_manifold(prefs, starting_vert, ends)
+        else:
+            return None
+
+    if mode == 'EDGE':
+        c0_faces = c0.link_faces
+        c0_loop_dirs = get_neighbour_edges(prefs, c0, mode='LOOP')
+        c0_ring_dirs = get_neighbour_edges(prefs, c0, mode='RING')
+
+        c1_faces = c1.link_faces
+        c1_loop_dirs = get_neighbour_edges(prefs, c1, mode='LOOP')
+        c1_ring_dirs = get_neighbour_edges(prefs, c1, mode='RING')
+
+        connected_loops = []
+        if c0.is_manifold and c1.is_manifold:
+            starting_edge = c0
+            if len(c0_loop_dirs):
+                connected_loops = bounded_loop_edge_manifold(prefs, starting_edge, ends)
+            if len(connected_loops) > 0:
+                pass
+            elif len(c0_ring_dirs):
+                if any(map(lambda x: len(x.verts) != 4, c0_faces)):
+                    starting_edge = c1
+                connected_loops = bounded_ring_edge_manifold(prefs, starting_edge, ends)
+
+        elif c0.is_boundary and c1.is_boundary:
+            connected_loops = bounded_loop_edge_boundary(prefs, c0, ends)
+
+        elif c0.is_wire and c1.is_wire:
+            connected_loops = bounded_loop_edge_wire(prefs, c0, ends)
+
+        elif len(c0_faces) > 2 and len(c1_faces) > 2:
+            return None
+
+        elif c0.is_manifold and (c1.is_boundary or len(c1_faces) > 2):
+            starting_edge = c0
+            connected_loops = bounded_ring_edge_manifold(prefs, starting_edge, ends)
+
+        elif c1.is_manifold and (c0.is_boundary or len(c0_faces) > 2):
+            starting_edge = c1
+            connected_loops = bounded_ring_edge_manifold(prefs, starting_edge, ends)
+
+        elif (c0.is_wire and not c1.is_wire) or (c1.is_wire and not c0.is_wire):
+            return None
+
+    if mode == 'FACE':
+        if not prefs.allow_non_quads_at_ends and (len(c0.verts) != 4 or len(c1.verts) != 4):
+            return None
+        if len(c0.verts) == 4:
+            starting_face = c0
+        elif len(c0.verts) != 4 and len(c1.verts) == 4:
+            starting_face = c1
+        else:
+            return None
+
+        connected_loops = bounded_loop_face(prefs, starting_face, ends)
+
+    connected_loops.sort(key = lambda x: len(x))
+    if len(connected_loops) == 0:
+        return None
+    elif len(connected_loops) == 1:
+        return {i for i in connected_loops[0]}
+    elif prefs.return_single_loop and len(connected_loops) > 1:
+        return {i for i in connected_loops[0]}
+    else:
+        return {i for loop in connected_loops if len(loop) == len(connected_loops[0]) for i in loop}
+
+# --- Bounded Selections ---
+
+def bounded_loop_vert_manifold(prefs, starting_vert, ends):
+    edges = [e for e in starting_vert.link_edges if not e.is_wire and not e.is_boundary]
+    if len(edges) > 4:
+        return []
+    candidate_dirs = []
+    for e in edges:
+        loops = [loop for loop in e.link_loops]
+        candidate_dirs.append(loops[0])
+    connected_loops = []
+    reference_list = set()
+
+    for loop in candidate_dirs:
+        if loop != "skip":
+            if not prefs.ignore_hidden_geometry and loop.edge.hide:
+                continue
+            loop_edge = loop.edge
+            reference_list.clear()
+            partial_list = partial_loop_vert_manifold(prefs, loop, loop_edge, starting_vert, reference_list, ends)
+            if "infinite" in partial_list:
+                partial_list.discard("infinite")
+                opposite_edge = get_opposite_edge(loop_edge, starting_vert)
+                if opposite_edge is not None:
+                    for l in opposite_edge.link_loops:
+                        if l in candidate_dirs:
+                            candidate_dirs[candidate_dirs.index(l)] = "skip"
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append(partial_list)
+    return connected_loops
+
+def bounded_loop_vert_boundary(prefs, starting_vert, ends):
+    connected_loops = []
+    if prefs.ignore_hidden_geometry:
+        edges = [e for e in starting_vert.link_edges if e.is_boundary]
+    else:
+        edges = [e for e in starting_vert.link_edges if e.is_boundary and not e.hide]
+
+    for e in edges:
+        partial_list = partial_loop_vert_boundary(prefs, starting_vert, e, ends)
+        if "infinite" not in partial_list:
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+        else:
+            break
+    return connected_loops
+
+def bounded_loop_vert_wire(prefs, starting_vert, ends):
+    connected_loops = []
+    if prefs.ignore_hidden_geometry:
+        edges = [e for e in starting_vert.link_edges if e.is_wire]
+    else:
+        edges = [e for e in starting_vert.link_edges if e.is_wire and not e.hide]
+
+    if len(edges) == 1 or len(edges) == 2:
+        for e in edges:
+            partial_list = partial_loop_vert_wire(prefs, starting_vert, e, ends)
+            if "infinite" not in partial_list:
+                if ends[0] in partial_list and ends[1] in partial_list:
+                    connected_loops.append([c for c in partial_list])
+            else:
                 break
-                
-            loop_edges.add(next_edge)
-            current_vert = next_edge.other_vert(current_vert)
-            current_edge = next_edge
-            
-    return loop_edges
+    else:
+        return None
+    return connected_loops
+
+def bounded_loop_face(prefs, starting_face, ends):
+    candidate_dirs = [loop for loop in starting_face.loops]
+    connected_loops = []
+    reference_list = set()
+
+    for loop in candidate_dirs:
+        if loop != "skip":
+            reference_list.clear()
+            partial_list = partial_loop_face(prefs, loop, starting_face, reference_list, ends)
+            if "infinite" in partial_list:
+                partial_list.discard("infinite")
+                if len(starting_face.verts) == 4 and loop.link_loop_next.link_loop_next in candidate_dirs:
+                    candidate_dirs[candidate_dirs.index(loop.link_loop_next.link_loop_next)] = "skip"
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+    return connected_loops
+
+def bounded_loop_edge_manifold(prefs, starting_edge, ends):
+    loop = starting_edge.link_loops[0]
+    connected_loops = []
+    reference_list = set()
+
+    for v in starting_edge.verts:
+        if len(v.link_loops) != 4:
+            continue
+        reference_list.clear()
+        o_vert = starting_edge.other_vert(v)
+        partial_list = partial_loop_edge_manifold(prefs, loop, starting_edge, o_vert, reference_list, ends)
+        if "infinite" not in partial_list:
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+        else:
+            break
+    return connected_loops
+
+def bounded_ring_edge_manifold(prefs, starting_edge, ends):
+    starting_loop = starting_edge.link_loops[0]
+    loops = [starting_loop, starting_loop.link_loop_radial_next]
+    connected_loops = []
+    reference_list = set()
+
+    for loop in loops:
+        reference_list.clear()
+        partial_list = partial_ring_edge(prefs, loop, starting_edge, reference_list, ends)
+        if "infinite" not in partial_list:
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+        else:
+            break
+    return connected_loops
+
+def bounded_loop_edge_boundary(prefs, starting_edge, ends):
+    connected_loops = []
+    verts = starting_edge.verts
+
+    for v in verts:
+        partial_list = partial_loop_edge_boundary(prefs, starting_edge, v, ends)
+        if "infinite" not in partial_list:
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+        else:
+            break
+    return connected_loops
+
+def bounded_loop_edge_wire(prefs, starting_edge, ends):
+    connected_loops = []
+    verts = starting_edge.verts
+
+    for v in verts:
+        partial_list = partial_loop_edge_wire(prefs, starting_edge, v, ends)
+        if "infinite" not in partial_list:
+            if ends[0] in partial_list and ends[1] in partial_list:
+                connected_loops.append([c for c in partial_list])
+        else:
+            break
+    return connected_loops
+
+# --- Full Loop Selections ---
+
+def full_loop_vert_manifold(prefs, starting_vert, starting_edge):
+    if not prefs.ignore_hidden_geometry and starting_edge.hide:
+        return None
+    if len(starting_vert.link_loops) != 4:
+        starting_vert = starting_edge.other_vert(starting_vert)
+        if len(starting_vert.link_loops) != 4:
+            return None
+    opposite_edge = get_opposite_edge(starting_edge, starting_vert)
+    if opposite_edge is not None:
+        loops = [starting_edge.link_loops[0], opposite_edge.link_loops[0]]
+    else:
+        loops = [starting_edge.link_loops[0]]
+    vert_list = set()
+    reference_list = set()
+
+    for loop in loops:
+        loop_edge = loop.edge
+        if not prefs.ignore_hidden_geometry and loop_edge.hide:
+            continue
+        partial_list = partial_loop_vert_manifold(prefs, loop, loop_edge, starting_vert, reference_list)
+        if "infinite" not in partial_list:
+            vert_list.update(partial_list)
+        else:
+            partial_list.discard("infinite")
+            vert_list.update(partial_list)
+            break
+    return vert_list
+
+def full_loop_vert_boundary(prefs, starting_vert):
+    if prefs.ignore_hidden_geometry:
+        edges = [e for e in starting_vert.link_edges if e.is_boundary]
+    else:
+        edges = [e for e in starting_vert.link_edges if e.is_boundary and not e.hide]
+    vert_list = set()
+
+    for e in edges:
+        partial_list = partial_loop_vert_boundary(prefs, starting_vert, e)
+        if "infinite" not in partial_list:
+            vert_list.update(partial_list)
+        else:
+            partial_list.discard("infinite")
+            vert_list.update(partial_list)
+            break
+    return vert_list
+
+def full_loop_vert_wire(prefs, starting_vert):
+    if prefs.ignore_hidden_geometry:
+        edges = [e for e in starting_vert.link_edges if e.is_wire]
+    else:
+        edges = [e for e in starting_vert.link_edges if e.is_wire and not e.hide]
+    vert_list = set()
+
+    if len(edges) == 1 or len(edges) == 2:
+        for e in edges:
+            partial_list = partial_loop_vert_wire(prefs, starting_vert, e)
+            if "infinite" not in partial_list:
+                vert_list.update(partial_list)
+            else:
+                partial_list.discard("infinite")
+                vert_list.update(partial_list)
+                break
+    else:
+        return None
+    return vert_list
+
+def full_loop_face(prefs, edge, face):
+    if len(edge.link_loops) > 2:
+        return None
+
+    starting_loop = [loop for loop in edge.link_loops if loop in face.loops][0]
+    loops = [starting_loop, starting_loop.link_loop_radial_next]
+    face_list = set()
+    reference_list = set()
+
+    for loop in loops:
+        starting_face = loop.face
+        partial_list = partial_loop_face(prefs, loop, starting_face, reference_list)
+        if "infinite" not in partial_list:
+            face_list.update(partial_list)
+        else:
+            partial_list.discard("infinite")
+            face_list.update(partial_list)
+            break
+    return face_list
+
+def full_loop_edge_manifold(prefs, edge):
+    starting_loop = edge.link_loops[0]
+    if len(edge.verts[0].link_loops) == 4:
+        starting_vert = edge.verts[0]
+    elif len(edge.verts[1].link_loops) == 4:
+        starting_vert = edge.verts[1]
+    else:
+        return []
+    opposite_edge = get_opposite_edge(edge, starting_vert)
+    if opposite_edge is not None:
+        loops = [edge.link_loops[0], opposite_edge.link_loops[0]]
+    else:
+        loops = [edge.link_loops[0]]
+
+    edge_list = set()
+    reference_list = set()
+
+    for loop in loops:
+        new_edges = partial_loop_edge_manifold(prefs, loop, loop.edge, starting_vert, reference_list)
+        if "infinite" not in new_edges:
+            edge_list.update(new_edges)
+        else:
+            new_edges.discard("infinite")
+            edge_list.update(new_edges)
+            break
+    return edge_list
+
+def full_ring_edge_manifold(prefs, starting_edge):
+    starting_loop = starting_edge.link_loops[0]
+    loops = [starting_loop, starting_loop.link_loop_radial_next]
+    edge_list = set()
+    reference_list = set()
+
+    for loop in loops:
+        partial_list = partial_ring_edge(prefs, loop, starting_edge, reference_list)
+        if "infinite" not in partial_list:
+            edge_list.update(partial_list)
+        else:
+            partial_list.discard("infinite")
+            edge_list.update(partial_list)
+            break
+    return edge_list
+
+def full_loop_edge_boundary(prefs, edge):
+    verts = edge.verts
+    edge_list = set()
+
+    for v in verts:
+        new_edges = partial_loop_edge_boundary(prefs, edge, v)
+        if "infinite" not in new_edges:
+            edge_list.update(new_edges)
+        else:
+            new_edges.discard("infinite")
+            edge_list.update(new_edges)
+            break
+    return edge_list
+
+def full_loop_edge_wire(prefs, edge):
+    verts = edge.verts
+    edge_list = set()
+
+    for v in verts:
+        new_edges = partial_loop_edge_wire(prefs, edge, v)
+        if "infinite" not in new_edges:
+            edge_list.update(new_edges)
+        else:
+            new_edges.discard("infinite")
+            edge_list.update(new_edges)
+            break
+    return edge_list
+
+# --- Partial Loop (Fragment) Selections ---
+
+def partial_loop_vert_manifold(prefs, loop, starting_edge, starting_vert, reference_list, ends=''):
+    e_step = starting_edge
+    pv = starting_vert
+    cv = starting_edge.other_vert(starting_vert)
+    partial_list = {pv}
+
+    while True:
+        if cv in loop.link_loop_prev.edge.verts:
+            loop = loop.link_loop_prev
+        elif cv in loop.link_loop_next.edge.verts:
+            loop = loop.link_loop_next
+
+        pv = cv
+        next_loop = fan_loop_extension(e_step, loop, cv)
+
+        if next_loop:
+            e_step = next_loop.edge
+            cv = e_step.other_vert(cv)
+            loop = next_loop
+
+            if not ends:
+                dead_end = dead_end_vert_manifold(prefs, pv, e_step, starting_vert, partial_list, reference_list)
+            else:
+                dead_end = dead_end_vert_manifold(prefs, pv, e_step, starting_vert, partial_list, reference_list, ends)
+
+            reference_list.add(pv)
+            partial_list.add(pv)
+            if dead_end:
+                break
+        else:
+            partial_list.add(pv)
+            break
+    return partial_list
+
+def partial_loop_vert_boundary(prefs, starting_vert, starting_edge, ends=''):
+    cur_edges = [starting_edge]
+    visited_edges = {starting_edge}
+    visited_verts = {starting_vert}
+
+    loop = 0
+    while True:
+        edge_verts = [v for e in cur_edges for v in e.verts if v not in visited_verts]
+        new_edges = []
+        for v in edge_verts:
+            linked_edges = {e for e in v.link_edges if e.is_boundary or e.is_wire}
+            for e in linked_edges:
+                if not ends:
+                    dead_end = dead_end_vert_boundary(prefs, v, e, starting_vert, linked_edges, visited_verts)
+                else:
+                    dead_end = dead_end_vert_boundary(prefs, v, e, starting_vert, linked_edges, visited_verts, ends)
+                if dead_end:
+                    visited_verts.add(v)
+                else:
+                    visited_verts.add(v)
+                    if e not in visited_edges and not e.is_wire:
+                        new_edges.append(e)
+
+        if len(new_edges) == 0:
+            break
+        else:
+            cur_edges = new_edges
+            if loop == 1:
+                visited_verts.discard(starting_vert)
+            loop += 1
+    return visited_verts
+
+def partial_loop_vert_wire(prefs, starting_vert, starting_edge, ends=''):
+    cur_vert = starting_vert
+    cur_edge = starting_edge
+    next_vert = cur_edge.other_vert(cur_vert)
+    partial_list = {cur_vert}
+
+    while True:
+        partial_list.add(next_vert)
+        linked_edges = next_vert.link_edges
+        if len(linked_edges) < 2:
+            break
+        next_edge = [e for e in next_vert.link_edges if e is not cur_edge][0]
+
+        if not ends:
+            dead_end = dead_end_vert_wire(prefs, next_vert, next_edge, starting_vert, linked_edges, partial_list)
+        else:
+            dead_end = dead_end_vert_wire(prefs, next_vert, next_edge, starting_vert, linked_edges, partial_list, ends)
+
+        if dead_end:
+            break
+
+        cur_vert = next_vert
+        next_vert = next_edge.other_vert(cur_vert)
+        cur_edge = next_edge
+    return partial_list
+
+def partial_loop_face(prefs, cur_loop, starting_face, reference_list, ends=''):
+    partial_list = {starting_face}
+    while True:
+        next_loop = cur_loop.link_loop_radial_next.link_loop_next.link_loop_next
+        next_face = next_loop.face
+
+        if not ends:
+            dead_end = dead_end_face(prefs, cur_loop, next_loop, next_face, starting_face, partial_list, reference_list)
+        else:
+            dead_end = dead_end_face(prefs, cur_loop, next_loop, next_face, starting_face, partial_list, reference_list, ends)
+
+        if next_face not in partial_list:
+            if len(next_face.verts) == 4:
+                partial_list.add(next_face)
+            elif prefs.allow_non_quads_at_ends:
+                partial_list.add(next_face)
+        reference_list.add(next_face)
+        if dead_end:
+            break
+        cur_loop = next_loop
+    return partial_list
+
+def partial_loop_edge_manifold(prefs, loop, starting_edge, starting_vert, reference_list, ends=''):
+    e_step = starting_edge
+    pv = starting_vert
+    cv = starting_edge.other_vert(starting_vert)
+    partial_list = {e_step}
+
+    while True:
+        if cv in loop.link_loop_prev.edge.verts:
+            loop = loop.link_loop_prev
+        elif cv in loop.link_loop_next.edge.verts:
+            loop = loop.link_loop_next
+
+        pv = cv
+        next_loop = fan_loop_extension(e_step, loop, cv)
+
+        if next_loop:
+            e_step = next_loop.edge
+            cv = e_step.other_vert(cv)
+            loop = next_loop
+
+            if not ends:
+                dead_end = dead_end_loop(prefs, e_step, cv, starting_edge, partial_list, reference_list)
+            else:
+                dead_end = dead_end_loop(prefs, e_step, cv, starting_edge, partial_list, reference_list, ends)
+
+            reference_list.add(pv)
+            partial_list.add(e_step)
+            if dead_end:
+                break
+        else:
+            partial_list.add(e_step)
+            break
+    return partial_list
+
+def partial_ring_edge(prefs, starting_loop, starting_edge, reference_list, ends=''):
+    cur_loop = starting_loop
+    partial_list = {starting_edge}
+    while True:
+        next_loop = cur_loop.link_loop_radial_next.link_loop_next.link_loop_next
+        if next_loop:
+            next_edge = next_loop.edge
+            next_face = next_loop.face
+
+            if not ends:
+                dead_end = dead_end_ring(prefs, next_edge, next_face, starting_edge, partial_list, reference_list)
+            else:
+                dead_end = dead_end_ring(prefs, next_edge, next_face, starting_edge, partial_list, reference_list, ends)
+
+            if next_edge not in partial_list:
+                if len(next_face.verts) == 4:
+                    if not prefs.ignore_hidden_geometry and not next_face.hide:
+                        partial_list.add(next_edge)
+                    elif prefs.ignore_hidden_geometry:
+                        partial_list.add(next_edge)
+                reference_list.add(next_face)
+            if dead_end:
+                break
+        else:
+            break
+        cur_loop = next_loop
+    return partial_list
+
+def partial_loop_edge_boundary(prefs, starting_edge, starting_vert, ends=''):
+    cur_edges = [starting_edge]
+    final_selection = set()
+    visited_verts = {starting_vert}
+
+    loop = 0
+    while True:
+        edge_verts = [v for e in cur_edges for v in e.verts if v not in visited_verts]
+        new_edges = []
+        for v in edge_verts:
+            linked_edges = {e for e in v.link_edges if e.is_boundary or e.is_wire}
+            for e in linked_edges:
+                if not ends:
+                    dead_end = dead_end_edge_boundary(prefs, e, v, starting_edge, linked_edges, final_selection)
+                else:
+                    dead_end = dead_end_edge_boundary(prefs, e, v, starting_edge, linked_edges, final_selection, ends)
+                if dead_end:
+                    visited_verts.add(v)
+                else:
+                    visited_verts.add(v)
+                    if e not in final_selection and not e.is_wire:
+                        new_edges.append(e)
+        final_selection.update(new_edges)
+
+        if len(new_edges) == 0:
+            break
+        else:
+            cur_edges = new_edges
+            if loop == 1:
+                visited_verts.discard(starting_vert)
+            loop += 1
+    return final_selection
+
+def partial_loop_edge_wire(prefs, starting_edge, starting_vert, ends=''):
+    cur_vert = starting_vert
+    cur_edge = starting_edge
+    next_vert = cur_edge.other_vert(cur_vert)
+    partial_list = {cur_edge}
+
+    while True:
+        linked_edges = next_vert.link_edges
+        if len(linked_edges) < 2:
+            break
+        next_edge = [e for e in next_vert.link_edges if e is not cur_edge][0]
+        if not len(linked_edges) > 2:
+            partial_list.add(next_edge)
+        if not ends:
+            dead_end = dead_end_edge_wire(prefs, next_vert, next_edge, starting_edge, linked_edges, partial_list)
+        else:
+            dead_end = dead_end_edge_wire(prefs, next_vert, next_edge, starting_edge, linked_edges, partial_list, ends)
+
+        if dead_end:
+            break
+
+        cur_vert = next_vert
+        next_vert = next_edge.other_vert(cur_vert)
+        cur_edge = next_edge
+    return partial_list
+
+# --- Dead End Conditions ---
+
+def dead_end_vert_manifold(prefs, vert, edge, starting_vert, partial_list, reference_list, ends=''):
+    if not ends:
+        reached_end = vert == starting_vert
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = vert == ends[0] or vert == ends[1]
+        if reached_end:
+            if vert == starting_vert:
+                partial_list.add("infinite")
+    is_intersect = prefs.terminate_self_intersects and vert in reference_list
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    return reached_end or is_intersect or is_hidden
+
+def dead_end_vert_boundary(prefs, vert, edge, starting_vert, linked_edges, partial_list, ends=''):
+    if not ends:
+        reached_end = starting_vert in partial_list and vert == starting_vert
+        if reached_end:
+            partial_list.add("infinite")
+        is_intersect = prefs.terminate_self_intersects and len([e for e in linked_edges if e.is_boundary]) > 2
+    else:
+        reached_end = starting_vert in partial_list and vert == ends[0] or vert == ends[1]
+        if reached_end:
+            partial_list.add(vert)
+            if starting_vert in partial_list and vert == starting_vert:
+                partial_list.add("infinite")
+        is_intersect = len([e for e in linked_edges if e.is_boundary]) > 2
+
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    is_wire = not prefs.ignore_boundary_wires and any([e for e in linked_edges if e.is_wire])
+    return reached_end or is_intersect or is_hidden or is_wire
+
+def dead_end_vert_wire(prefs, vert, edge, starting_vert, linked_edges, partial_list, ends=''):
+    if not ends:
+        reached_end = vert == starting_vert
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = vert == ends[0] or vert == ends[1]
+        if reached_end:
+            if vert == starting_vert:
+                partial_list.add("infinite")
+    cant_continue = len(linked_edges) != 2
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    return reached_end or cant_continue or is_hidden
+
+def dead_end_face(prefs, cur_loop, next_loop, next_face, starting_face, partial_list, reference_list, ends=''):
+    if not ends:
+        reached_end = next_face == starting_face
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = next_face == ends[0] or next_face == ends[1]
+        if reached_end and next_face == starting_face:
+            partial_list.add("infinite")
+    is_intersect = prefs.terminate_self_intersects and next_face in reference_list
+    is_hidden = not prefs.ignore_hidden_geometry and next_face.hide
+    is_non_quad = len(next_face.verts) != 4
+    is_non_manifold = not cur_loop.edge.is_manifold or not next_loop.edge.is_manifold
+    return reached_end or is_intersect or is_hidden or is_non_quad or is_non_manifold
+
+def dead_end_loop(prefs, edge, vert, starting_edge, partial_list, reference_list, ends=''):
+    if not ends:
+        reached_end = edge == starting_edge
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = edge == ends[0] or edge == ends[1]
+        if reached_end:
+            if edge == starting_edge:
+                partial_list.add("infinite")
+    is_intersect = prefs.terminate_self_intersects and vert in reference_list
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    return reached_end or is_intersect or is_hidden
+
+def dead_end_ring(prefs, edge, face, starting_edge, partial_list, reference_list, ends=''):
+    if not ends:
+        reached_end = edge == starting_edge
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = edge == ends[0] or edge == ends[1]
+        if reached_end:
+            if edge == starting_edge:
+                partial_list.add("infinite")
+    is_intersect = prefs.terminate_self_intersects and face in reference_list
+    is_hidden = not prefs.ignore_hidden_geometry and (face.hide or edge.hide)
+    is_non_quad = len(face.verts) != 4
+    is_non_manifold = not edge.is_manifold
+    return reached_end or is_intersect or is_hidden or is_non_quad or is_non_manifold
+
+def dead_end_edge_boundary(prefs, edge, vert, starting_edge, linked_edges, partial_list, ends=''):
+    if not ends:
+        reached_end = starting_edge in partial_list and edge == starting_edge
+        if reached_end:
+            partial_list.add("infinite")
+        is_intersect = prefs.terminate_self_intersects and len([e for e in linked_edges if e.is_boundary]) > 2
+    else:
+        reached_end = starting_edge in partial_list and edge == ends[0] or edge == ends[1]
+        if reached_end:
+            partial_list.add(edge)
+            if starting_edge in partial_list and edge == starting_edge:
+                partial_list.add("infinite")
+        is_intersect = len([e for e in linked_edges if e.is_boundary]) > 2
+
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    is_wire = not prefs.ignore_boundary_wires and any([e for e in linked_edges if e.is_wire])
+    return reached_end or is_intersect or is_hidden or is_wire
+
+def dead_end_edge_wire(prefs, vert, edge, starting_edge, linked_edges, partial_list, ends=''):
+    if not ends:
+        reached_end = edge == starting_edge
+        if reached_end:
+            partial_list.add("infinite")
+    else:
+        reached_end = edge == ends[0] or edge == ends[1]
+        if reached_end:
+            if edge == starting_edge:
+                partial_list.add("infinite")
+    cant_continue = len(linked_edges) != 2
+    is_hidden = not prefs.ignore_hidden_geometry and (vert.hide or edge.hide)
+    return reached_end or cant_continue or is_hidden
+
+# --- Walker Functions ---
+
+def BM_vert_step_fan_loop(edge, loop, vert):
+    if len(vert.link_loops) != 4:
+        return None
+    e_prev = edge
+    if loop.edge == e_prev:
+        e_next = loop.link_loop_prev.edge
+    elif loop.link_loop_prev.edge == e_prev:
+        e_next = loop.edge
+    elif loop.link_loop_next.edge == e_prev:
+        e_next = loop.edge
+    else:
+        return None
+
+    if e_next.is_manifold:
+        return BM_edge_other_loop(e_prev, e_next, loop)
+    else:
+        return None
+
+def BM_edge_other_loop(e_prev, edge, loop):
+    if loop.edge == edge:
+        l_other = loop
+    else:
+        l_other = loop.link_loop_prev
+    l_other = l_other.link_loop_radial_next
+
+    if l_other.vert == loop.vert:
+        if edge.other_vert(l_other.vert) == edge.other_vert(loop.vert):
+            l_other = l_other.link_loop_next
+            if l_other.vert not in e_prev.verts:
+                l_other = l_other.link_loop_prev.link_loop_prev
+        else:
+            l_other = l_other.link_loop_prev
+    elif l_other.link_loop_next.vert == loop.vert:
+        if l_other.vert in e_prev.verts:
+            l_other = l_other.link_loop_prev
+        else:
+            l_other = l_other.link_loop_next
+    else:
+        return None
+    return l_other
+
+def fan_loop_extension(edge, loop, vert):
+    next_loop = BM_vert_step_fan_loop(edge, loop, vert)
+    if not next_loop:
+        loop = loop.link_loop_radial_next
+        next_loop = BM_vert_step_fan_loop(edge, loop, vert)
+    else:
+        return next_loop
+    return None
+
+def get_opposite_edge(edge, vert):
+    edges = [e for e in vert.link_edges]
+    faces = [f for f in vert.link_faces]
+    a_face = [f for f in faces if edge in f.edges][0]
+    step_loop = [l for l in a_face.loops if l.edge in edges and l.edge != edge][0]
+    opposite_loop = fan_loop_extension(edge, step_loop, vert)
+    if opposite_loop is not None:
+        opposite_edge = opposite_loop.edge
+        return opposite_edge
+    else:
+        return None
+
+# --- Operator Definition ---
 
 class REXTOOLS3_OT_ContextAwareSelect(Operator):
-    """Context-aware selection: Linked select for Vertices/Faces/Curves, Loop select for Edges, triggered on double-click"""
+    """Context-aware selection: Linked select or Loop/Ring select with advanced pathfinding, triggered on double-click"""
     bl_idname = "rextools3.context_aware_select"
     bl_label = "Context Aware Select"
-    bl_description = "Double-click to select linked (vertices/faces/curves) or loops (edges)"
+    bl_description = "Double-click to select linked or loops/rings/paths between elements"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -118,7 +969,9 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
             pass
         return True
 
-    # Linked Selection properties (Vertex/Face Mode)
+    # --- Properties ---
+
+    # Linked Selection Properties
     delimit: bpy.props.EnumProperty(
         name="Delimit",
         description="Limit selection boundaries",
@@ -132,20 +985,62 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
         ),
         default=set(),
     )
+    
+    select_linked_on_double_click: bpy.props.BoolProperty(
+        name="Select Linked On Double Click",
+        description="Double clicking on a face or a vertex (if not part of a loop selection) will select all components for that contiguous mesh piece",
+        default=True,
+        options={'HIDDEN'}
+    )
 
-    # Loop Selection properties (Edge Mode)
+    # Loop/Ring / Bounded Pathfinding Selection Properties
     ring: bpy.props.BoolProperty(
-        name="Ring",
+        name="Ring Select",
         description="Select an edge ring instead of a loop",
         default=False,
     )
-
-    # Hidden toggle property to track shift modifier between invoke and execute
-    toggle_loop: bpy.props.BoolProperty(
-        name="Toggle Loop",
-        options={'HIDDEN'},
-        default=False,
+    
+    allow_non_quads_at_ends: bpy.props.BoolProperty(
+        name="Allow Non-Quads at Start/End of Face Loops",
+        description="If a loop of faces terminates at a triangle or n-gon, allow that non-quad face to be added to the final loop selection, and allow using that non-quad face to begin a loop selection",
+        default=True
     )
+    
+    terminate_self_intersects: bpy.props.BoolProperty(
+        name="Terminate Self-Intersects",
+        description="If a loop or ring of vertices, edges, or faces circles around and crosses over itself, stop the selection at that location",
+        default=False
+    )
+    
+    ignore_boundary_wires: bpy.props.BoolProperty(
+        name="Ignore Wire Edges on Boundaries",
+        description="If wire edges are attached to a boundary vertex the selection will ignore it, pass through, and continue selecting the boundary loop",
+        default=False
+    )
+    
+    leave_edge_active: bpy.props.BoolProperty(
+        name="Leave Edge Active",
+        description="When selecting edge loops or edge rings, the active edge will remain active",
+        default=False
+    )
+    
+    ignore_hidden_geometry: bpy.props.BoolProperty(
+        name="Ignore Hidden Geometry",
+        description="Loop selections will ignore hidden components and continue through to the other side",
+        default=False
+    )
+    
+    return_single_loop: bpy.props.BoolProperty(
+        name="Select Single Bounded Loop",
+        description="For bounded selections, if there are multiple equal-length paths between the start and end component, select only one loop instead of all possible loops",
+        default=False
+    )
+
+    # Hidden properties to store clicked element indices across invoke/execute (needed for Redo)
+    start_element_index: bpy.props.IntProperty(options={'HIDDEN'}, default=-1)
+    end_element_index: bpy.props.IntProperty(options={'HIDDEN'}, default=-1)
+    selection_type: bpy.props.StringProperty(options={'HIDDEN'}, default="")
+    extend_selection: bpy.props.BoolProperty(options={'HIDDEN'}, default=False)
 
     def draw(self, context):
         layout = self.layout
@@ -154,11 +1049,22 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
         if obj and obj.type == 'MESH' and context.mode == 'EDIT_MESH':
             select_mode = context.tool_settings.mesh_select_mode
             if select_mode[0] or select_mode[2]:
-                # Show delimit options in Vertex or Face selection mode
+                # Vertex or Face selection mode
                 layout.prop(self, "delimit")
+                if self.end_element_index != -1:
+                    layout.separator()
+                    layout.prop(self, "allow_non_quads_at_ends")
+                    layout.prop(self, "terminate_self_intersects")
+                    layout.prop(self, "ignore_hidden_geometry")
+                    layout.prop(self, "return_single_loop")
             elif select_mode[1]:
-                # Show ring select options in Edge selection mode
+                # Edge selection mode
                 layout.prop(self, "ring")
+                layout.prop(self, "leave_edge_active")
+                layout.prop(self, "terminate_self_intersects")
+                layout.prop(self, "ignore_boundary_wires")
+                layout.prop(self, "ignore_hidden_geometry")
+                layout.prop(self, "return_single_loop")
 
     def execute(self, context):
         obj = context.active_object
@@ -166,32 +1072,165 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
             return {'CANCELLED'}
 
         if obj.type == 'MESH' and context.mode == 'EDIT_MESH':
-            select_mode = context.tool_settings.mesh_select_mode
+            me = obj.data
+            bm = bmesh.from_edit_mesh(me)
 
-            if select_mode[0] or select_mode[2]:
-                # Run linked selection
-                bpy.ops.mesh.select_linked(delimit=self.delimit)
+            # Ensure BMesh lookup tables are up-to-date
+            bm.verts.ensure_lookup_table()
+            bm.edges.ensure_lookup_table()
+            bm.faces.ensure_lookup_table()
+
+            # If we don't extend selection, deselect all first (except we'll re-select start element)
+            if not self.extend_selection:
+                bpy.ops.mesh.select_all(action='DESELECT')
+
+            # Fetch start and end elements by index
+            start_element = None
+            end_element = None
+
+            if self.selection_type == 'VERT':
+                if 0 <= self.start_element_index < len(bm.verts):
+                    start_element = bm.verts[self.start_element_index]
+                if 0 <= self.end_element_index < len(bm.verts):
+                    end_element = bm.verts[self.end_element_index]
+            elif self.selection_type == 'EDGE':
+                if 0 <= self.start_element_index < len(bm.edges):
+                    start_element = bm.edges[self.start_element_index]
+                if 0 <= self.end_element_index < len(bm.edges):
+                    end_element = bm.edges[self.end_element_index]
+            elif self.selection_type == 'FACE':
+                if 0 <= self.start_element_index < len(bm.faces):
+                    start_element = bm.faces[self.start_element_index]
+                if 0 <= self.end_element_index < len(bm.faces):
+                    end_element = bm.faces[self.end_element_index]
+
+            if not start_element:
+                return {'CANCELLED'}
+
+            # Ensure start_element is selected
+            start_element.select = True
+
+            new_sel = None
+
+            if self.selection_type == 'VERT':
+                if end_element and start_element.index != end_element.index:
+                    adjacent = end_element in get_neighbour_verts(start_element)
+                    if adjacent:
+                        # Adjacent vertices selection
+                        active_edge = [e for e in start_element.link_edges if e in end_element.link_edges][0]
+                        if not (active_edge.hide and not self.ignore_hidden_geometry):
+                            if active_edge.is_manifold:
+                                new_sel = full_loop_vert_manifold(self, start_element, active_edge)
+                            elif active_edge.is_boundary:
+                                if start_element.is_manifold:
+                                    new_sel = full_loop_vert_boundary(self, start_element)
+                                elif end_element.is_manifold:
+                                    new_sel = full_loop_vert_boundary(self, end_element)
+                                else:
+                                    new_sel = full_loop_vert_boundary(self, start_element)
+                            elif active_edge.is_wire:
+                                if start_element.is_wire:
+                                    new_sel = full_loop_vert_wire(self, start_element)
+                                elif end_element.is_wire:
+                                    new_sel = full_loop_vert_wire(self, end_element)
+                    else:
+                        # Bounded selection pathfinder
+                        new_sel = get_bounded_selection(self, start_element, end_element, mode='VERT')
+                
+                # Apply selection
+                if new_sel:
+                    for v in new_sel:
+                        v.select = True
+                elif not new_sel and self.select_linked_on_double_click:
+                    # Select linked based on start element (users can alter delimiters in redo panel)
+                    bpy.ops.mesh.select_linked(delimit=self.delimit)
+
+                bm.select_history.add(start_element)
+                bm.select_flush_mode()
+                bmesh.update_edit_mesh(me)
                 return {'FINISHED'}
 
-            elif select_mode[1]:
-                # In execute (Redo adjustments), use loop_multi_select.
-                # This works on the seed selection restored by Blender's undo stack,
-                # converting the selection between loop/ring without needing mouse coordinates.
-                bpy.ops.mesh.loop_multi_select(ring=self.ring)
+            elif self.selection_type == 'FACE':
+                if end_element and start_element.index != end_element.index:
+                    # Check quad compatibility
+                    if len(start_element.verts) != 4 and len(end_element.verts) != 4:
+                        quads = (0, 0)
+                    elif len(start_element.verts) == 4 and len(end_element.verts) == 4:
+                        quads = (1, 1)
+                    elif len(start_element.verts) == 4 and len(end_element.verts) != 4:
+                        quads = (1, 0)
+                    elif len(start_element.verts) != 4 and len(end_element.verts) == 4:
+                        quads = (0, 1)
+
+                    adjacent = end_element in get_neighbour_faces(start_element)
+                    if adjacent and (quads == (1, 1) or self.allow_non_quads_at_ends):
+                        ring_edge = [e for e in start_element.edges if e in end_element.edges][0]
+                        new_sel = full_loop_face(self, ring_edge, start_element)
+                    elif not adjacent and (quads == (1, 1) or self.allow_non_quads_at_ends):
+                        new_sel = get_bounded_selection(self, start_element, end_element, mode='FACE')
+
+                if new_sel:
+                    for f in new_sel:
+                        f.select = True
+                elif not new_sel and self.select_linked_on_double_click:
+                    bpy.ops.mesh.select_linked(delimit=self.delimit)
+
+                bm.select_history.add(start_element)
+                bm.select_flush_mode()
+                bmesh.update_edit_mesh(me)
+                return {'FINISHED'}
+
+            elif self.selection_type == 'EDGE':
+                # Shift+Double Click loop/ring/path selection
+                if end_element and start_element.index != end_element.index:
+                    adjacent = end_element in get_neighbour_edges(self, start_element)
+                    if adjacent:
+                        if any([v for v in start_element.verts if v in end_element.verts]):
+                            # Connected edges (Loop)
+                            if start_element.is_manifold:
+                                new_sel = full_loop_edge_manifold(self, start_element)
+                            elif start_element.is_boundary:
+                                new_sel = full_loop_edge_boundary(self, start_element)
+                            elif start_element.is_wire:
+                                new_sel = full_loop_edge_wire(self, start_element)
+                        else:
+                            # Parallel edges (Ring)
+                            if start_element.is_manifold:
+                                new_sel = full_ring_edge_manifold(self, start_element)
+                            else:
+                                new_sel = full_ring_edge_manifold(self, end_element)
+                    else:
+                        # Bounded pathfinder
+                        new_sel = get_bounded_selection(self, start_element, end_element, mode='EDGE')
+                        if not new_sel:
+                            # Fallback to full loop if no bounded path is found
+                            if start_element.is_manifold:
+                                new_sel = full_loop_edge_manifold(self, start_element)
+                            elif start_element.is_boundary:
+                                new_sel = full_loop_edge_boundary(self, start_element)
+                            elif start_element.is_wire:
+                                new_sel = full_loop_edge_wire(self, start_element)
+                else:
+                    # Regular Double Click (Edge Loop selection)
+                    if start_element.is_manifold:
+                        new_sel = full_loop_edge_manifold(self, start_element)
+                    elif start_element.is_boundary:
+                        new_sel = full_loop_edge_boundary(self, start_element)
+                    elif start_element.is_wire:
+                        new_sel = full_loop_edge_wire(self, start_element)
+
+                if new_sel:
+                    for e in new_sel:
+                        e.select = True
+
+                bm.select_history.clear()
+                if self.leave_edge_active:
+                    bm.select_history.add(start_element)
+                bm.select_flush_mode()
+                bmesh.update_edit_mesh(me)
                 return {'FINISHED'}
 
         elif obj.type == 'CURVE' and context.mode == 'EDIT_CURVE':
-            # Check if there is any selected control point/bezier point
-            has_selection = False
-            for spline in obj.data.splines:
-                if any(p.select_control_point for p in spline.bezier_points) or any(p.select for p in spline.points):
-                    has_selection = True
-                    break
-
-            if not has_selection:
-                return {'CANCELLED'}
-
-            # Run curve linked selection
             bpy.ops.curve.select_linked()
             return {'FINISHED'}
 
@@ -202,7 +1241,6 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
         if event.ctrl or event.alt or event.oskey:
             return {'PASS_THROUGH'}
 
-        # Ensure we are in Edit Mode on a mesh or curve object
         obj = context.active_object
         if not obj:
             return {'PASS_THROUGH'}
@@ -211,108 +1249,121 @@ class REXTOOLS3_OT_ContextAwareSelect(Operator):
             select_mode = context.tool_settings.mesh_select_mode
             bm = bmesh.from_edit_mesh(obj.data)
 
-            # Check if there is any selection in the active selection mode
-            has_selection = False
-            if select_mode[0]:
-                has_selection = any(v.select for v in bm.verts)
-            elif select_mode[2]:
-                has_selection = any(f.select for f in bm.faces)
-            elif select_mode[1]:
-                has_selection = any(e.select for e in bm.edges)
+            # Store modifier
+            self.extend_selection = event.shift
 
-            # If no elements are selected, pass through
-            if not has_selection:
+            has_selection = False
+            hist = list(bm.select_history)
+            
+            if select_mode[0]: # Vertex Selection
+                self.selection_type = 'VERT'
+                has_selection = any(v.select for v in bm.verts)
+                v_hist = [h for h in hist if isinstance(h, bmesh.types.BMVert)]
+                if len(v_hist) >= 1:
+                    self.start_element_index = v_hist[-1].index
+                    if event.shift and len(v_hist) >= 2:
+                        self.end_element_index = v_hist[-2].index
+                    else:
+                        self.end_element_index = -1
+                else:
+                    self.start_element_index = -1
+                    self.end_element_index = -1
+                    
+            elif select_mode[1]: # Edge Selection
+                self.selection_type = 'EDGE'
+                has_selection = any(e.select for e in bm.edges)
+                e_hist = [h for h in hist if isinstance(h, bmesh.types.BMEdge)]
+                if len(e_hist) >= 1:
+                    self.start_element_index = e_hist[-1].index
+                    if event.shift and len(e_hist) >= 2:
+                        self.end_element_index = e_hist[-2].index
+                        # Detect if the edges are parallel to set ring selection default
+                        edge1 = e_hist[-1]
+                        edge2 = e_hist[-2]
+                        self.ring = are_edges_parallel(edge1, edge2)
+                    else:
+                        self.end_element_index = -1
+                else:
+                    self.start_element_index = -1
+                    self.end_element_index = -1
+
+            elif select_mode[2]: # Face Selection
+                self.selection_type = 'FACE'
+                has_selection = any(f.select for f in bm.faces)
+                f_hist = [h for h in hist if isinstance(h, bmesh.types.BMFace)]
+                if len(f_hist) >= 1:
+                    self.start_element_index = f_hist[-1].index
+                    if event.shift and len(f_hist) >= 2:
+                        self.end_element_index = f_hist[-2].index
+                    else:
+                        self.end_element_index = -1
+                else:
+                    self.start_element_index = -1
+                    self.end_element_index = -1
+
+            # If no elements are selected or start element is invalid, pass through
+            if not has_selection or self.start_element_index == -1:
                 return {'PASS_THROUGH'}
 
-            # Set initial toggle state based on shift modifier
-            self.toggle_loop = event.shift
-
-            # For initial selection in Edge mode, invoke the viewport-based loop_select
-            # which utilizes mouse coordinates and correctly toggles/extends selection.
-            if select_mode[1]:
-                ring = self.ring
-                if event.shift:
-                    if len(bm.select_history) >= 2:
-                        hist = list(bm.select_history)
-                        edge1 = hist[-1]
-                        edge2 = hist[-2]
-                        if isinstance(edge1, bmesh.types.BMEdge) and isinstance(edge2, bmesh.types.BMEdge):
-                            if are_edges_parallel(edge1, edge2):
-                                ring = True
-                            else:
-                                ring = False
-                bpy.ops.mesh.loop_select(
-                    'INVOKE_DEFAULT',
-                    extend=self.toggle_loop,
-                    deselect=False,
-                    toggle=self.toggle_loop,
-                    ring=ring
-                )
-                return {'FINISHED'}
-
-            # For Face mode, if Shift is held, try to select the face loop between
-            # the last two selected adjacent faces.
-            if select_mode[2] and event.shift:
-                if len(bm.select_history) >= 2:
-                    hist = list(bm.select_history)
-                    face1 = hist[-1]
-                    face2 = hist[-2]
-                    if isinstance(face1, bmesh.types.BMFace) and isinstance(face2, bmesh.types.BMFace):
-                        face_loop = get_face_loop_from_adjacent(bm, face1, face2)
-                        if face_loop:
-                            for f in face_loop:
-                                f.select = True
-                            bm.select_flush(True)
-                            bmesh.update_edit_mesh(obj.data)
-                            return {'FINISHED'}
-                # Fallback to select linked pick
-                bpy.ops.mesh.select_linked_pick('INVOKE_DEFAULT', deselect=False, delimit=self.delimit)
-                return {'FINISHED'}
-
-            # For Vertex mode, if Shift is held, try to select the vertex loop
-            # between the last two selected adjacent vertices.
-            if select_mode[0] and event.shift:
-                if len(bm.select_history) >= 2:
-                    hist = list(bm.select_history)
-                    v1 = hist[-1]
-                    v2 = hist[-2]
-                    if isinstance(v1, bmesh.types.BMVert) and isinstance(v2, bmesh.types.BMVert):
-                        shared_edges = [e for e in v1.link_edges if e in v2.link_edges]
-                        if len(shared_edges) == 1:
-                            connecting_edge = shared_edges[0]
-                            loop_edges = traverse_edge_loop(bm, connecting_edge)
-                            if loop_edges:
-                                for e in loop_edges:
-                                    for v in e.verts:
-                                        v.select = True
-                                bm.select_flush(True)
-                                bmesh.update_edit_mesh(obj.data)
-                                return {'FINISHED'}
-                # Fallback to select linked pick
-                bpy.ops.mesh.select_linked_pick('INVOKE_DEFAULT', deselect=False, delimit=self.delimit)
-                return {'FINISHED'}
-
-            # For Vertex/Face modes (without Shift), execute directly
             return self.execute(context)
 
         elif obj.type == 'CURVE' and context.mode == 'EDIT_CURVE':
-            # Check if there is any selected spline point
             has_selection = False
             for spline in obj.data.splines:
                 if any(p.select_control_point for p in spline.bezier_points) or any(p.select for p in spline.points):
                     has_selection = True
                     break
 
-            # If no elements are selected, pass through
             if not has_selection:
                 return {'PASS_THROUGH'}
 
-            # For Curve mode, if Shift is held, we want to retain the previous selection
-            # and select linked on the spline point under the mouse cursor.
             if event.shift:
-                bpy.ops.curve.select_linked_pick('INVOKE_DEFAULT', deselect=False)
-                return {'FINISHED'}
+                obj = context.active_object
+                curve = obj.data
+                selected_any = False
+                for spline in curve.splines:
+                    if spline.type == 'BEZIER':
+                        selected_indices = [idx for idx, pt in enumerate(spline.bezier_points) if pt.select_control_point]
+                        if len(selected_indices) >= 2:
+                            start_idx = min(selected_indices)
+                            end_idx = max(selected_indices)
+                            count = len(spline.bezier_points)
+                            
+                            # If cyclic, check which path is shorter
+                            if spline.use_cyclic_u and (end_idx - start_idx) > count // 2:
+                                for idx in range(count):
+                                    if idx <= start_idx or idx >= end_idx:
+                                        spline.bezier_points[idx].select_control_point = True
+                            else:
+                                for idx in range(start_idx, end_idx + 1):
+                                    spline.bezier_points[idx].select_control_point = True
+                            selected_any = True
+                    else: # NURBS / POLY
+                        selected_indices = [idx for idx, pt in enumerate(spline.points) if pt.select]
+                        if len(selected_indices) >= 2:
+                            start_idx = min(selected_indices)
+                            end_idx = max(selected_indices)
+                            count = len(spline.points)
+                            
+                            if spline.use_cyclic_u and (end_idx - start_idx) > count // 2:
+                                for idx in range(count):
+                                    if idx <= start_idx or idx >= end_idx:
+                                        spline.points[idx].select = True
+                            else:
+                                for idx in range(start_idx, end_idx + 1):
+                                    spline.points[idx].select = True
+                            selected_any = True
+                
+                if selected_any:
+                    obj.data.update_tag()
+                    # Force redraw of the viewport to reflect curve selection changes
+                    context.area.tag_redraw()
+                    return {'FINISHED'}
+                else:
+                    bpy.ops.curve.select_linked_pick('INVOKE_DEFAULT', deselect=False)
+                    return {'FINISHED'}
 
+            self.selection_type = 'CURVE'
             return self.execute(context)
 
         return {'PASS_THROUGH'}
@@ -322,7 +1373,6 @@ def register():
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
-        # Load preference state
         active_state = True
         try:
             addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")

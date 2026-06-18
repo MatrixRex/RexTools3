@@ -569,8 +569,11 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                     keymap_col = box.column(align=True)
                     import rna_keymap_ui
                     for km, kmi in module.addon_keymaps:
-                        keymap_col.context_pointer_set("keymap", km)
-                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, keymap_col, 0)
+                        row = keymap_col.row(align=True)
+                        icon_name = 'MESH_DATA' if km.name == 'Mesh' else ('OUTLINER_OB_CURVE' if km.name == 'Curve' else 'INFO')
+                        row.label(text=f"{km.name}:", icon=icon_name)
+                        row.context_pointer_set("keymap", km)
+                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, row, 0)
 
         elif self.active_tab == 'PIES':
             # --- Pie Menus Section ---
@@ -597,5 +600,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                     keymap_col = box.column(align=True)
                     import rna_keymap_ui
                     for km, kmi in module.addon_keymaps:
-                        keymap_col.context_pointer_set("keymap", km)
-                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, keymap_col, 0)
+                        row = keymap_col.row(align=True)
+                        row.label(text=f"{km.name}:", icon='INFO')
+                        row.context_pointer_set("keymap", km)
+                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, row, 0)

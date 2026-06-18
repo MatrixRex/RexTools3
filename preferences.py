@@ -207,6 +207,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 (self.enable_context_select, "enable_context_select", context_aware_select, "Context Aware Select (Mesh/Curve: Double Click)"),
             ]
 
+            wm = context.window_manager
+            kc = wm.keyconfigs.user
+
             for enabled, toggle_prop_name, module, title in shortcut_tools:
                 box = col.box()
                 
@@ -216,17 +219,10 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 
                 if enabled and hasattr(module, 'addon_keymaps'):
                     keymap_col = box.column(align=True)
+                    import rna_keymap_ui
                     for km, kmi in module.addon_keymaps:
-                        row = keymap_col.row(align=True)
-                        row.prop(kmi, "active", text="")
-                        row.prop(kmi, "map_type", text="")
-                        row.prop(kmi, "type", text="", full_event=True)
-                        
-                        if kmi.map_type == 'KEYBOARD':
-                            row.prop(kmi, "ctrl", text="Ctrl", toggle=True)
-                            row.prop(kmi, "shift", text="Shift", toggle=True)
-                            row.prop(kmi, "alt", text="Alt", toggle=True)
-                            row.prop(kmi, "oskey", text="Cmd", toggle=True)
+                        keymap_col.context_pointer_set("keymap", km)
+                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, keymap_col, 0)
 
         elif self.active_tab == 'PIES':
             # --- Pie Menus Section ---
@@ -240,6 +236,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 (self.enable_pie_test, "enable_pie_test", pie_test, "Pie Test (3D View: Shift+X)"),
             ]
 
+            wm = context.window_manager
+            kc = wm.keyconfigs.user
+
             for enabled, toggle_prop_name, module, title in pie_tools:
                 box = col.box()
                 
@@ -249,14 +248,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 
                 if enabled and hasattr(module, 'addon_keymaps'):
                     keymap_col = box.column(align=True)
+                    import rna_keymap_ui
                     for km, kmi in module.addon_keymaps:
-                        row = keymap_col.row(align=True)
-                        row.prop(kmi, "active", text="")
-                        row.prop(kmi, "map_type", text="")
-                        row.prop(kmi, "type", text="", full_event=True)
-                        
-                        if kmi.map_type == 'KEYBOARD':
-                            row.prop(kmi, "ctrl", text="Ctrl", toggle=True)
-                            row.prop(kmi, "shift", text="Shift", toggle=True)
-                            row.prop(kmi, "alt", text="Alt", toggle=True)
-                            row.prop(kmi, "oskey", text="Cmd", toggle=True)
+                        keymap_col.context_pointer_set("keymap", km)
+                        rna_keymap_ui.draw_kmi(None, kc, km, kmi, keymap_col, 0)

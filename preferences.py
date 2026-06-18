@@ -17,7 +17,8 @@ PANEL_CATEGORY_MAPPINGS = [
     ("weight_tools", "RexTools3WeightToolsPanel", "category_weight_tools"),
     ("node_helper_panel", "REXTOOLS3_PT_NodeHelper", "category_node_helper"),
     ("node_helper_panel", "REXTOOLS3_PT_NodeLayout", "category_node_helper"),
-    ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport")
+    ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport"),
+    ("texture_oven_panel", "REXTOOLS3_PT_TextureOvenPanel", "category_texture_oven")
 ]
 
 def update_category_realtime(self, context):
@@ -26,7 +27,7 @@ def update_category_realtime(self, context):
         try:
             module = importlib.import_module(f".panels.{module_name}", __package__)
             cls = getattr(module, class_name)
-            default_val = "RExport" if pref_attr == "category_rexport" else "RexTools3"
+            default_val = "RExport" if pref_attr == "category_rexport" else ("Texture Oven" if pref_attr == "category_texture_oven" else "RexTools3")
             new_cat = getattr(self, pref_attr, default_val)
             if not new_cat:
                 new_cat = default_val
@@ -52,7 +53,7 @@ def pre_apply_panel_categories():
         addon_name = __package__ or "RexTools3"
         prefs = bpy.context.preferences.addons[addon_name].preferences
         for module_name, class_name, pref_attr in PANEL_CATEGORY_MAPPINGS:
-            default_val = "RExport" if pref_attr == "category_rexport" else "RexTools3"
+            default_val = "RExport" if pref_attr == "category_rexport" else ("Texture Oven" if pref_attr == "category_texture_oven" else "RexTools3")
             custom_cat = getattr(prefs, pref_attr, default_val)
             if not custom_cat:
                 custom_cat = default_val
@@ -210,6 +211,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
+    enable_texture_oven: BoolProperty(
+        name="Texture Oven",
+        description="Enable/Disable the Texture Oven baking panel",
+        default=True,
+        update=update_panel_redraw,
+    )
 
     category_common_tools: StringProperty(
         name="Common Tools Category",
@@ -299,6 +306,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         name="RExport Category",
         description="Sidebar tab category for the RExport panel",
         default="RExport",
+        update=update_category_realtime,
+    )
+    category_texture_oven: StringProperty(
+        name="Texture Oven Category",
+        description="Sidebar tab category for the Texture Oven panel",
+        default="Texture Oven",
         update=update_category_realtime,
     )
 
@@ -445,6 +458,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_bone_batch_rename", "Bone Batch Rename"),
                 ("enable_tool_mesh_highlow_rename", "Mesh High/Low Rename")
             ], category_prop="category_rename_tools")
+            draw_panel_category(col_obj, "Texture Oven", 'TEXTURE', "enable_texture_oven", category_prop="category_texture_oven")
  
             # Sub-group: Edit Mode
             box_edit = col_3d.box()

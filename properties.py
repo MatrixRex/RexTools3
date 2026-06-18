@@ -1203,6 +1203,65 @@ class RexAssetExportSettings(bpy.types.PropertyGroup):
     )
 
 
+def update_displacement_strength(self, context):
+    target = self.target_object
+    if target and target.type == 'MESH':
+        for modifier in target.modifiers:
+            if modifier.type == 'DISPLACE' and modifier.name == "Displacement_imposter":
+                modifier.strength = self.displacement_strength
+
+
+class TextureOvenProperties(PropertyGroup):
+    target_object: PointerProperty(
+        name="Target Mesh",
+        description="Select the target/low-poly mesh",
+        type=bpy.types.Object
+    )
+    source_object: PointerProperty(
+        name="Source Mesh",
+        description="Select the source/high-poly mesh",
+        type=bpy.types.Object
+    )
+    displacement_strength: FloatProperty(
+        name="Displacement Strength",
+        description="Adjust displacement modifier strength to fix gaps",
+        default=0.0,
+        min=-10.0,
+        max=10.0,
+        update=update_displacement_strength
+    )
+    ao_sample_count: IntProperty(
+        name="AO Sample Count",
+        default=16,
+        min=1,
+        max=4096,
+        description="Sample size for AO bake, more = less grain + more bake time"
+    )
+    resolution: EnumProperty(
+        name="Image Size",
+        items=[
+            ("256", "256x256", "Set image size to 256x256"),
+            ("512", "512x512", "Set image size to 512x512"),
+            ("1024", "1024x1024", "Set image size to 1024x1024"),
+            ("2048", "2048x2048", "Set image size to 2048x2048"),
+        ],
+        default="512"
+    )
+    save_directory: StringProperty(
+        name="Save Folder",
+        description="Select texture save directory",
+        default="",
+        subtype='DIR_PATH'
+    )
+    bake_mode: EnumProperty(
+        name="Bake Mode",
+        items=[
+            ('IMPOSTER', "Imposter (Albedo + AO + Normal)", "Bake Albedo, AO, and Normal maps for imposter creation"),
+        ],
+        default='IMPOSTER'
+    )
+
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
@@ -1234,6 +1293,7 @@ def register_properties():
     bpy.types.Scene.rex_batch_mat_props = PointerProperty(type=BatchMaterialProperties)
     bpy.types.Scene.rex_missing_texture_scanner = PointerProperty(type=Rextools3MissingTextureScanner)
     bpy.types.Scene.rex_asset_export_settings = PointerProperty(type=RexAssetExportSettings)
+    bpy.types.Scene.rex_texture_oven_props = PointerProperty(type=TextureOvenProperties)
 
 
 def unregister_properties():
@@ -1263,3 +1323,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_batch_mat_props
     del bpy.types.Scene.rex_missing_texture_scanner
     del bpy.types.Scene.rex_asset_export_settings
+    del bpy.types.Scene.rex_texture_oven_props

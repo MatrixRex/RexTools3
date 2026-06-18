@@ -240,86 +240,89 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
         self.finish(context); return {'FINISHED'}
 
     def draw_callback(self, context):
-        if not hasattr(self, 'ui'): return
-        
-        self.ui.items = []
-        
-        if self.mode == 'NESTED':
-            if self.current_category is None:
-                self.ui.title = "Quick Delete: Select Category"
-                self.ui.add_value("Delete Options", "A", "➔")
-                self.ui.add_value("Dissolve Options", "D", "➔")
-                self.ui.add_value("Merge Options", "S", "➔")
-                self.ui.add_value("Extras Options", "W", "➔")
-            else:
-                cat = self.current_category
-                self.ui.title = f"Quick Delete: {cat.title()}"
-                if cat == 'DELETE':
+        try:
+            if not hasattr(self, 'ui'): return
+            
+            self.ui.items = []
+            
+            if self.mode == 'NESTED':
+                if self.current_category is None:
+                    self.ui.title = "Quick Delete: Select Category"
+                    self.ui.add_value("Delete Options", "A", "➔")
+                    self.ui.add_value("Dissolve Options", "D", "➔")
+                    self.ui.add_value("Merge Options", "S", "➔")
+                    self.ui.add_value("Extras Options", "W", "➔")
+                else:
+                    cat = self.current_category
+                    self.ui.title = f"Quick Delete: {cat.title()}"
+                    if cat == 'DELETE':
+                        self.ui.add_value("Vertices", "A", "Delete")
+                        self.ui.add_value("Edges", "W", "Delete")
+                        self.ui.add_value("Faces", "D", "Delete")
+                        self.ui.add_value("Only Edges & Faces", "S", "Delete")
+                        self.ui.add_value("Only Faces", "Q", "Delete")
+                    elif cat == 'DISSOLVE':
+                        self.ui.add_value("Vertices", "A", "Dissolve")
+                        self.ui.add_value("Edges", "W", "Dissolve")
+                        self.ui.add_value("Faces", "D", "Dissolve")
+                        self.ui.add_value("Collapse Edges", "S", "Dissolve")
+                        self.ui.add_value("Limited Dissolve", "Q", "Dissolve")
+                    elif cat == 'MERGE':
+                        self.ui.add_value("Merge Center", "A", "Merge")
+                        self.ui.add_value("Merge At Cursor", "W", "Merge")
+                        self.ui.add_value("Merge By Distance", "D", "Merge")
+                        self.ui.add_value("Merge Collapse", "S", "Merge")
+                    elif cat == 'EXTRAS':
+                        self.ui.add_value("Delete Linked", "A", "Execute")
+                        self.ui.add_value("Checker Dissolve", "W", "Execute")
+                        self.ui.add_value("Loop Dissolve", "D", "Execute")
+                        self.ui.add_value("Fill Loop Region", "S", "Execute")
+                    self.ui.add_value("Back to Main Menu", "Backspace/ESC", "")
+
+            elif self.mode == 'GRID':
+                self.ui.title = "Quick Delete: Direct Grid"
+                self.ui.add_value("Vert / Edge / Face / Linked", "Q / W / E / R", "DELETE")
+                self.ui.add_value("Vert / Edge / Face / Checker", "A / S / D / F", "DISSOLVE")
+                self.ui.add_value("Center / By Distance", "Z / X", "MERGE")
+                self.ui.add_value("Loop Dissolve / Fill Loop", "C / V", "EXTRAS")
+
+            elif self.mode == 'MODIFIER':
+                action_label = "DELETE"
+                if self.shift_held:
+                    action_label = "DISSOLVE"
+                elif self.alt_held:
+                    action_label = "MERGE"
+                elif self.ctrl_held:
+                    action_label = "EXTRAS"
+                    
+                self.ui.title = f"Quick {action_label.title()}"
+                
+                if not self.shift_held and not self.alt_held and not self.ctrl_held:
                     self.ui.add_value("Vertices", "A", "Delete")
                     self.ui.add_value("Edges", "W", "Delete")
                     self.ui.add_value("Faces", "D", "Delete")
-                    self.ui.add_value("Only Edges & Faces", "S", "Delete")
-                    self.ui.add_value("Only Faces", "Q", "Delete")
-                elif cat == 'DISSOLVE':
-                    self.ui.add_value("Vertices", "A", "Dissolve")
-                    self.ui.add_value("Edges", "W", "Dissolve")
-                    self.ui.add_value("Faces", "D", "Dissolve")
-                    self.ui.add_value("Collapse Edges", "S", "Dissolve")
-                    self.ui.add_value("Limited Dissolve", "Q", "Dissolve")
-                elif cat == 'MERGE':
-                    self.ui.add_value("Merge Center", "A", "Merge")
-                    self.ui.add_value("Merge At Cursor", "W", "Merge")
-                    self.ui.add_value("Merge By Distance", "D", "Merge")
-                    self.ui.add_value("Merge Collapse", "S", "Merge")
-                elif cat == 'EXTRAS':
-                    self.ui.add_value("Delete Linked", "A", "Execute")
-                    self.ui.add_value("Checker Dissolve", "W", "Execute")
-                    self.ui.add_value("Loop Dissolve", "D", "Execute")
-                    self.ui.add_value("Fill Loop Region", "S", "Execute")
-                self.ui.add_value("Back to Main Menu", "Backspace/ESC", "")
+                    self.ui.add_value("Only Edges/Faces", "S", "Delete")
+                elif self.shift_held:
+                    self.ui.add_value("Vertices", "Shift+A", "Dissolve")
+                    self.ui.add_value("Edges", "Shift+W", "Dissolve")
+                    self.ui.add_value("Faces", "Shift+D", "Dissolve")
+                    self.ui.add_value("Limited Dissolve", "Shift+S", "Dissolve")
+                elif self.alt_held:
+                    self.ui.add_value("Merge Center", "Alt+A", "Merge")
+                    self.ui.add_value("Merge At Cursor", "Alt+W", "Merge")
+                    self.ui.add_value("Merge By Distance", "Alt+D", "Merge")
+                    self.ui.add_value("Merge Collapse", "Alt+S", "Merge")
+                elif self.ctrl_held:
+                    self.ui.add_value("Delete Linked", "Ctrl+A", "Execute")
+                    self.ui.add_value("Checker Dissolve", "Ctrl+W", "Execute")
+                    self.ui.add_value("Loop Dissolve", "Ctrl+D", "Execute")
+                    self.ui.add_value("Fill Loop Region", "Ctrl+S", "Execute")
+                    
+                self.ui.add_value("Modifiers Guide", "Shift / Alt / Ctrl", "Switch Actions")
 
-        elif self.mode == 'GRID':
-            self.ui.title = "Quick Delete: Direct Grid"
-            self.ui.add_value("Vert / Edge / Face / Linked", "Q / W / E / R", "DELETE")
-            self.ui.add_value("Vert / Edge / Face / Checker", "A / S / D / F", "DISSOLVE")
-            self.ui.add_value("Center / By Distance", "Z / X", "MERGE")
-            self.ui.add_value("Loop Dissolve / Fill Loop", "C / V", "EXTRAS")
-
-        elif self.mode == 'MODIFIER':
-            action_label = "DELETE"
-            if self.shift_held:
-                action_label = "DISSOLVE"
-            elif self.alt_held:
-                action_label = "MERGE"
-            elif self.ctrl_held:
-                action_label = "EXTRAS"
-                
-            self.ui.title = f"Quick {action_label.title()}"
-            
-            if not self.shift_held and not self.alt_held and not self.ctrl_held:
-                self.ui.add_value("Vertices", "A", "Delete")
-                self.ui.add_value("Edges", "W", "Delete")
-                self.ui.add_value("Faces", "D", "Delete")
-                self.ui.add_value("Only Edges/Faces", "S", "Delete")
-            elif self.shift_held:
-                self.ui.add_value("Vertices", "Shift+A", "Dissolve")
-                self.ui.add_value("Edges", "Shift+W", "Dissolve")
-                self.ui.add_value("Faces", "Shift+D", "Dissolve")
-                self.ui.add_value("Limited Dissolve", "Shift+S", "Dissolve")
-            elif self.alt_held:
-                self.ui.add_value("Merge Center", "Alt+A", "Merge")
-                self.ui.add_value("Merge At Cursor", "Alt+W", "Merge")
-                self.ui.add_value("Merge By Distance", "Alt+D", "Merge")
-                self.ui.add_value("Merge Collapse", "Alt+S", "Merge")
-            elif self.ctrl_held:
-                self.ui.add_value("Delete Linked", "Ctrl+A", "Execute")
-                self.ui.add_value("Checker Dissolve", "Ctrl+W", "Execute")
-                self.ui.add_value("Loop Dissolve", "Ctrl+D", "Execute")
-                self.ui.add_value("Fill Loop Region", "Ctrl+S", "Execute")
-                
-            self.ui.add_value("Modifiers Guide", "Shift / Alt / Ctrl", "Switch Actions")
-
-        self.ui.draw()
+            self.ui.draw()
+        except ReferenceError:
+            return
 
     def finish(self, context):
         bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')

@@ -46,24 +46,30 @@ A dedicated panel for rapid PBR material setup and management.
 - **Set Viewport Color**: One-click button to automatically sample, calculate, and update the material's viewport color, metallic, and roughness values to match its base color and active tints.
 - **More Controls**: Easy access to strength, tint, and alpha clipping parameters organized in clean, collapsible panels.
 
+### 🎨 Material Tools
+
+**Location:** `RexTools3 panel` (Sidebar category is customizable in preferences)
+
+- **Material Utilities**:
+  - **Extract Textures**: Pack and unpack all textures to a local `textures/` directory in one go.
+  - **Replace Materials**: Batch replace materials across multiple selected objects using the active object's material slots.
+- **Batch Texture Assign**:
+  - Automatically match and assign PBR textures (Albedo, Normal, Roughness, Metallic, etc.) to multiple gathered materials in a target folder using naming conventions.
+  - Includes settings for search directories, recursive lookup, and a list of gathered materials with their real-time pending/assignment status.
+
 ### 🦴 Rigging Tools
 
-Streamline bone management and constraint workflows.
-
-**Location:** `Object Mode > Armeture Selected > RexTools3 panel`
-
-- **Bone Batch Rename**: Batch rename bones with Find & Replace or Prefix/Suffix support. Automatically updates associated vertex groups.
-
-**Location:** `Pose Mode > RexTools3 panel`
+**Location:** `Pose Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
 
 - **Chain Constraints Adder**: Quickly add constraints (Copy Rotation, etc.) to bone chains with linear influence gradients (From/To) or fixed values. Also remove all constraints from selected bones.
 
-### 🏷️ Naming Tools
+### 🏷️ Rename Tools
 
-**Location:** `Object Mode > RexTools3 panel`
+**Location:** `Object Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
 
-- **Auto Rename High/Low**: Automatically detect and rename high-poly and low-poly pairs based on vertex counts, essential for substance painter or marmoset baking.
-- **Prefix Management**: Customizable suffixes for High/Low versions.
+- **Bone Batch Rename**: Batch rename bones with Find & Replace or Prefix/Suffix support (visible only when an active Armature is selected). Automatically updates associated vertex groups.
+- **Auto Rename High/Low**: Automatically detect and rename high-poly and low-poly pairs based on vertex counts, essential for substance painter or baking.
+- **Collapsible Layout**: Both sections are set within their own collapsible fields for a clean, compact UI.
 
 ### 🖱️ Selection Tools
 
@@ -94,16 +100,14 @@ Streamline bone management and constraint workflows.
 
 ### 🛠️ Common Tools
 
-**Location:** ` RexTools3 panel`
+**Location:** `RexTools3 panel` (Sidebar category is customizable in preferences)
 
 - **Open Folder:** Open the saved blender folder.
-- **Extract Textures**: Pack and unpack all textures to a local `textures/` directory in one go.
 - **Purge Orphans:** Clean all unused data from blend file.
-- **Material Replacement**: Batch replace materials across multiple selected objects.
 
 ### 🧊 Object Tools
 
-**Location:** `Object Mode > RexTools3 panel`
+**Location:** `Object Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
 
 - **Apply Modifiers**: Batch apply all modifiers from selected objects. Includes a customizable **Ignore List** (defaults to Armature) in the sidebar to skip specific types.
 - **Smart Join**: Combine objects while checking for UV name/count mismatches. Replaces the default `Ctrl+J` operation with a safer alternative that warns you of potential data loss during merging.

@@ -5,9 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.5] - 2026-06-15
+## [0.2.5] - 2026-06-18
 
 ### Added
+- **Collapsible Panel Merging**:
+  - Merged the "Bone Batch Rename" panel and the "Rename Tools" panel into a single unified **Rename Tools** sidebar panel.
+  - Placed both the Bone Batch Rename and Mesh High/Low Rename sections within collapsible boxes.
+  - Added preference toggles to control the visibility of each sub-tool section globally.
+- **Customizable Sidebar Categories**:
+  - Upgraded addon preference settings to allow the user to change the sidebar tab category name for each individual panel (Common Tools, Material Tools, Quick Asset Export, Object Tools, UV Tools, Rename Tools, Edit Tools, UV Mesh Tools, Cleanup Tools, Pose Tools, Chain Constraints, Sculpt Tools, Weight Tools, Node Helper, and RExport) dynamically from the default `"RexTools3"` or `"RExport"`.
+  - Panel classes are unregistered and re-registered in real-time as the tab category is modified in the preferences UI.
+- **Material Tools Restructuring**:
+  - Moved **Replace Materials** and **Extract Textures** out of Common Tools and into the Material Tools panel under a **Material Utilities** box.
+  - Placed the **Batch Texture Assign** system inside its own dedicated box with a visibility toggle in preferences.
+  - Renamed the initialization button from "Init Batch Texture Assign" to **Get Materials**.
 - **Quick Asset Export**:
   - Mark selected objects in the active file as assets and write them straight into an asset library without leaving or cluttering the workspace.
   - Dynamically retrieves configured asset libraries from Blender preferences.

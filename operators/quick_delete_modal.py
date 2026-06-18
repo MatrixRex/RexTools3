@@ -69,7 +69,7 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
         self.ctrl_held = event.ctrl
 
         # Initialize UI at mouse position
-        self.ui = ModalOverlay(title="Quick Delete", x=event.mouse_region_x, y=event.mouse_region_y)
+        self.ui = ModalOverlay(title="Quick Delete", x=event.mouse_region_x, y=event.mouse_region_y, width=540)
         self.ui.visible = True
         
         # Add a callback to draw the HUD
@@ -280,10 +280,10 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
 
         elif self.mode == 'GRID':
             self.ui.title = "Quick Delete: Direct Grid"
-            self.ui.add_value("Delete: Vert / Edge / Face / Linked", "Q / W / E / R", "DELETE")
-            self.ui.add_value("Dissolve: Vert / Edge / Face / Checker", "A / S / D / F", "DISSOLVE")
-            self.ui.add_value("Merge: Center / By Dist", "Z / X", "MERGE")
-            self.ui.add_value("Extras: Loop Dissolve / Fill Loop", "C / V", "EXTRAS")
+            self.ui.add_value("Vert / Edge / Face / Linked", "Q / W / E / R", "DELETE")
+            self.ui.add_value("Vert / Edge / Face / Checker", "A / S / D / F", "DISSOLVE")
+            self.ui.add_value("Center / By Distance", "Z / X", "MERGE")
+            self.ui.add_value("Loop Dissolve / Fill Loop", "C / V", "EXTRAS")
 
         elif self.mode == 'MODIFIER':
             action_label = "DELETE"

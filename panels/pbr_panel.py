@@ -78,35 +78,43 @@ class PBR_PT_MaterialPanel(Panel):
             layout.operator("pbr.create_material", text="Setup PBR Material", icon='MATERIAL')
             return
 
+        addon_name = __package__.partition('.')[0]
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
         # Texture Auto Loader (Collapsible Section)
-        loader_box = layout.box()
-        loader_row = loader_box.row()
-        loader_row.prop(mat.pbr_settings, "show_texture_loader",
-                        icon='TRIA_DOWN' if mat.pbr_settings.show_texture_loader else 'TRIA_RIGHT',
-                        text="Texture Auto Loader",
-                        emboss=False)
-        if mat.pbr_settings.show_texture_loader:
-            col = loader_box.column(align=True)
-            row = col.row(align=True)
-            row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
-            row.prop(mat.pbr_settings, "use_auto_common_name", text="Auto-Detect", toggle=True)
-            
-            if not mat.pbr_settings.use_auto_common_name:
-                col.separator()
-                col.prop(mat.pbr_settings, "common_name", text="Common Name")
+        if not prefs or prefs.enable_tool_pbr_loader:
+            loader_box = layout.box()
+            loader_row = loader_box.row()
+            loader_row.prop(mat.pbr_settings, "show_texture_loader",
+                            icon='TRIA_DOWN' if mat.pbr_settings.show_texture_loader else 'TRIA_RIGHT',
+                            text="Texture Auto Loader",
+                            emboss=False)
+            if mat.pbr_settings.show_texture_loader:
+                col = loader_box.column(align=True)
+                row = col.row(align=True)
+                row.operator("pbr.auto_load_textures", text="Auto Load", icon='FILE_REFRESH')
+                row.prop(mat.pbr_settings, "use_auto_common_name", text="Auto-Detect", toggle=True)
+                
+                if not mat.pbr_settings.use_auto_common_name:
+                    col.separator()
+                    col.prop(mat.pbr_settings, "common_name", text="Common Name")
 
         # Texture Utilities (Collapsible Section)
-        utils_box = layout.box()
-        utils_row = utils_box.row()
-        utils_row.prop(mat.pbr_settings, "show_texture_utils",
-                       icon='TRIA_DOWN' if mat.pbr_settings.show_texture_utils else 'TRIA_RIGHT',
-                       text="Texture Utilities",
-                       emboss=False)
-        if mat.pbr_settings.show_texture_utils:
-            col = utils_box.column(align=True)
-            row = col.row(align=True)
-            row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
-            row.operator("pbr.save_textures", text="Save Textures", icon='EXPORT')
+        if not prefs or prefs.enable_tool_pbr_utils:
+            utils_box = layout.box()
+            utils_row = utils_box.row()
+            utils_row.prop(mat.pbr_settings, "show_texture_utils",
+                           icon='TRIA_DOWN' if mat.pbr_settings.show_texture_utils else 'TRIA_RIGHT',
+                           text="Texture Utilities",
+                           emboss=False)
+            if mat.pbr_settings.show_texture_utils:
+                col = utils_box.column(align=True)
+                row = col.row(align=True)
+                row.operator("pbr.rename_textures", text="Rename Textures", icon='FONT_DATA')
+                row.operator("pbr.save_textures", text="Save Textures", icon='EXPORT')
 
 
 
@@ -354,16 +362,17 @@ class PBR_PT_MaterialPanel(Panel):
         ms.prop(mat, "use_backface_culling", text="Backface Culling", toggle=True)
 
         # Viewport Color (Collapsible Section)
-        layout.separator()
-        vp_box = layout.box()
-        vp_row = vp_box.row()
-        vp_row.prop(mat.pbr_settings, "show_viewport_color",
-                    icon='TRIA_DOWN' if mat.pbr_settings.show_viewport_color else 'TRIA_RIGHT',
-                    text="Viewport Color",
-                    emboss=False)
-        if mat.pbr_settings.show_viewport_color:
-            col = vp_box.column(align=True)
-            col.operator("pbr.set_viewport_color", text="Set Viewport Color", icon='COLOR')
+        if not prefs or prefs.enable_tool_pbr_viewport:
+            layout.separator()
+            vp_box = layout.box()
+            vp_row = vp_box.row()
+            vp_row.prop(mat.pbr_settings, "show_viewport_color",
+                        icon='TRIA_DOWN' if mat.pbr_settings.show_viewport_color else 'TRIA_RIGHT',
+                        text="Viewport Color",
+                        emboss=False)
+            if mat.pbr_settings.show_viewport_color:
+                col = vp_box.column(align=True)
+                col.operator("pbr.set_viewport_color", text="Set Viewport Color", icon='COLOR')
 
         layout.separator()
         

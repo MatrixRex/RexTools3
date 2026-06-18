@@ -20,12 +20,19 @@ class REXTools3EditToolsPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        wm = context.window_manager
         
-        box = layout.box()
-        box.label(text="Selection", icon='RESTRICT_SELECT_OFF')
-        box.operator("mesh.angle_loop_select", text="Angle Loop Select", icon='ORIENTATION_NORMAL')
+        addon_name = __package__.partition('.')[0]
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
+        if not prefs or prefs.enable_tool_angle_loop_select:
+            box = layout.box()
+            box.label(text="Selection", icon='RESTRICT_SELECT_OFF')
+            box.operator("mesh.angle_loop_select", text="Angle Loop Select", icon='ORIENTATION_NORMAL')
         
-        box = layout.box()
-        box.label(text="Tube Tools", icon='MOD_SCREW')
-        box.operator("mesh.subdivide_tube", text="Subdivide Tube", icon='MESH_CYLINDER')
+        if not prefs or prefs.enable_tool_subdivide_tube:
+            box = layout.box()
+            box.label(text="Tube Tools", icon='MOD_SCREW')
+            box.operator("mesh.subdivide_tube", text="Subdivide Tube", icon='MESH_CYLINDER')

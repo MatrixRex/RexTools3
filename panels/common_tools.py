@@ -23,10 +23,20 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
         layout = self.layout
         rex_common = context.scene.rex_common_settings
         
-        layout.operator("rextools3.open_folder", text="Open Folder")
-        layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
-        layout.operator("outliner.orphans_purge", text="Purge Orphans")
-        layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
+        addon_name = __package__.partition('.')[0]
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
+        if not prefs or prefs.enable_tool_open_folder:
+            layout.operator("rextools3.open_folder", text="Open Folder")
+        if not prefs or prefs.enable_tool_extract_textures:
+            layout.operator("rextools3.extract_textures", text="Extract Textures", icon='PACKAGE')
+        if not prefs or prefs.enable_tool_purge_orphans:
+            layout.operator("outliner.orphans_purge", text="Purge Orphans")
+        if not prefs or prefs.enable_tool_replace_materials:
+            layout.operator("rextools3.replace_materials", text="Replace Mats", icon='SHADING_TEXTURE')
         
         if rex_common.show_debug_notifications:
             layout.separator()

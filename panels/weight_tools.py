@@ -24,7 +24,20 @@ class REXTOOLS3_PT_weight_tools(bpy.types.Panel):
         scene = context.scene
         props = scene.weight_tools_props
         
-        layout.operator("rextools3.init_weight_paint", icon='WPAINT_HLT')
-        layout.separator()
+        addon_name = __package__.partition('.')[0]
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
+        show_init = not prefs or prefs.enable_tool_weight_init_weight
+        show_xray = not prefs or prefs.enable_tool_weight_xray_brush
+
+        if show_init:
+            layout.operator("rextools3.init_weight_paint", icon='WPAINT_HLT')
         
-        layout.prop(props, "xray_brush", toggle=True, icon='XRAY')
+        if show_xray:
+            if show_init:
+                layout.separator()
+            layout.prop(props, "xray_brush", toggle=True, icon='XRAY')
+

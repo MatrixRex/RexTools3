@@ -128,6 +128,54 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
     )
 
+    # Common Tools Sub-tools
+    enable_tool_open_folder: BoolProperty(name="Open Folder", default=True)
+    enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True)
+    enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True)
+    enable_tool_replace_materials: BoolProperty(name="Replace Materials", default=True)
+
+    # Cleanup Tools Sub-tools
+    enable_tool_clean_objects: BoolProperty(name="Clean Objects", default=True)
+    enable_tool_checker_dissolve: BoolProperty(name="Checker Dissolve", default=True)
+    enable_tool_clear_seams: BoolProperty(name="Clear Seams", default=True)
+    enable_tool_clean_modifiers: BoolProperty(name="Clean Modifiers", default=True)
+    enable_tool_missing_textures: BoolProperty(name="Missing Textures Scanner", default=True)
+
+    # PBR Tools Sub-tools
+    enable_tool_pbr_loader: BoolProperty(name="Texture Auto Loader", default=True)
+    enable_tool_pbr_utils: BoolProperty(name="Texture Utilities", default=True)
+    enable_tool_pbr_viewport: BoolProperty(name="Viewport Color", default=True)
+
+    # Edit Tools Sub-tools
+    enable_tool_angle_loop_select: BoolProperty(name="Angle Loop Select", default=True)
+    enable_tool_subdivide_tube: BoolProperty(name="Subdivide Tube", default=True)
+
+    # Pose Tools Sub-tools
+    enable_tool_pose_init_weight: BoolProperty(name="Init Weight Paint", default=True)
+    enable_tool_setup_pose_copier: BoolProperty(name="Setup Pose Copier", default=True)
+    enable_tool_flipped_anim: BoolProperty(name="Flipped Anim", default=True)
+
+    # Sculpt Tools Sub-tools
+    enable_tool_sculpt_navigation: BoolProperty(name="Pen Navigation", default=True)
+    enable_tool_sculpt_assets: BoolProperty(name="Sculpt Assets Previews", default=True)
+
+    # UV Tools Sub-tools
+    enable_tool_uv_seam_from_sharp: BoolProperty(name="Seam From Sharp", default=True)
+
+    # UV Mesh Tools Sub-tools
+    enable_tool_uv_mesh_area_seam: BoolProperty(name="Area Seam", default=True)
+    enable_tool_uv_mesh_angle_loop_seam: BoolProperty(name="Angle Loop Seam", default=True)
+    enable_tool_uv_mesh_seam_island_sharp: BoolProperty(name="Seam From Island & Sharp", default=True)
+    enable_tool_uv_mesh_area_seam_angle: BoolProperty(name="Area Seam by Angle", default=True)
+    enable_tool_uv_mesh_unwrap_quad: BoolProperty(name="Live Unwrap & Quad Follow", default=True)
+
+    # Weight Tools Sub-tools
+    enable_tool_weight_init_weight: BoolProperty(name="Init Weight Paint", default=True)
+    enable_tool_weight_xray_brush: BoolProperty(name="X-Ray Brush Toggle", default=True)
+
+    # Rename Tools Sub-tools
+    enable_tool_rename_high_low: BoolProperty(name="Auto Rename High/Low", default=True)
+
     # Keymapped Operators Toggles
     enable_smart_join: BoolProperty(
         name="Smart Join",
@@ -169,30 +217,93 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         layout.separator()
 
         if self.active_tab == 'PANELS':
-            # --- Panels Enable/Disable Section ---
-            col = layout.column(align=True)
+            col = layout.column()
             col.label(text="Sidebar Panel Tools Visibility", icon='PREFERENCES')
             
-            box = col.box()
-            grid = box.grid_flow(columns=2, align=True)
+            def draw_panel_category(layout, label, icon, enable_prop, sub_props=None):
+                box = layout.box()
+                hdr = box.row()
+                hdr.prop(self, enable_prop, text=label, icon=icon)
+                
+                if getattr(self, enable_prop) and sub_props:
+                    sub_col = box.column(align=True)
+                    sub_col.separator(factor=0.5)
+                    row = sub_col.row(align=True)
+                    grid = row.grid_flow(columns=2, align=True)
+                    for prop, name in sub_props:
+                        grid.prop(self, prop, text=name)
             
-            grid.prop(self, "enable_common_tools")
-            grid.prop(self, "enable_cleanup_tools")
-            grid.prop(self, "enable_pbr_tools")
-            grid.prop(self, "enable_batch_material")
-            grid.prop(self, "enable_node_helper")
-            grid.prop(self, "enable_object_tools")
-            grid.prop(self, "enable_edit_tools")
-            grid.prop(self, "enable_export_panel")
-            grid.prop(self, "enable_quick_asset_export")
-            grid.prop(self, "enable_pose_tools")
-            grid.prop(self, "enable_rig_tools")
-            grid.prop(self, "enable_chain_constraints")
-            grid.prop(self, "enable_sculpt_tools")
-            grid.prop(self, "enable_uv_tools")
-            grid.prop(self, "enable_uv_mesh_tools")
-            grid.prop(self, "enable_weight_tools")
-            grid.prop(self, "enable_rename_tools")
+            draw_panel_category(col, "Common Tools", 'SETTINGS', "enable_common_tools", [
+                ("enable_tool_open_folder", "Open Folder"),
+                ("enable_tool_extract_textures", "Extract Textures"),
+                ("enable_tool_purge_orphans", "Purge Orphans"),
+                ("enable_tool_replace_materials", "Replace Materials")
+            ])
+            
+            draw_panel_category(col, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
+                ("enable_tool_clean_objects", "Clean Objects"),
+                ("enable_tool_checker_dissolve", "Checker Dissolve"),
+                ("enable_tool_clear_seams", "Clear Seams"),
+                ("enable_tool_clean_modifiers", "Clean Modifiers"),
+                ("enable_tool_missing_textures", "Missing Textures Scanner")
+            ])
+            
+            draw_panel_category(col, "PBR Material Tools", 'MATERIAL', "enable_pbr_tools", [
+                ("enable_tool_pbr_loader", "Texture Auto Loader"),
+                ("enable_tool_pbr_utils", "Texture Utilities"),
+                ("enable_tool_pbr_viewport", "Viewport Color")
+            ])
+            
+            draw_panel_category(col, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
+            
+            draw_panel_category(col, "Node Helper & Layout", 'NODETREE', "enable_node_helper")
+            
+            draw_panel_category(col, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
+            
+            draw_panel_category(col, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
+                ("enable_tool_angle_loop_select", "Angle Loop Select"),
+                ("enable_tool_subdivide_tube", "Subdivide Tube")
+            ])
+            
+            draw_panel_category(col, "Export Manager", 'EXPORT', "enable_export_panel")
+            
+            draw_panel_category(col, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
+            
+            draw_panel_category(col, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
+                ("enable_tool_pose_init_weight", "Init Weight Paint"),
+                ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
+                ("enable_tool_flipped_anim", "Flipped Anim")
+            ])
+            
+            draw_panel_category(col, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
+            
+            draw_panel_category(col, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
+            
+            draw_panel_category(col, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
+                ("enable_tool_sculpt_navigation", "Pen Navigation"),
+                ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
+            ])
+            
+            draw_panel_category(col, "UV Tools", 'UV_DATA', "enable_uv_tools", [
+                ("enable_tool_uv_seam_from_sharp", "Seam From Sharp")
+            ])
+            
+            draw_panel_category(col, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
+                ("enable_tool_uv_mesh_area_seam", "Area Seam"),
+                ("enable_tool_uv_mesh_angle_loop_seam", "Angle Loop Seam"),
+                ("enable_tool_uv_mesh_seam_island_sharp", "Seam From Island & Sharp"),
+                ("enable_tool_uv_mesh_area_seam_angle", "Area Seam by Angle"),
+                ("enable_tool_uv_mesh_unwrap_quad", "Live Unwrap & Quad")
+            ])
+            
+            draw_panel_category(col, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
+                ("enable_tool_weight_init_weight", "Init Weight Paint"),
+                ("enable_tool_weight_xray_brush", "X-Ray Brush Toggle")
+            ])
+            
+            draw_panel_category(col, "Rename Tools", 'FONT_DATA', "enable_rename_tools", [
+                ("enable_tool_rename_high_low", "Auto Rename High/Low")
+            ])
             
         elif self.active_tab == 'SHORTCUTS':
             # --- Shortcut Tools Section ---

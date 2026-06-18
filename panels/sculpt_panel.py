@@ -22,17 +22,25 @@ class RexTools3SculptToolsPanel(bpy.types.Panel):
         layout = self.layout
         props = context.scene.sculpt_tools_props
 
+        addon_name = __package__.partition('.')[0]
+        try:
+            prefs = context.preferences.addons[addon_name].preferences
+        except Exception:
+            prefs = None
+
         # ── Pen Navigation ────────────────────────────────────────────────────
-        box = layout.box()
-        box.label(text="Navigation", icon='MOUSE_LMB_DRAG')
-        col = box.column(align=True)
-        is_on = props.pen_nav
-        icon = 'CHECKBOX_HLT' if is_on else 'CHECKBOX_DEHLT'
-        col.prop(props, "pen_nav", text="Pen Nav", icon=icon, toggle=True)
+        if not prefs or prefs.enable_tool_sculpt_navigation:
+            box = layout.box()
+            box.label(text="Navigation", icon='MOUSE_LMB_DRAG')
+            col = box.column(align=True)
+            is_on = props.pen_nav
+            icon = 'CHECKBOX_HLT' if is_on else 'CHECKBOX_DEHLT'
+            col.prop(props, "pen_nav", text="Pen Nav", icon=icon, toggle=True)
 
         # ── Sculpt Assets ─────────────────────────────────────────────────────
-        box = layout.box()
-        box.label(text="Sculpt Assets", icon='ASSET_MANAGER')
-        col = box.column(align=True)
-        col.operator("rextools3.batch_assign_sculpt_previews", text="Batch Assign Previews", icon='FILE_FOLDER')
+        if not prefs or prefs.enable_tool_sculpt_assets:
+            box = layout.box()
+            box.label(text="Sculpt Assets", icon='ASSET_MANAGER')
+            col = box.column(align=True)
+            col.operator("rextools3.batch_assign_sculpt_previews", text="Batch Assign Previews", icon='FILE_FOLDER')
 

@@ -226,27 +226,35 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col = layout.column()
             col.label(text="Sidebar Panel Tools Visibility", icon='PREFERENCES')
             
-            def draw_panel_category(layout, label, icon, enable_prop, sub_props=None):
+            def draw_panel_category(layout, label, icon, enable_prop, sub_props=None, info_text=None):
                 box = layout.box()
                 hdr = box.row()
                 hdr.prop(self, enable_prop, text=label, icon=icon)
                 
-                if getattr(self, enable_prop) and sub_props:
-                    sub_col = box.column(align=True)
-                    sub_col.separator(factor=0.5)
-                    row = sub_col.row(align=True)
-                    grid = row.grid_flow(columns=2, align=True)
-                    for prop, name in sub_props:
-                        grid.prop(self, prop, text=name)
+                if getattr(self, enable_prop):
+                    if info_text:
+                        box.label(text=info_text, icon='INFO')
+                    if sub_props:
+                        sub_col = box.column(align=True)
+                        sub_col.separator(factor=0.5)
+                        row = sub_col.row(align=True)
+                        grid = row.grid_flow(columns=2, align=True)
+                        for prop, name in sub_props:
+                            grid.prop(self, prop, text=name)
             
-            draw_panel_category(col, "Common Tools", 'SETTINGS', "enable_common_tools", [
+            # --- Group 1: 3D Viewport Sidebar (RexTools3 Tab) ---
+            box_3d = col.box()
+            box_3d.label(text="3D Viewport Sidebar (RexTools3 Tab)", icon='VIEW3D')
+            col_3d = box_3d.column()
+            
+            draw_panel_category(col_3d, "Common Tools", 'SETTINGS', "enable_common_tools", [
                 ("enable_tool_open_folder", "Open Folder"),
                 ("enable_tool_extract_textures", "Extract Textures"),
                 ("enable_tool_purge_orphans", "Purge Orphans"),
                 ("enable_tool_replace_materials", "Replace Materials")
             ])
             
-            draw_panel_category(col, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
+            draw_panel_category(col_3d, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
                 ("enable_tool_clean_objects", "Clean Objects"),
                 ("enable_tool_checker_dissolve", "Checker Dissolve"),
                 ("enable_tool_clear_seams", "Clear Seams"),
@@ -254,41 +262,36 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_missing_textures", "Missing Textures Scanner")
             ])
             
-            draw_panel_category(col, "EasyPBR", 'MATERIAL', "enable_pbr_tools")
+            draw_panel_category(col_3d, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
+            draw_panel_category(col_3d, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
             
-            draw_panel_category(col, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
-            
-            draw_panel_category(col, "Node Helper & Layout", 'NODETREE', "enable_node_helper")
-            
-            draw_panel_category(col, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
-            
-            draw_panel_category(col, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
+            draw_panel_category(col_3d, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
                 ("enable_tool_angle_loop_select", "Angle Loop Select"),
                 ("enable_tool_subdivide_tube", "Subdivide Tube")
             ])
             
-            draw_panel_category(col, "Export Manager", 'EXPORT', "enable_export_panel")
+            draw_panel_category(col_3d, "Export Manager", 'EXPORT', "enable_export_panel",
+                                info_text="Also adds sub-panels to Scene/Collection properties & Topbar Header")
             
-            draw_panel_category(col, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
+            draw_panel_category(col_3d, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
             
-            draw_panel_category(col, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
+            draw_panel_category(col_3d, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
                 ("enable_tool_pose_init_weight", "Init Weight Paint"),
                 ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
                 ("enable_tool_flipped_anim", "Flipped Anim")
             ])
             
-            draw_panel_category(col, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
+            draw_panel_category(col_3d, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
+            draw_panel_category(col_3d, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
             
-            draw_panel_category(col, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
-            
-            draw_panel_category(col, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
+            draw_panel_category(col_3d, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
                 ("enable_tool_sculpt_navigation", "Pen Navigation"),
                 ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
             ])
             
-            draw_panel_category(col, "UV Tools", 'UV_DATA', "enable_uv_tools")
+            draw_panel_category(col_3d, "UV Tools", 'UV_DATA', "enable_uv_tools")
             
-            draw_panel_category(col, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
+            draw_panel_category(col_3d, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
                 ("enable_tool_uv_mesh_area_seam", "Area Seam"),
                 ("enable_tool_uv_mesh_angle_loop_seam", "Angle Loop Seam"),
                 ("enable_tool_uv_mesh_seam_island_sharp", "Seam From Island & Sharp"),
@@ -296,12 +299,24 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_uv_mesh_unwrap_quad", "Live Unwrap & Quad")
             ])
             
-            draw_panel_category(col, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
+            draw_panel_category(col_3d, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
                 ("enable_tool_weight_init_weight", "Init Weight Paint"),
                 ("enable_tool_weight_xray_brush", "X-Ray Brush Toggle")
             ])
             
-            draw_panel_category(col, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
+            draw_panel_category(col_3d, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
+            
+            # --- Group 2: Other Editors & Windows ---
+            col.separator()
+            box_other = col.box()
+            box_other.label(text="Other Editors & Windows", icon='WINDOW')
+            col_other = box_other.column()
+            
+            draw_panel_category(col_other, "EasyPBR", 'MATERIAL', "enable_pbr_tools",
+                                info_text="Location: Properties Editor > Material Properties")
+            
+            draw_panel_category(col_other, "Node Helper & Layout", 'NODETREE', "enable_node_helper",
+                                info_text="Location: Shader Editor > Sidebar > RexTools3 Tab")
             
         elif self.active_tab == 'SHORTCUTS':
             # --- Shortcut Tools Section ---

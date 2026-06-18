@@ -14,7 +14,7 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
     @classmethod
     def poll(cls, context):
         try:
-            addon_name = __package__.partition('.')[0]
+            addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
             prefs = context.preferences.addons[addon_name].preferences
             if not prefs.enable_quick_delete:
                 return False

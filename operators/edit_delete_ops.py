@@ -78,7 +78,7 @@ def register():
             'rextools3.quick_delete_modal', 'X', 'PRESS',
         )
         try:
-            addon_name = __package__.partition('.')[0]
+            addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
             prefs = bpy.context.preferences.addons[addon_name].preferences
             kmi.active = prefs.enable_quick_delete
         except Exception:

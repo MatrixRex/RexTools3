@@ -27,6 +27,16 @@ def update_keymap_active_states(self, context):
     except Exception as e:
         print("[RexTools3] Error updating keymap active states:", e)
 
+def update_panel_redraw(self, context):
+    try:
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type in {'VIEW_3D', 'NODE_EDITOR'}:
+                    area.tag_redraw()
+    except Exception as e:
+        print("[RexTools3] Error tagging redraw:", e)
+
+
 
 class RexTools3Preferences(bpy.types.AddonPreferences):
     bl_idname = __package__ or "RexTools3"
@@ -46,135 +56,152 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         name="Common Tools",
         description="Enable/Disable the Common Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_cleanup_tools: BoolProperty(
         name="Cleanup Tools",
         description="Enable/Disable the Cleanup Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_pbr_tools: BoolProperty(
         name="PBR Material Tools",
         description="Enable/Disable the PBR Material Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_batch_material: BoolProperty(
         name="Batch Material Panel",
         description="Enable/Disable the Batch Material Panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_node_helper: BoolProperty(
         name="Node Helper & Layout",
         description="Enable/Disable the Node Helper and Node Layout panels",
         default=True,
+        update=update_panel_redraw,
     )
     enable_object_tools: BoolProperty(
         name="Object Tools",
         description="Enable/Disable the Object Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_edit_tools: BoolProperty(
         name="Edit Tools",
         description="Enable/Disable the Edit Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_export_panel: BoolProperty(
         name="Export Manager",
         description="Enable/Disable the Export Manager and its topbar menu",
         default=True,
+        update=update_panel_redraw,
     )
     enable_quick_asset_export: BoolProperty(
         name="Quick Asset Export",
         description="Enable/Disable the Quick Asset Export panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_pose_tools: BoolProperty(
         name="Pose Tools",
         description="Enable/Disable the Pose Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_rig_tools: BoolProperty(
         name="Rigging Tools (Batch Rename)",
         description="Enable/Disable the Bone Batch Rename panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_chain_constraints: BoolProperty(
         name="Chain Constraints Adder",
         description="Enable/Disable the Chain Constraints Adder panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_sculpt_tools: BoolProperty(
         name="Sculpt Tools",
         description="Enable/Disable the Sculpt Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_uv_tools: BoolProperty(
         name="UV Tools",
         description="Enable/Disable the UV Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_uv_mesh_tools: BoolProperty(
         name="UV Mesh Tools",
         description="Enable/Disable the UV Mesh Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_weight_tools: BoolProperty(
         name="Weight Tools",
         description="Enable/Disable the Weight Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
     enable_rename_tools: BoolProperty(
         name="Rename Tools",
         description="Enable/Disable the Rename Tools panel",
         default=True,
+        update=update_panel_redraw,
     )
 
     # Common Tools Sub-tools
-    enable_tool_open_folder: BoolProperty(name="Open Folder", default=True)
-    enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True)
-    enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True)
-    enable_tool_replace_materials: BoolProperty(name="Replace Materials", default=True)
+    enable_tool_open_folder: BoolProperty(name="Open Folder", default=True, update=update_panel_redraw)
+    enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True, update=update_panel_redraw)
+    enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True, update=update_panel_redraw)
+    enable_tool_replace_materials: BoolProperty(name="Replace Materials", default=True, update=update_panel_redraw)
 
     # Cleanup Tools Sub-tools
-    enable_tool_clean_objects: BoolProperty(name="Clean Objects", default=True)
-    enable_tool_checker_dissolve: BoolProperty(name="Checker Dissolve", default=True)
-    enable_tool_clear_seams: BoolProperty(name="Clear Seams", default=True)
-    enable_tool_clean_modifiers: BoolProperty(name="Clean Modifiers", default=True)
-    enable_tool_missing_textures: BoolProperty(name="Missing Textures Scanner", default=True)
+    enable_tool_clean_objects: BoolProperty(name="Clean Objects", default=True, update=update_panel_redraw)
+    enable_tool_checker_dissolve: BoolProperty(name="Checker Dissolve", default=True, update=update_panel_redraw)
+    enable_tool_clear_seams: BoolProperty(name="Clear Seams", default=True, update=update_panel_redraw)
+    enable_tool_clean_modifiers: BoolProperty(name="Clean Modifiers", default=True, update=update_panel_redraw)
+    enable_tool_missing_textures: BoolProperty(name="Missing Textures Scanner", default=True, update=update_panel_redraw)
 
     # PBR Tools Sub-tools
-    enable_tool_pbr_loader: BoolProperty(name="Texture Auto Loader", default=True)
-    enable_tool_pbr_utils: BoolProperty(name="Texture Utilities", default=True)
-    enable_tool_pbr_viewport: BoolProperty(name="Viewport Color", default=True)
+    enable_tool_pbr_loader: BoolProperty(name="Texture Auto Loader", default=True, update=update_panel_redraw)
+    enable_tool_pbr_utils: BoolProperty(name="Texture Utilities", default=True, update=update_panel_redraw)
+    enable_tool_pbr_viewport: BoolProperty(name="Viewport Color", default=True, update=update_panel_redraw)
 
     # Edit Tools Sub-tools
-    enable_tool_angle_loop_select: BoolProperty(name="Angle Loop Select", default=True)
-    enable_tool_subdivide_tube: BoolProperty(name="Subdivide Tube", default=True)
+    enable_tool_angle_loop_select: BoolProperty(name="Angle Loop Select", default=True, update=update_panel_redraw)
+    enable_tool_subdivide_tube: BoolProperty(name="Subdivide Tube", default=True, update=update_panel_redraw)
 
     # Pose Tools Sub-tools
-    enable_tool_pose_init_weight: BoolProperty(name="Init Weight Paint", default=True)
-    enable_tool_setup_pose_copier: BoolProperty(name="Setup Pose Copier", default=True)
-    enable_tool_flipped_anim: BoolProperty(name="Flipped Anim", default=True)
+    enable_tool_pose_init_weight: BoolProperty(name="Init Weight Paint", default=True, update=update_panel_redraw)
+    enable_tool_setup_pose_copier: BoolProperty(name="Setup Pose Copier", default=True, update=update_panel_redraw)
+    enable_tool_flipped_anim: BoolProperty(name="Flipped Anim", default=True, update=update_panel_redraw)
 
     # Sculpt Tools Sub-tools
-    enable_tool_sculpt_navigation: BoolProperty(name="Pen Navigation", default=True)
-    enable_tool_sculpt_assets: BoolProperty(name="Sculpt Assets Previews", default=True)
+    enable_tool_sculpt_navigation: BoolProperty(name="Pen Navigation", default=True, update=update_panel_redraw)
+    enable_tool_sculpt_assets: BoolProperty(name="Sculpt Assets Previews", default=True, update=update_panel_redraw)
 
     # UV Tools Sub-tools
-    enable_tool_uv_seam_from_sharp: BoolProperty(name="Seam From Sharp", default=True)
+    enable_tool_uv_seam_from_sharp: BoolProperty(name="Seam From Sharp", default=True, update=update_panel_redraw)
 
     # UV Mesh Tools Sub-tools
-    enable_tool_uv_mesh_area_seam: BoolProperty(name="Area Seam", default=True)
-    enable_tool_uv_mesh_angle_loop_seam: BoolProperty(name="Angle Loop Seam", default=True)
-    enable_tool_uv_mesh_seam_island_sharp: BoolProperty(name="Seam From Island & Sharp", default=True)
-    enable_tool_uv_mesh_area_seam_angle: BoolProperty(name="Area Seam by Angle", default=True)
-    enable_tool_uv_mesh_unwrap_quad: BoolProperty(name="Live Unwrap & Quad Follow", default=True)
+    enable_tool_uv_mesh_area_seam: BoolProperty(name="Area Seam", default=True, update=update_panel_redraw)
+    enable_tool_uv_mesh_angle_loop_seam: BoolProperty(name="Angle Loop Seam", default=True, update=update_panel_redraw)
+    enable_tool_uv_mesh_seam_island_sharp: BoolProperty(name="Seam From Island & Sharp", default=True, update=update_panel_redraw)
+    enable_tool_uv_mesh_area_seam_angle: BoolProperty(name="Area Seam by Angle", default=True, update=update_panel_redraw)
+    enable_tool_uv_mesh_unwrap_quad: BoolProperty(name="Live Unwrap & Quad Follow", default=True, update=update_panel_redraw)
 
     # Weight Tools Sub-tools
-    enable_tool_weight_init_weight: BoolProperty(name="Init Weight Paint", default=True)
-    enable_tool_weight_xray_brush: BoolProperty(name="X-Ray Brush Toggle", default=True)
+    enable_tool_weight_init_weight: BoolProperty(name="Init Weight Paint", default=True, update=update_panel_redraw)
+    enable_tool_weight_xray_brush: BoolProperty(name="X-Ray Brush Toggle", default=True, update=update_panel_redraw)
 
     # Rename Tools Sub-tools
-    enable_tool_rename_high_low: BoolProperty(name="Auto Rename High/Low", default=True)
+    enable_tool_rename_high_low: BoolProperty(name="Auto Rename High/Low", default=True, update=update_panel_redraw)
 
     # Keymapped Operators Toggles
     enable_smart_join: BoolProperty(

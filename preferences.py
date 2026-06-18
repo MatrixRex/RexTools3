@@ -361,6 +361,16 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_keymap_active_states,
     )
+    quick_delete_mode: EnumProperty(
+        name="Quick Delete Mode",
+        description="Paradigms for keyboard-driven quick delete system",
+        items=[
+            ('NESTED', "Nested WASD (Double-Tap)", "Two-step menu where WASD selects category first, then action", 'MENU_PANEL', 0),
+            ('GRID', "Keyboard Grid Layout (Direct)", "Visual QWERTY layout grid for single-key actions", 'GRID', 1),
+            ('MODIFIER', "Hold-and-Press Modifiers (WASD)", "Modifier keys (Shift/Alt/Ctrl) modify WASD actions", 'TRACKING', 2),
+        ],
+        default='NESTED',
+    )
     enable_context_select: BoolProperty(
         name="Context Aware Select",
         description="Enable/Disable Context Aware Select operator and double-click shortcut",
@@ -540,6 +550,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 hdr.prop(self, toggle_prop_name, text=title)
                 
                 if enabled and hasattr(module, 'addon_keymaps'):
+                    if toggle_prop_name == "enable_quick_delete":
+                        box.prop(self, "quick_delete_mode", text="Modal Mode")
                     keymap_col = box.column(align=True)
                     import rna_keymap_ui
                     for km, kmi in module.addon_keymaps:

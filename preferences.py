@@ -3,7 +3,7 @@ from bpy.props import BoolProperty, EnumProperty
 
 def update_keymap_active_states(self, context):
     try:
-        from .operators import smart_join, rex_shading_pie, pie_test, edit_delete_ops, context_aware_select
+        from .operators import smart_join, rex_shading_pie, edit_delete_ops, context_aware_select
         
         if hasattr(smart_join, 'addon_keymaps'):
             for km, kmi in smart_join.addon_keymaps:
@@ -12,10 +12,6 @@ def update_keymap_active_states(self, context):
         if hasattr(rex_shading_pie, 'addon_keymaps'):
             for km, kmi in rex_shading_pie.addon_keymaps:
                 kmi.active = self.enable_shading_pie
-                
-        if hasattr(pie_test, 'addon_keymaps'):
-            for km, kmi in pie_test.addon_keymaps:
-                kmi.active = self.enable_pie_test
                 
         if hasattr(edit_delete_ops, 'addon_keymaps'):
             for km, kmi in edit_delete_ops.addon_keymaps:
@@ -65,8 +61,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         update=update_panel_redraw,
     )
     enable_pbr_tools: BoolProperty(
-        name="PBR Material Tools",
-        description="Enable/Disable the PBR Material Tools panel",
+        name="EasyPBR",
+        description="Enable/Disable the EasyPBR panel",
         default=True,
         update=update_panel_redraw,
     )
@@ -168,11 +164,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     enable_tool_clean_modifiers: BoolProperty(name="Clean Modifiers", default=True, update=update_panel_redraw)
     enable_tool_missing_textures: BoolProperty(name="Missing Textures Scanner", default=True, update=update_panel_redraw)
 
-    # PBR Tools Sub-tools
-    enable_tool_pbr_loader: BoolProperty(name="Texture Auto Loader", default=True, update=update_panel_redraw)
-    enable_tool_pbr_utils: BoolProperty(name="Texture Utilities", default=True, update=update_panel_redraw)
-    enable_tool_pbr_viewport: BoolProperty(name="Viewport Color", default=True, update=update_panel_redraw)
-
     # Edit Tools Sub-tools
     enable_tool_angle_loop_select: BoolProperty(name="Angle Loop Select", default=True, update=update_panel_redraw)
     enable_tool_subdivide_tube: BoolProperty(name="Subdivide Tube", default=True, update=update_panel_redraw)
@@ -186,9 +177,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     enable_tool_sculpt_navigation: BoolProperty(name="Pen Navigation", default=True, update=update_panel_redraw)
     enable_tool_sculpt_assets: BoolProperty(name="Sculpt Assets Previews", default=True, update=update_panel_redraw)
 
-    # UV Tools Sub-tools
-    enable_tool_uv_seam_from_sharp: BoolProperty(name="Seam From Sharp", default=True, update=update_panel_redraw)
-
     # UV Mesh Tools Sub-tools
     enable_tool_uv_mesh_area_seam: BoolProperty(name="Area Seam", default=True, update=update_panel_redraw)
     enable_tool_uv_mesh_angle_loop_seam: BoolProperty(name="Angle Loop Seam", default=True, update=update_panel_redraw)
@@ -200,9 +188,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     enable_tool_weight_init_weight: BoolProperty(name="Init Weight Paint", default=True, update=update_panel_redraw)
     enable_tool_weight_xray_brush: BoolProperty(name="X-Ray Brush Toggle", default=True, update=update_panel_redraw)
 
-    # Rename Tools Sub-tools
-    enable_tool_rename_high_low: BoolProperty(name="Auto Rename High/Low", default=True, update=update_panel_redraw)
-
     # Keymapped Operators Toggles
     enable_smart_join: BoolProperty(
         name="Smart Join",
@@ -213,12 +198,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     enable_shading_pie: BoolProperty(
         name="Rex Shading & View Pies",
         description="Enable/Disable Shading and View pie menus and shortcuts",
-        default=True,
-        update=update_keymap_active_states,
-    )
-    enable_pie_test: BoolProperty(
-        name="Pie Test",
-        description="Enable/Disable Pie Test menu and shortcut",
         default=True,
         update=update_keymap_active_states,
     )
@@ -275,11 +254,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_missing_textures", "Missing Textures Scanner")
             ])
             
-            draw_panel_category(col, "PBR Material Tools", 'MATERIAL', "enable_pbr_tools", [
-                ("enable_tool_pbr_loader", "Texture Auto Loader"),
-                ("enable_tool_pbr_utils", "Texture Utilities"),
-                ("enable_tool_pbr_viewport", "Viewport Color")
-            ])
+            draw_panel_category(col, "EasyPBR", 'MATERIAL', "enable_pbr_tools")
             
             draw_panel_category(col, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
             
@@ -311,9 +286,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
             ])
             
-            draw_panel_category(col, "UV Tools", 'UV_DATA', "enable_uv_tools", [
-                ("enable_tool_uv_seam_from_sharp", "Seam From Sharp")
-            ])
+            draw_panel_category(col, "UV Tools", 'UV_DATA', "enable_uv_tools")
             
             draw_panel_category(col, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
                 ("enable_tool_uv_mesh_area_seam", "Area Seam"),
@@ -328,9 +301,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_weight_xray_brush", "X-Ray Brush Toggle")
             ])
             
-            draw_panel_category(col, "Rename Tools", 'FONT_DATA', "enable_rename_tools", [
-                ("enable_tool_rename_high_low", "Auto Rename High/Low")
-            ])
+            draw_panel_category(col, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
             
         elif self.active_tab == 'SHORTCUTS':
             # --- Shortcut Tools Section ---
@@ -367,11 +338,10 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col = layout.column()
             col.label(text="Pie Menus Configuration", icon='MENU_PANEL')
             
-            from .operators import rex_shading_pie, pie_test
+            from .operators import rex_shading_pie
 
             pie_tools = [
                 (self.enable_shading_pie, "enable_shading_pie", rex_shading_pie, "Rex Shading & View Pies (3D View: Z / W)"),
-                (self.enable_pie_test, "enable_pie_test", pie_test, "Pie Test (3D View: Shift+X)"),
             ]
 
             wm = context.window_manager

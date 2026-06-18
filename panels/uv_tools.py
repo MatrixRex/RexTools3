@@ -22,15 +22,8 @@ class REXTools3UVPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         
-        addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
-        try:
-            prefs = context.preferences.addons[addon_name].preferences
-        except Exception:
-            prefs = None
-
-        if not prefs or prefs.enable_tool_uv_seam_from_sharp:
-            # Section 1: UV Seams
-            box = layout.box()
-            box.label(text="Seams", icon='STRANDS')
-            col = box.column(align=True)
-            col.operator("rextools3.uv_from_sharp", text="Seam From Sharp", icon='MOD_EDGESPLIT')
+        # Section 1: UV Seams
+        box = layout.box()
+        box.label(text="Seams", icon='STRANDS')
+        col = box.column(align=True)
+        col.operator("rextools3.uv_from_sharp", text="Seam From Sharp", icon='MOD_EDGESPLIT')

@@ -24,47 +24,40 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
         layout = self.layout
         props = context.scene.highlow_renamer_props
 
-        addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
-        try:
-            prefs = context.preferences.addons[addon_name].preferences
-        except Exception:
-            prefs = None
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
 
-        if not prefs or prefs.enable_tool_rename_high_low:
-            selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        box = layout.box()
+        box.label(text="Selected Objects:")
 
-            box = layout.box()
-            box.label(text="Selected Objects:")
-
-            if len(selected_meshes) == 0:
-                box.label(text="No mesh objects selected", icon='ERROR')
-            elif len(selected_meshes) == 1:
-                depsgraph = context.evaluated_depsgraph_get()
-                obj_eval = selected_meshes[0].evaluated_get(depsgraph)
+        if len(selected_meshes) == 0:
+            box.label(text="No mesh objects selected", icon='ERROR')
+        elif len(selected_meshes) == 1:
+            depsgraph = context.evaluated_depsgraph_get()
+            obj_eval = selected_meshes[0].evaluated_get(depsgraph)
+            vertex_count = len(obj_eval.data.vertices)
+            box.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
+        elif len(selected_meshes) == 2:
+            depsgraph = context.evaluated_depsgraph_get()
+            for obj in selected_meshes:
+                obj_eval = obj.evaluated_get(depsgraph)
                 vertex_count = len(obj_eval.data.vertices)
-                box.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
-            elif len(selected_meshes) == 2:
-                depsgraph = context.evaluated_depsgraph_get()
-                for obj in selected_meshes:
-                    obj_eval = obj.evaluated_get(depsgraph)
-                    vertex_count = len(obj_eval.data.vertices)
-                    box.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
-            else:
-                box.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
-                box.label(text="Select only 2 meshes")
+                box.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
+        else:
+            box.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
+            box.label(text="Select only 2 meshes")
 
-            layout.separator()
-            row = layout.row(align=True)
-            row.prop(props, "obj_name")
-            row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
-            # Add a clear button to make resetting to auto-fill easier
-            op = row.operator("wm.context_set_string", text="", icon='X')
-            op.data_path = "scene.highlow_renamer_props.obj_name"
-            op.value = ""
-            
-            layout.prop(props, "high_prefix")
-            layout.prop(props, "low_prefix")
+        layout.separator()
+        row = layout.row(align=True)
+        row.prop(props, "obj_name")
+        row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+        # Add a clear button to make resetting to auto-fill easier
+        op = row.operator("wm.context_set_string", text="", icon='X')
+        op.data_path = "scene.highlow_renamer_props.obj_name"
+        op.value = ""
+        
+        layout.prop(props, "high_prefix")
+        layout.prop(props, "low_prefix")
 
-            layout.separator()
-            layout.operator("mesh.auto_rename_high_low", text="Auto Rename High/Low", icon='FILE_REFRESH')
+        layout.separator()
+        layout.operator("mesh.auto_rename_high_low", text="Auto Rename High/Low", icon='FILE_REFRESH')
 

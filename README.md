@@ -17,9 +17,9 @@
 - **Options saved in file**: all options are saved with blender file. So no more guessing what export settings were used.
 - **Copy Textures**: Copy all texture images used by materials on the current export targets to a selected folder. Supports global destination setting and per-collection overrides.
 
-### 📦 Quick Asset Export
+### 📦 Quick Blender Assets
 
-**Location:** `RexTools3 panel > Quick Asset Export Settings` and `Object / Object Context menu > Save Selected as Asset`
+**Location:** `RexTools3 panel > Quick Blender Assets Settings` and `Object / Object Context menu > Save Selected as Asset`
 
 Mark selected objects in your working file as assets and write them straight into an asset library without leaving (or cluttering) your current file.
 

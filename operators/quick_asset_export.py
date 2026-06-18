@@ -118,7 +118,7 @@ class REXTOOLS3_OT_QuickAssetExport(bpy.types.Operator):
                     bpy.data.libraries.write(fp, set(objs), fake_user=True, compress=True)
                     written = len(objs)
             except Exception as e:
-                print("[Quick Asset Export] Write failed:", e)
+                print("[Quick Blender Assets] Write failed:", e)
                 notify.error(f"Asset export write failed: {e}")
                 return None
 

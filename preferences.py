@@ -163,8 +163,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         update=update_panel_redraw,
     )
     enable_quick_asset_export: BoolProperty(
-        name="Quick Asset Export",
-        description="Enable/Disable the Quick Asset Export panel",
+        name="Quick Blender Assets",
+        description="Enable/Disable the Quick Blender Assets panel",
         default=True,
         update=update_panel_redraw,
     )
@@ -231,8 +231,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         update=update_category_realtime,
     )
     category_quick_asset_export: StringProperty(
-        name="Quick Asset Export Category",
-        description="Sidebar tab category for the Quick Asset Export panel",
+        name="Quick Blender Assets Category",
+        description="Sidebar tab category for the Quick Blender Assets panel",
         default="RexTools3",
         update=update_category_realtime,
     )
@@ -446,7 +446,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_replace_materials", "Replace Materials"),
                 ("enable_tool_batch_texture_assign", "Batch Texture Assign")
             ], category_prop="category_batch_material")
-            draw_panel_category(col_any, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export", category_prop="category_quick_asset_export")
+            draw_panel_category(col_any, "Quick Blender Assets", 'ASSET_MANAGER', "enable_quick_asset_export", category_prop="category_quick_asset_export")
  
             # Sub-group: Object Mode
             box_obj = col_3d.box()

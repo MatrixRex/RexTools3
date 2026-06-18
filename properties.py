@@ -1152,7 +1152,7 @@ def _catalog_items(self, context):
                             if not any(item[0] == cat_path for item in _catalog_enum_cache):
                                 _catalog_enum_cache.append((cat_path, cat_path, cat_path))
             except Exception as e:
-                print("[Quick Asset Export] Failed to read catalogs:", e)
+                print("[Quick Blender Assets] Failed to read catalogs:", e)
                 
     return _catalog_enum_cache
 

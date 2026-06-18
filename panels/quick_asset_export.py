@@ -2,7 +2,7 @@ import bpy
 from ..ui import utils
 
 class REXTOOLS3_PT_QuickAssetExport(bpy.types.Panel):
-    bl_label = "Quick Asset Export"
+    bl_label = "Quick Blender Assets"
     bl_idname = "REXTOOLS3_PT_quick_asset_export"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -23,7 +23,7 @@ class REXTOOLS3_PT_QuickAssetExport(bpy.types.Panel):
         layout = self.layout
         settings = context.scene.rex_asset_export_settings
 
-        col = utils.draw_section(layout, "Quick Asset Export Settings", icon='ASSET_MANAGER')
+        col = utils.draw_section(layout, "Quick Blender Assets Settings", icon='ASSET_MANAGER')
 
         col.prop(settings, "library", text="Library")
         if settings.library == "__CUSTOM__":

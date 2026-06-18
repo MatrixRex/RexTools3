@@ -5,7 +5,7 @@ schema_version = "1.0.0"
 id = "rextools3"
 version = "0.3.0"
 name = "Rextools3"
-tagline = "This is another extension"
+tagline = "Toolset for 3D modeling, UV editing, rigging, and exporting"
 maintainer = "matrix rex"
 # Supported types: "add-on", "theme"
 type = "add-on"
@@ -15,7 +15,7 @@ type = "add-on"
 
 # Optional list defined by Blender and server, see:
 # https://docs.blender.org/manual/en/dev/advanced/extensions/tags.html
-tags = ["Animation", "Sequencer"]
+tags = ["3D View", "Import-Export", "UV", "Bake", "User Interface"]
 
 blender_version_min = "4.5.0"
 # # Optional: Blender version that the extension does not support, earlier versions are supported.
@@ -25,7 +25,7 @@ blender_version_min = "4.5.0"
 # License conforming to https://spdx.org/licenses/ (use "SPDX: prefix)
 # https://docs.blender.org/manual/en/dev/advanced/extensions/licenses.html
 license = [
-  "SPDX:GPL-2.0-or-later",
+  "SPDX:GPL-3.0-or-later",
 ]
 # Optional: required by some licenses.
 # copyright = [
@@ -58,16 +58,20 @@ license = [
 # Keep this a single short sentence without a period (.) at the end.
 # For longer explanations use the documentation or detail page.
 #
-# [permissions]
-# network = "Need to sync motion-capture data to server"
-# files = "Import/export FBX from/to disk"
-# clipboard = "Copy and paste bone transforms"
+[permissions]
+files = "Export assets and open folders on disk"
+clipboard = "Copy text and metadata to system clipboard"
 
 # Optional: build settings.
 # https://docs.blender.org/manual/en/dev/advanced/extensions/command_line_arguments.html#command-line-args-extension-build
-# [build]
-# paths_exclude_pattern = [
-#   "__pycache__/",
-#   "/.git/",
-#   "/*.zip",
-# ]
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/.git/",
+  "/.vscode/",
+  "/.agent/",
+  "/.stfolder/",
+  "/*.zip",
+  "/.gitignore",
+  "/AGENTS.md",
+]

@@ -1,15 +1,15 @@
-#  RexTools3
+# RexTools3
 
 **RexTools3** is a collection of sub-tools for speeding up workflow in Blender.
 
 ## 🔧 Tools
 
-### 📦 Batch Export
+### 📦 RExport(Batch Mesh Export)
 
-**Location:** `Top bar` and `Rex Tools panel> Export Manager.`
+**Location:** `Top bar` and `RExport Panel.`
 
 - **Instant Export**: One-click batch export.
-- **Quick Config**: Global export path, per object and collection override.
+- **Quick Config**: Global export path, and collection override.
 - **Export Limiter**: Limit by selection, visible or render visible.
 - **Export Format**: FBX, GLTF, OBJ.
 - **Export Mode**: Single object, parent hierarchy, or collection.
@@ -19,7 +19,7 @@
 
 ### 📦 Quick Blender Assets
 
-**Location:** `RexTools3 panel > Quick Blender Assets Settings` and `Object / Object Context menu > Save Selected as Asset`
+**Location:** `RexTools3 panel > Quick Blender Assets` and `Object / Object Context menu > Save Selected as Asset`
 
 Mark selected objects in your working file as assets and write them straight into an asset library without leaving (or cluttering) your current file.
 
@@ -48,7 +48,7 @@ A dedicated panel for rapid PBR material setup and management.
 
 ### 🎨 Material Tools
 
-**Location:** `RexTools3 panel` (Sidebar category is customizable in preferences)
+**Location:** `RexTools3 panel` 
 
 - **Material Utilities**:
   - **Extract Textures**: Pack and unpack all textures to a local `textures/` directory in one go.
@@ -59,7 +59,7 @@ A dedicated panel for rapid PBR material setup and management.
 
 ### 🎛️ Texture Oven
 
-**Location:** `RexTools3 panel > Texture Oven` (Sidebar category is customizable in preferences)
+**Location:** `RexTools3 panel > Texture Oven` 
 
 An automated high-to-low texture baking tool (similar to Marmoset Toolbag) to generate Albedo, Ambient Occlusion (AO), and Normal maps.
 
@@ -71,21 +71,22 @@ An automated high-to-low texture baking tool (similar to Marmoset Toolbag) to ge
 
 ### 🦴 Rigging Tools
 
-**Location:** `Pose Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
+**Location:** `Pose Mode > RexTools3 panel`
 
 - **Chain Constraints Adder**: Quickly add constraints (Copy Rotation, etc.) to bone chains with linear influence gradients (From/To) or fixed values. Also remove all constraints from selected bones.
 
 ### 🏷️ Rename Tools
 
-**Location:** `Object Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
+**Location:** `Object Mode > RexTools3 panel` 
 
 - **Bone Batch Rename**: Batch rename bones with Find & Replace or Prefix/Suffix support (visible only when an active Armature is selected). Automatically updates associated vertex groups.
 - **Auto Rename High/Low**: Automatically detect and rename high-poly and low-poly pairs based on vertex counts, essential for substance painter or baking.
-- **Collapsible Layout**: Both sections are set within their own collapsible fields for a clean, compact UI.
 
 ### 🖱️ Selection Tools
 
 **Location:** `Edit Mode > 3D Viewport (Double-click Left Mouse)`
+
+Context aware selection algo copied from: https://github.com/Stromberg90/Scripts
 
 - **Context-Aware Selection**:
   - **Vertex & Face Mode**: Double-click selects the connected linked geometry. Exposes boundary limitation (`delimit`) options (Normal, Material, Seam, Sharp, UV) in the Adjust Last Operation (Redo) panel.
@@ -125,14 +126,14 @@ A keyboard-driven deletion and utilities system inside Mesh Edit Mode that displ
 
 ### 🛠️ Common Tools
 
-**Location:** `RexTools3 panel` (Sidebar category is customizable in preferences)
+**Location:** `RexTools3 panel`
 
 - **Open Folder:** Open the saved blender folder.
 - **Purge Orphans:** Clean all unused data from blend file.
 
 ### 🧊 Object Tools
 
-**Location:** `Object Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
+**Location:** `Object Mode > RexTools3 panel` 
 
 - **Apply Modifiers**: Batch apply all modifiers from selected objects. Includes a customizable **Ignore List** (defaults to Armature) in the sidebar to skip specific types.
 - **Smart Join**: Combine objects while checking for UV name/count mismatches. Replaces the default `Ctrl+J` operation with a safer alternative that warns you of potential data loss during merging.
@@ -153,6 +154,8 @@ A keyboard-driven deletion and utilities system inside Mesh Edit Mode that displ
 * **Cheker Dissolve:** Easy way to decimate evenly looped cylendrical geometries.
 
 ### 📐 UV Tools
+
+**Location:** ` RexTools3 panel`
 
 - **Seam Tools**:
 

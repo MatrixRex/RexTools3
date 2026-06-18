@@ -315,17 +315,23 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_rexport, "RExport", 'EXPORT', "enable_rexport",
                                 info_text="Locations:\n1. 3D View > side panel > RExport\n2. TopBar header > RExport\n3. Collection properties > RExport\n4. Scene properties > RExport")
             
-            # --- Group 3: Other Editors & Windows ---
+            # --- Group 3: EasyPBR Panel & Tools ---
+            col.separator()
+            box_pbr = col.box()
+            box_pbr.label(text="EasyPBR Panel & Tools", icon='MATERIAL')
+            col_pbr = box_pbr.column()
+            
+            draw_panel_category(col_pbr, "EasyPBR", 'MATERIAL', "enable_pbr_tools",
+                                info_text="Location:\n1. Properties Editor > Material Properties > Easy PBR")
+            
+            # --- Group 4: Other Editors & Windows ---
             col.separator()
             box_other = col.box()
             box_other.label(text="Other Editors & Windows", icon='WINDOW')
             col_other = box_other.column()
             
-            draw_panel_category(col_other, "EasyPBR", 'MATERIAL', "enable_pbr_tools",
-                                info_text="Location: Properties Editor > Material Properties")
-            
             draw_panel_category(col_other, "Node Helper & Layout", 'NODETREE', "enable_node_helper",
-                                info_text="Location: Shader Editor > Sidebar > RexTools3 Tab")
+                                info_text="Location:\n1. Shader Editor > Sidebar > RexTools3 Tab")
             
         elif self.active_tab == 'SHORTCUTS':
             # --- Shortcut Tools Section ---

@@ -250,61 +250,79 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             box_3d.label(text="3D Viewport Sidebar (RexTools3 Tab)", icon='VIEW3D')
             col_3d = box_3d.column()
             
-            draw_panel_category(col_3d, "Common Tools", 'SETTINGS', "enable_common_tools", [
+            # Sub-group: Any Mode
+            box_any = col_3d.box()
+            box_any.label(text="Any Mode Tools", icon='WORLD')
+            col_any = box_any.column()
+            draw_panel_category(col_any, "Common Tools", 'SETTINGS', "enable_common_tools", [
                 ("enable_tool_open_folder", "Open Folder"),
                 ("enable_tool_extract_textures", "Extract Textures"),
                 ("enable_tool_purge_orphans", "Purge Orphans"),
                 ("enable_tool_replace_materials", "Replace Materials")
             ])
-            
-            draw_panel_category(col_3d, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
-                ("enable_tool_clean_objects", "Clean Objects"),
-                ("enable_tool_checker_dissolve", "Checker Dissolve"),
-                ("enable_tool_clear_seams", "Clear Seams"),
-                ("enable_tool_clean_modifiers", "Clean Modifiers"),
-                ("enable_tool_missing_textures", "Missing Textures Scanner")
-            ])
-            
-            draw_panel_category(col_3d, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
-            draw_panel_category(col_3d, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
-            
-            draw_panel_category(col_3d, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
+            draw_panel_category(col_any, "Batch Material Panel", 'TEXTURE_DATA', "enable_batch_material")
+            draw_panel_category(col_any, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
+
+            # Sub-group: Object Mode
+            box_obj = col_3d.box()
+            box_obj.label(text="Object Mode Tools", icon='OBJECT_DATA')
+            col_obj = box_obj.column()
+            draw_panel_category(col_obj, "Object Tools", 'OBJECT_DATA', "enable_object_tools")
+            draw_panel_category(col_obj, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
+            draw_panel_category(col_obj, "UV Tools", 'UV_DATA', "enable_uv_tools")
+            draw_panel_category(col_obj, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
+
+            # Sub-group: Edit Mode
+            box_edit = col_3d.box()
+            box_edit.label(text="Edit Mode Tools", icon='EDITMODE_HLT')
+            col_edit = box_edit.column()
+            draw_panel_category(col_edit, "Edit Tools", 'EDITMODE_HLT', "enable_edit_tools", [
                 ("enable_tool_angle_loop_select", "Angle Loop Select"),
                 ("enable_tool_subdivide_tube", "Subdivide Tube")
             ])
-            
-            draw_panel_category(col_3d, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
-            
-            draw_panel_category(col_3d, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
-                ("enable_tool_pose_init_weight", "Init Weight Paint"),
-                ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
-                ("enable_tool_flipped_anim", "Flipped Anim")
-            ])
-            
-            draw_panel_category(col_3d, "Rigging Tools (Batch Rename)", 'ARMATURE_DATA', "enable_rig_tools")
-            draw_panel_category(col_3d, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
-            
-            draw_panel_category(col_3d, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
-                ("enable_tool_sculpt_navigation", "Pen Navigation"),
-                ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
-            ])
-            
-            draw_panel_category(col_3d, "UV Tools", 'UV_DATA', "enable_uv_tools")
-            
-            draw_panel_category(col_3d, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
+            draw_panel_category(col_edit, "UV Mesh Tools", 'UV', "enable_uv_mesh_tools", [
                 ("enable_tool_uv_mesh_area_seam", "Area Seam"),
                 ("enable_tool_uv_mesh_angle_loop_seam", "Angle Loop Seam"),
                 ("enable_tool_uv_mesh_seam_island_sharp", "Seam From Island & Sharp"),
                 ("enable_tool_uv_mesh_area_seam_angle", "Area Seam by Angle"),
                 ("enable_tool_uv_mesh_unwrap_quad", "Live Unwrap & Quad")
             ])
-            
-            draw_panel_category(col_3d, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
+
+            # Sub-group: Object & Edit Mode
+            box_obj_edit = col_3d.box()
+            box_obj_edit.label(text="Object & Edit Mode Tools", icon='LOOP_BACK')
+            col_obj_edit = box_obj_edit.column()
+            draw_panel_category(col_obj_edit, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
+                ("enable_tool_clean_objects", "Clean Objects"),
+                ("enable_tool_checker_dissolve", "Checker Dissolve"),
+                ("enable_tool_clear_seams", "Clear Seams"),
+                ("enable_tool_clean_modifiers", "Clean Modifiers"),
+                ("enable_tool_missing_textures", "Missing Textures Scanner")
+            ])
+
+            # Sub-group: Pose Mode
+            box_pose = col_3d.box()
+            box_pose.label(text="Pose Mode Tools", icon='POSE_HLT')
+            col_pose = box_pose.column()
+            draw_panel_category(col_pose, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
+                ("enable_tool_pose_init_weight", "Init Weight Paint"),
+                ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
+                ("enable_tool_flipped_anim", "Flipped Anim")
+            ])
+            draw_panel_category(col_pose, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints")
+
+            # Sub-group: Paint & Sculpt Modes
+            box_paint = col_3d.box()
+            box_paint.label(text="Paint & Sculpt Mode Tools", icon='SCULPTMODE_HLT')
+            col_paint = box_paint.column()
+            draw_panel_category(col_paint, "Sculpt Tools", 'SCULPTMODE_HLT', "enable_sculpt_tools", [
+                ("enable_tool_sculpt_navigation", "Pen Navigation"),
+                ("enable_tool_sculpt_assets", "Sculpt Assets Previews")
+            ])
+            draw_panel_category(col_paint, "Weight Tools", 'WPAINT_HLT', "enable_weight_tools", [
                 ("enable_tool_weight_init_weight", "Init Weight Paint"),
                 ("enable_tool_weight_xray_brush", "X-Ray Brush Toggle")
             ])
-            
-            draw_panel_category(col_3d, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
             
             # --- Group 2: RExport Panel & Tools ---
             col.separator()

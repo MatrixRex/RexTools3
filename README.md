@@ -57,6 +57,18 @@ A dedicated panel for rapid PBR material setup and management.
   - Automatically match and assign PBR textures (Albedo, Normal, Roughness, Metallic, etc.) to multiple gathered materials in a target folder using naming conventions.
   - Includes settings for search directories, recursive lookup, and a list of gathered materials with their real-time pending/assignment status.
 
+### 🎛️ Texture Oven
+
+**Location:** `RexTools3 panel > Texture Oven` (Sidebar category is customizable in preferences)
+
+An automated high-to-low texture baking tool (similar to Marmoset Toolbag) to generate Albedo, Ambient Occlusion (AO), and Normal maps.
+
+- **Mesh Selection**: Simple Target (low-poly) and Source (high-poly) mesh picker inputs.
+- **Real-Time Distance Control**: Adjust the displacement modifier distance interactively using a slider in the panel to resolve baking gaps.
+- **Resolution Control**: Bake textures at 256x256, 512x512, 1024x1024, or 2048x2048.
+- **AO Quality**: Configurable sample counts for Ambient Occlusion baking to balance render time and grain quality.
+- **Direct Output Saving**: Clean output directory settings and one-click saving to write the baked PNGs directly to disk.
+
 ### 🦴 Rigging Tools
 
 **Location:** `Pose Mode > RexTools3 panel` (Sidebar category is customizable in preferences)
@@ -84,7 +96,20 @@ A dedicated panel for rapid PBR material setup and management.
     - **Edge Mode**: Automatically performs an **Edge Ring** selection if the newly double-clicked edge is parallel to the previously selected edge; otherwise, performs a standard **Edge Loop** selection.
     - **Face Mode**: If the last two selected faces are adjacent, it automatically selects the entire perpendicular **Face Loop** running through them.
     - **Vertex Mode**: If the last two selected vertices share an edge, it automatically selects the **Vertex Loop** running along that edge.
-    - **Curve Edit Mode**: Retains the previous selection and selects the linked control points of the newly double-clicked spline.
+    - **Curve Edit Mode**: If two control points on a spline are selected, Shift + Double-click selects the path of points between them. For cyclic (closed-loop) curves, it automatically wraps around to select the shorter path of the loop. If fewer than two points are selected, it selects the linked control points of the newly double-clicked spline.
+
+### ⌨️ Quick Delete System
+
+**Location:** `Edit Mode > 3D Viewport (X key)`
+
+A keyboard-driven deletion and utilities system inside Mesh Edit Mode that displays a clean, interactive HUD.
+
+- **Dynamic HUD Overlay**: Renders active keys and operations directly on screen based on the current mode and active modifier keys, minimizing cognitive overhead.
+- **Three Layout Paradigms**:
+  - **Nested WASD (Double-Tap)**: A two-step menu system where category selection happens first via WASD, followed by specific action execution.
+  - **Keyboard Grid Layout (Direct)**: QWERTY layout grid mapping direct keys (Q, W, E, R, A, S, D, F, Z, X, C, V) to immediate deletion, dissolution, merge, and extras operations.
+  - **Hold-and-Press Modifiers (WASD)**: Dynamic switching of WASD actions in real-time by holding Shift (for Dissolve), Alt (for Merge), and Ctrl (for Extras).
+- **Configurable Modes**: Choose the preferred mode from Addon Preferences.
 
 ### 🥧 Pie Menus
 

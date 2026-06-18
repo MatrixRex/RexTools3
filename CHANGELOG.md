@@ -5,9 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-18
+
+### Added
+
+- **Texture Oven Baking Panel**:
+  - Implements an automated texture baking tool to generate Albedo, Ambient Occlusion (AO), and Normal maps.
+  - Supports Target (low-poly) and Source (high-poly) mesh picker inputs.
+  - Automatically splits mesh edges, performs UV unwrapping/packing, and applies displacement modifier adjustments in real-time.
+  - Provides configurable resolution selectors (up to 2048x2048), AO sample count controls, and a dedicated direct image-saving workflow.
+- **Quick Delete System**:
+  - Fully keyboard-driven selection/deletion system operating under Mesh Edit Mode.
+  - Configurable in preferences with three distinct paradigms:
+    - **Nested WASD (Double-Tap)**: A two-step menu system where category selection happens first via WASD, followed by specific action execution.
+    - **Keyboard Grid Layout (Direct)**: QWERTY layout grid mapping direct keys to deletion, dissolution, merge, and extras operations.
+    - **Hold-and-Press Modifiers (WASD)**: Dynamic switching of WASD actions in real-time by holding Shift (for Dissolve), Alt (for Merge), and Ctrl (for Extras).
+  - Features dynamic HUD drawing of keys and preview labels based on active modes and held modifier keys.
+- **Curve Path Selection**:
+  - Enhanced context-aware selection in Curve Edit Mode.
+  - Shift + Double-clicking two selected control points automatically computes and selects the path of points between them.
+  - Supports cyclic wrapping on closed-loop splines, automatically selecting the shorter path around the loop.
+
+### Fixed
+
+- **Modal Overlap Protection**: Increased quick delete modal width and shortened grid labels to prevent layout overlap.
+- **Reference Error in Draw Callback**: Handled potential `ReferenceError` in modal `draw_callback` during teardown/modal termination.
+- **Keymap Settings Labels**: Enhanced display layout of keymap settings in preferences UI to include clear `Mesh:` or `Curve:` prefix labels.
+
 ## [0.2.5] - 2026-06-18
 
 ### Added
+
 - **Collapsible Panel Merging**:
   - Merged the "Bone Batch Rename" panel and the "Rename Tools" panel into a single unified **Rename Tools** sidebar panel.
   - Placed both the Bone Batch Rename and Mesh High/Low Rename sections within collapsible boxes.
@@ -44,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed the redundant `PACKING MODE ACTIVE` alert box.
 
 ### Fixed
+
 - **Headless / Background Startup**:
   - Wrapped GPU shader compilations in `ui/drawing.py` in safe try-except blocks to prevent import crashes when running Blender headlessly (background/no GPU context).
 - **Keymap Registration Cleanup**:
@@ -61,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.4] - 2026-06-05
 
 ### Added
+
 - **Batch Export: Copy Textures Tool**:
   - New operator `rextools3.copy_textures` that scans materials used by current export targets.
   - Automatically identifies all file-based, sequence-based, and tiled (`.udim`) textures.
@@ -71,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.3] - 2026-06-04
 
 ### Added
+
 - **Context-Aware Selection Tool**:
   - New selection operator `rextools3.context_aware_select` bound to double-click in Mesh and Curve Edit Modes.
   - Automatically selects linked geometry in Mesh Vertex/Face selection modes, and linked spline control points in Curve Edit Mode.
@@ -83,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.2] - 2026-03-11
 
 ### Added
+
 - **Weight Tools: Init Weight Paint**:
   - New operator that correctly initializes a weight painting session.
   - Automatically finds the armature modifier on a selected mesh, OR finds bound meshes if an armature is selected in Pose Mode.
@@ -93,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] - 2026-03-09
 
 ### Added
+
 - **Hierarchical Export Overrides**:
   - Implemented a "Local > Parent > Global" settings resolution system for collections.
   - Sub-collections now automatically inherit settings (path, format, etc.) from their parent collections unless they have their own overrides enabled.
@@ -104,6 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clicking any item in the preview automatically navigates to and activates its configuration in the Properties editor.
 
 ### Changed
+
 - **UI Refactoring**:
   - Completely reorganized the Export Manager panel to prioritize "Batch Export" and a clean "Export Preview" workflow.
   - Rebuilt the Top Bar Export popup to match the sidebar's naming, structure, and hierarchical logic.
@@ -115,6 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-03-04
 
 ### Added
+
 - **Batch Export: Reset Transform**: Added a new toggle to export settings.
   - When enabled, objects are temporarily moved to the world origin (0,0,0 position/rotation) during export and restored immediately after.
   - Default is ON.
@@ -123,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2026-01-27
 
 ### Added
+
 - **Apply Modifiers Tool**: A new tool to batch apply modifiers on selected mesh objects.
   - Includes a customizable **Ignore List** in the RexTools3 sidebar.
   - Smartly skips hidden, invalid, or zero-influence modifiers.
@@ -136,14 +172,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-01-27
 
 ### Added
+
 - **Tools: Common Tools**: Added "Extract Textures" button to pack and then unpack all textures locally.
 
 ### Changed
+
 - Removed "Arrange All Nodes" from the Common Tools panel (still available in Shader Editor context menu and Node Helper panel).
 
 ## [0.0.1] - 2026-01-26
 
 ### Added
+
 - **Started using changelog**
 - **Tools: Easy PBR**
 - **Tools: Batch Export**
@@ -157,6 +196,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Added Packed Texture Setup to Easy PBR**: High-density UI in file selector for mapping R, G, B, A channels to PBR slots (e.g., ORM, RA, etc.).
 - **Added UV Tiling to Easy PBR**: Vector 2 field in material properties to scale all textures simultaneously, with automatic Mapping and Texture Coordinate node management.
 
-
 ### Changed
+
 - Moved "Arrange All Nodes" button from Easy PBR material panel to more accessible locations (Context Menu and RexTools3 Sidebar)

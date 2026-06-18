@@ -152,7 +152,7 @@ def draw_topbar_export(self, context):
     try:
         addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
         prefs = context.preferences.addons[addon_name].preferences
-        if not prefs.enable_export_panel:
+        if not prefs.enable_rexport:
             return
     except Exception:
         pass

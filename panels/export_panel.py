@@ -5,18 +5,18 @@ from ..ui import utils
 from ..core.theme import Theme
 
 class REXTOOLS3_PT_ExportManager(Panel):
-    bl_label = "Export Manager"
+    bl_label = "RExport"
     bl_idname = "REXTOOLS3_PT_export_manager"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "RexTools3"
+    bl_category = "RExport"
     
     @classmethod
     def poll(cls, context):
         try:
             addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
             prefs = context.preferences.addons[addon_name].preferences
-            if not prefs.enable_export_panel:
+            if not prefs.enable_rexport:
                 return False
         except Exception:
             pass
@@ -195,7 +195,7 @@ class REXTOOLS3_PT_ExportManager(Panel):
             layout.operator("rextools3.open_export_folder", text="Open Last Export Folder", icon='FILE_FOLDER')
 
 class REXTOOLS3_PT_GlobalExportSettings(Panel):
-    bl_label = "RexTools Global Export"
+    bl_label = "RExport Global Settings"
     bl_idname = "REXTOOLS3_PT_global_export_settings"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -206,7 +206,7 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
         try:
             addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
             prefs = context.preferences.addons[addon_name].preferences
-            if not prefs.enable_export_panel:
+            if not prefs.enable_rexport:
                 return False
         except Exception:
             pass
@@ -231,7 +231,7 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
         col.prop(settings, "shared_armature")
 
 class REXTOOLS3_PT_CollectionExportPath(Panel):
-    bl_label = "RexTools Export Settings"
+    bl_label = "RExport Settings"
     bl_idname = "REXTOOLS3_PT_collection_export_path"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -242,7 +242,7 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
         try:
             addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
             prefs = context.preferences.addons[addon_name].preferences
-            if not prefs.enable_export_panel:
+            if not prefs.enable_rexport:
                 return False
         except Exception:
             pass

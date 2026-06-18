@@ -90,9 +90,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
-    enable_export_panel: BoolProperty(
-        name="Export Manager",
-        description="Enable/Disable the Export Manager and its topbar menu",
+    enable_rexport: BoolProperty(
+        name="RExport",
+        description="Enable/Disable RExport and its sub-components",
         default=True,
         update=update_panel_redraw,
     )
@@ -270,9 +270,6 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_subdivide_tube", "Subdivide Tube")
             ])
             
-            draw_panel_category(col_3d, "Export Manager", 'EXPORT', "enable_export_panel",
-                                info_text="Also adds sub-panels to Scene/Collection properties & Topbar Header")
-            
             draw_panel_category(col_3d, "Quick Asset Export", 'ASSET_MANAGER', "enable_quick_asset_export")
             
             draw_panel_category(col_3d, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
@@ -306,7 +303,16 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             
             draw_panel_category(col_3d, "Rename Tools", 'FONT_DATA', "enable_rename_tools")
             
-            # --- Group 2: Other Editors & Windows ---
+            # --- Group 2: RExport Panel & Tools ---
+            col.separator()
+            box_rexport = col.box()
+            box_rexport.label(text="RExport Panel & Tools", icon='EXPORT')
+            col_rexport = box_rexport.column()
+            
+            draw_panel_category(col_rexport, "RExport", 'EXPORT', "enable_rexport",
+                                info_text="Locations:\n1. 3D View > side panel > RExport\n2. TopBar header > RExport\n3. Collection properties > RExport\n4. Scene properties > RExport")
+            
+            # --- Group 3: Other Editors & Windows ---
             col.separator()
             box_other = col.box()
             box_other.label(text="Other Editors & Windows", icon='WINDOW')

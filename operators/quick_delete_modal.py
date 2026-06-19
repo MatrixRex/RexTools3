@@ -36,8 +36,15 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
             return {'CANCELLED'}
 
         if event.type == 'X' and event.value == 'PRESS':
-            self.cancel(context)
-            return {'CANCELLED'}
+            select_mode = context.tool_settings.mesh_select_mode
+            if select_mode[2]:
+                bpy.ops.mesh.delete(type='FACE')
+            elif select_mode[1]:
+                bpy.ops.mesh.delete(type='EDGE')
+            elif select_mode[0]:
+                bpy.ops.mesh.delete(type='VERT')
+            self.finish(context)
+            return {'FINISHED'}
 
         if event.value == 'PRESS':
             if self.mode == 'NESTED' and self.current_category is not None and event.type == 'BACKSPACE':
@@ -179,7 +186,7 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
             bpy.ops.mesh.checker_dissolve()
         elif key == 'Z':
             bpy.ops.mesh.merge(type='CENTER')
-        elif key == 'X':
+        elif key == 'B':
             bpy.ops.mesh.remove_doubles()
         elif key == 'C':
             bpy.ops.rextools3.loop_dissolve_ex()
@@ -283,7 +290,7 @@ class REXTOOLS3_OT_quick_delete_modal(Operator):
                 self.ui.title = "Quick Delete: Direct Grid"
                 self.ui.add_value("Vert / Edge / Face / Linked", "Q / W / E / R", "DELETE")
                 self.ui.add_value("Vert / Edge / Face / Checker", "A / S / D / F", "DISSOLVE")
-                self.ui.add_value("Center / By Distance", "Z / X", "MERGE")
+                self.ui.add_value("Center / By Distance", "Z / B", "MERGE")
                 self.ui.add_value("Loop Dissolve / Fill Loop", "C / V", "EXTRAS")
 
             elif self.mode == 'MODIFIER':

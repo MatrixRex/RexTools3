@@ -149,3 +149,37 @@ class MESH_OT_auto_rename_high_low_detect(bpy.types.Operator):
                 context.scene.highlow_renamer_props.obj_name = name
         return {'FINISHED'}
 
+
+class MESH_OT_auto_rename_high_low_pick_collection(bpy.types.Operator):
+    bl_idname = "mesh.auto_rename_high_low_pick_collection"
+    bl_label = "Pick Collection Name"
+    bl_description = "Set base name from the collection name of the active/selected object"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        col_name = None
+        
+        # 1. Try to get from active/selected object's collections
+        obj = context.active_object
+        if not obj or obj not in context.selected_objects:
+            selected_meshes = [o for o in context.selected_objects if o.type == 'MESH']
+            if selected_meshes:
+                obj = selected_meshes[0]
+                
+        if obj and obj.users_collection:
+            col_name = obj.users_collection[0].name
+            
+        # 2. Fallback to active collection of the context
+        if not col_name and context.collection:
+            col_name = context.collection.name
+            
+        if col_name:
+            name = MESH_OT_auto_rename_high_low.clean_base_name(col_name)
+            if name:
+                context.scene.highlow_renamer_props.obj_name = name
+                self.report({'INFO'}, f"Set name to collection: {name}")
+                return {'FINISHED'}
+                
+        self.report({'WARNING'}, "No collection name could be resolved")
+        return {'CANCELLED'}
+

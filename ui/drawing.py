@@ -45,11 +45,17 @@ class IconManager:
         try:
             img_name = f"rextools3_icon_{icon_key}"
             img = bpy.data.images.get(img_name)
+            if img and img.packed_file is not None:
+                try:
+                    bpy.data.images.remove(img)
+                except Exception as remove_err:
+                    print(f"RexTools3: Could not remove packed icon: {remove_err}")
+                img = None
+
             if not img:
                 img = bpy.data.images.load(path, check_existing=True)
                 img.name = img_name
                 img.alpha_mode = 'STRAIGHT'
-                img.pack()
             
             tex = gpu.texture.from_image(img)
             cls._icons[icon_key] = tex

@@ -162,6 +162,7 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
                 row = col_mesh.row(align=True)
                 row.prop(props, "obj_name")
                 row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+                row.operator("mesh.auto_rename_high_low_pick_collection", text="", icon='OUTLINER_COLLECTION')
                 op = row.operator("wm.context_set_string", text="", icon='X')
                 op.data_path = "scene.highlow_renamer_props.obj_name"
                 op.value = ""

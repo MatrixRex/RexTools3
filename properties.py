@@ -1262,6 +1262,13 @@ class TextureOvenProperties(PropertyGroup):
     )
 
 
+class EngineVertexStatsProperties(PropertyGroup):
+    blender_verts: IntProperty(default=0)
+    engine_verts: IntProperty(default=0)
+    tris: IntProperty(default=0)
+    count: IntProperty(default=0)
+
+
 def register_properties():
     wm = bpy.types.WindowManager
     wm.modal_x = IntProperty(name="Mouse X", default=0)
@@ -1294,6 +1301,7 @@ def register_properties():
     bpy.types.Scene.rex_missing_texture_scanner = PointerProperty(type=Rextools3MissingTextureScanner)
     bpy.types.Scene.rex_asset_export_settings = PointerProperty(type=RexAssetExportSettings)
     bpy.types.Scene.rex_texture_oven_props = PointerProperty(type=TextureOvenProperties)
+    bpy.types.Scene.rex_engine_vertex_stats = PointerProperty(type=EngineVertexStatsProperties)
 
 
 def unregister_properties():
@@ -1324,3 +1332,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_missing_texture_scanner
     del bpy.types.Scene.rex_asset_export_settings
     del bpy.types.Scene.rex_texture_oven_props
+    del bpy.types.Scene.rex_engine_vertex_stats

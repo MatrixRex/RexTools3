@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import BoolProperty, EnumProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty, IntProperty
 
 PANEL_CATEGORY_MAPPINGS = [
     ("common_tools", "RexTools3CommonToolsPanel", "category_common_tools"),
@@ -18,7 +18,8 @@ PANEL_CATEGORY_MAPPINGS = [
     ("node_helper_panel", "REXTOOLS3_PT_NodeHelper", "category_node_helper"),
     ("node_helper_panel", "REXTOOLS3_PT_NodeLayout", "category_node_helper"),
     ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport"),
-    ("texture_oven_panel", "REXTOOLS3_PT_TextureOvenPanel", "category_texture_oven")
+    ("texture_oven_panel", "REXTOOLS3_PT_TextureOvenPanel", "category_texture_oven"),
+    ("engine_vertex_stats", "RexTools3EngineVertexStatsPanel", "category_engine_vertex_stats")
 ]
 
 def update_category_realtime(self, context):
@@ -217,6 +218,54 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
+    enable_engine_vertex_stats: BoolProperty(
+        name="Engine Vertex Stats",
+        description="Enable/Disable the Engine Vertex Stats panel",
+        default=True,
+        update=update_panel_redraw,
+    )
+    evstat_use_uv: BoolProperty(
+        name="UV seams",
+        description="Split vertices across UV seams (Unity does this)",
+        default=True,
+        update=update_panel_redraw,
+    )
+    evstat_use_color: BoolProperty(
+        name="Vertex color",
+        description="Split vertices across vertex-color discontinuities",
+        default=True,
+        update=update_panel_redraw,
+    )
+    evstat_nrm_prec: IntProperty(
+        name="Normal Precision",
+        description="Rounding precision for normals (decimals)",
+        default=5, min=1, max=8,
+        update=update_panel_redraw,
+    )
+    evstat_uv_prec: IntProperty(
+        name="UV Precision",
+        description="Rounding precision for UVs (decimals)",
+        default=6, min=1, max=8,
+        update=update_panel_redraw,
+    )
+    evstat_col_prec: IntProperty(
+        name="Color Precision",
+        description="Rounding precision for colors (decimals)",
+        default=4, min=1, max=8,
+        update=update_panel_redraw,
+    )
+    evstat_auto_recalculate: BoolProperty(
+        name="Auto Recalculate",
+        description="Automatically recalculate stats when selection or active object changes",
+        default=True,
+        update=update_panel_redraw,
+    )
+    evstat_show_overlay: BoolProperty(
+        name="Show Viewport Overlay",
+        description="Show the Game Engine vertex count in the top-left corner of the 3D Viewport",
+        default=True,
+        update=update_panel_redraw,
+    )
 
     category_common_tools: StringProperty(
         name="Common Tools Category",
@@ -312,6 +361,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         name="Texture Oven Category",
         description="Sidebar tab category for the Texture Oven panel",
         default="Texture Oven",
+        update=update_category_realtime,
+    )
+    category_engine_vertex_stats: StringProperty(
+        name="Engine Stats Category",
+        description="Sidebar tab category for the Engine Vertex Stats panel",
+        default="RexTools3",
         update=update_category_realtime,
     )
 
@@ -459,6 +514,32 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_mesh_highlow_rename", "Mesh High/Low Rename")
             ], category_prop="category_rename_tools")
             draw_panel_category(col_obj, "Texture Oven", 'TEXTURE', "enable_texture_oven", category_prop="category_texture_oven")
+            box_evstat = col_obj.box()
+            hdr_evstat = box_evstat.row()
+            hdr_evstat.prop(self, "enable_engine_vertex_stats", text="Engine Vertex Stats", icon='SNAP_VERTEX')
+            if self.enable_engine_vertex_stats:
+                row_evstat = box_evstat.row(align=True)
+                row_evstat.prop(self, "category_engine_vertex_stats", text="Sidebar Tab")
+                box_evstat.prop(self, "evstat_auto_recalculate", text="Auto Recalculate")
+                box_evstat.prop(self, "evstat_show_overlay", text="Show Viewport Overlay")
+                box_evstat.separator()
+                
+                # Split options
+                sub_col_evstat = box_evstat.column(align=True)
+                sub_col_evstat.label(text="Attributes that Split:")
+                row_split_evstat = sub_col_evstat.row(align=True)
+                row_split_evstat.prop(self, "evstat_use_uv", text="UV Seams")
+                row_split_evstat.prop(self, "evstat_use_color", text="Vertex Colors")
+                
+                box_evstat.separator()
+                
+                # Precision settings
+                sub_prec_evstat = box_evstat.column(align=True)
+                sub_prec_evstat.label(text="Rounding Precision (Decimals):")
+                row_prec_evstat = sub_prec_evstat.row(align=True)
+                row_prec_evstat.prop(self, "evstat_nrm_prec", text="Normal")
+                row_prec_evstat.prop(self, "evstat_uv_prec", text="UV")
+                row_prec_evstat.prop(self, "evstat_col_prec", text="Color")
  
             # Sub-group: Edit Mode
             box_edit = col_3d.box()

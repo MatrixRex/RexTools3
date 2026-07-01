@@ -1,4 +1,5 @@
 import bpy
+from ..ui.utils import draw_section, draw_input_group
 
 
 class RexTools3CommonToolsPanel(bpy.types.Panel):
@@ -30,8 +31,38 @@ class RexTools3CommonToolsPanel(bpy.types.Panel):
 
         if not prefs or prefs.enable_tool_open_folder:
             layout.operator("rextools3.open_folder", text="Open Folder")
-        if not prefs or prefs.enable_tool_purge_orphans:
-            layout.operator("outliner.orphans_purge", text="Purge Orphans")
+
+        if not prefs or prefs.enable_tool_object_transform:
+            obj = context.active_object
+            if obj and obj.select_get():
+                if not prefs or prefs.enable_tool_open_folder:
+                    layout.separator()
+                
+                col = draw_section(layout, "Object Transform", icon='OBJECT_DATA')
+                
+                # Position
+                col.label(text="Position")
+                row = col.row(align=True)
+                row.prop(obj, "location", text="")
+                
+                col.separator()
+                
+                # Rotation
+                col.label(text="Rotation")
+                row = col.row(align=True)
+                if obj.rotation_mode == 'QUATERNION':
+                    row.prop(obj, "rotation_quaternion", text="")
+                elif obj.rotation_mode == 'AXIS_ANGLE':
+                    row.prop(obj, "rotation_axis_angle", text="")
+                else:
+                    row.prop(obj, "rotation_euler", text="")
+                    
+                col.separator()
+                
+                # Scale
+                col.label(text="Scale")
+                row = col.row(align=True)
+                row.prop(obj, "scale", text="")
 
         
         

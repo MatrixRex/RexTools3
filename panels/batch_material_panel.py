@@ -77,6 +77,24 @@ class PBR_PT_BatchMaterialPanel(Panel):
                 sbox.prop(props, "target_folder")
                 sbox.prop(props, "recursive")
 
+                # Custom Suffixes (Collapsible)
+                suffix_box = sbox.box()
+                suffix_row = suffix_box.row()
+                suffix_row.prop(props, "show_custom_suffixes",
+                                icon='TRIA_DOWN' if props.show_custom_suffixes else 'TRIA_RIGHT',
+                                text="Custom Suffixes",
+                                emboss=False)
+                if props.show_custom_suffixes:
+                    col = suffix_box.column(align=True)
+                    col.prop(props, "suffix_base_color")
+                    col.prop(props, "suffix_roughness")
+                    col.prop(props, "suffix_metallic")
+                    col.prop(props, "suffix_normal")
+                    col.prop(props, "suffix_alpha")
+                    col.prop(props, "suffix_ao")
+                    col.prop(props, "suffix_emission")
+                    col.prop(props, "suffix_height")
+
                 batch_box.separator()
 
                 # Execute Section

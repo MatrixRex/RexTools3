@@ -34,8 +34,6 @@ class REXTOOLS3_PT_QuickAssetExport(bpy.types.Panel):
         
         col.separator()
         col.prop(settings, "separate_files", text="One file per object")
-        col.prop(settings, "clear_after", text="Keep working file clean")
-        col.prop(settings, "preview_wait", text="Preview Wait (s)")
 
         col.separator()
         utils.draw_call_to_action(col, "rextools3.quick_asset_export", "Save Selected as Asset", icon='EXPORT', type='PRIMARY')

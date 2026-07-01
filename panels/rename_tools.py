@@ -139,38 +139,32 @@ class RexTools3RenameToolsPanel(bpy.types.Panel):
                           
             if props.show_in_panel:
                 col_mesh = mesh_box.column(align=True)
-                col_mesh.label(text="Selected Objects:")
                 
-                if len(selected_meshes) == 0:
-                    col_mesh.label(text="No mesh objects selected", icon='ERROR')
-                elif len(selected_meshes) == 1:
-                    depsgraph = context.evaluated_depsgraph_get()
-                    obj_eval = selected_meshes[0].evaluated_get(depsgraph)
-                    vertex_count = len(obj_eval.data.vertices)
-                    col_mesh.label(text=f"{selected_meshes[0].name} ({vertex_count} verts)", icon='MESH_DATA')
-                elif len(selected_meshes) == 2:
+                if len(selected_meshes) == 1:
+                    col_mesh.label(text="1 selected, select another", icon='INFO')
+                elif len(selected_meshes) != 2:
+                    col_mesh.label(text="Please select two mesh objects", icon='ERROR')
+                else:
+                    col_mesh.label(text="Selected Objects:")
                     depsgraph = context.evaluated_depsgraph_get()
                     for obj in selected_meshes:
                         obj_eval = obj.evaluated_get(depsgraph)
                         vertex_count = len(obj_eval.data.vertices)
                         col_mesh.label(text=f"{obj.name} ({vertex_count} verts)", icon='MESH_DATA')
-                else:
-                    col_mesh.label(text=f"{len(selected_meshes)} mesh objects selected", icon='ERROR')
-                    col_mesh.label(text="Select only 2 meshes")
+                        
+                    col_mesh.separator()
+                    row = col_mesh.row(align=True)
+                    row.prop(props, "obj_name")
+                    row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
+                    row.operator("mesh.auto_rename_high_low_pick_collection", text="", icon='OUTLINER_COLLECTION')
+                    op = row.operator("wm.context_set_string", text="", icon='X')
+                    op.data_path = "scene.highlow_renamer_props.obj_name"
+                    op.value = ""
                     
-                col_mesh.separator()
-                row = col_mesh.row(align=True)
-                row.prop(props, "obj_name")
-                row.operator("mesh.auto_rename_high_low_detect", text="", icon='EYEDROPPER')
-                row.operator("mesh.auto_rename_high_low_pick_collection", text="", icon='OUTLINER_COLLECTION')
-                op = row.operator("wm.context_set_string", text="", icon='X')
-                op.data_path = "scene.highlow_renamer_props.obj_name"
-                op.value = ""
-                
-                col_mesh.prop(props, "high_prefix")
-                col_mesh.prop(props, "low_prefix")
-                
-                col_mesh.separator()
-                utils.draw_call_to_action(col_mesh, "mesh.auto_rename_high_low", "Auto Rename High/Low", icon='FILE_REFRESH', type='PRIMARY')
+                    col_mesh.prop(props, "high_prefix")
+                    col_mesh.prop(props, "low_prefix")
+                    
+                    col_mesh.separator()
+                    utils.draw_call_to_action(col_mesh, "mesh.auto_rename_high_low", "Auto Rename High/Low", icon='FILE_REFRESH', type='PRIMARY')
 
 

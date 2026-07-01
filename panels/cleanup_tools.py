@@ -34,33 +34,36 @@ class RexTools3CleanupToolsPanel(bpy.types.Panel):
         show_clean_box = (
             not prefs or 
             prefs.enable_tool_clean_objects or 
-            (prefs.enable_tool_checker_dissolve and context.mode == 'EDIT_MESH') or 
-            prefs.enable_tool_clear_seams
+            (prefs.enable_tool_checker_dissolve and context.mode == 'EDIT_MESH')
         )
         if show_clean_box:
             box = layout.box()
             if not prefs or prefs.enable_tool_clean_objects:
                 box.operator("rextools3.clean_objects", text="Clean Objects", icon='BRUSH_DATA')
-                row = box.row(align=True)
-                row.prop(props, "normals", text="Normals", toggle=True)
-                row.prop(props, "quad", text="Quad", toggle=True)
-                row.prop(props, "mats", text="Mats", toggle=True)
+                grid = box.grid_flow(columns=2, align=True)
+                grid.prop(props, "normals", text="Normals", toggle=True)
+                grid.prop(props, "quad", text="Quad", toggle=True)
+                grid.prop(props, "mats", text="Mats", toggle=True)
+                grid.prop(props, "seams", text="Clear Seams", toggle=True)
             
             if context.mode == 'EDIT_MESH' and (not prefs or prefs.enable_tool_checker_dissolve):
                 box.operator("mesh.checker_dissolve", text="Checker Dissolve", icon='MOD_DECIM')
-            
-            if not prefs or prefs.enable_tool_clear_seams:
-                box.operator("rextools3.uv_clear_seams", text="Clear Seams", icon='X')
 
         # Clean Modifiers Box
         if not prefs or prefs.enable_tool_clean_modifiers:
             if show_clean_box:
                 layout.separator()
             box = layout.box()
-            box.operator("rextools3.clean_modifiers", text="Clean Modifiers", icon='MODIFIER')
-            row = box.row(align=True)
-            row.prop(common, "clean_modifiers_all", text="All", toggle=True)
-            row.prop(common, "clean_modifiers_hidden", text="Hidden", toggle=True)
+            has_selected = bool(context.selected_objects)
+            
+            col_btn = box.column()
+            col_btn.active = has_selected
+            col_btn.operator("rextools3.clean_modifiers", text="Clean Modifiers", icon='MODIFIER')
+            
+            if has_selected:
+                col = box.column(align=True)
+                col.prop(common, "clean_modifiers_selection", text="Scope")
+                col.prop(common, "clean_modifiers_validation", text="Validation")
 
         # Missing Textures Scanner
         if not prefs or prefs.enable_tool_missing_textures:
@@ -87,8 +90,11 @@ class RexTools3CleanupToolsPanel(bpy.types.Panel):
                         row = card.row(align=True)
                         row.label(text=item.image_name, icon='IMAGE_BACKGROUND')
                         
-                        reassign_op = row.operator("rextools3.reassign_missing_texture", text="", icon='FILE_FOLDER')
+                        reassign_op = row.operator("rextools3.reassign_missing_texture", text="", icon='FILE_REFRESH')
                         reassign_op.image_name = item.image_name
+                        
+                        clean_op = row.operator("rextools3.clean_missing_texture", text="", icon='TRASH')
+                        clean_op.image_name = item.image_name
                         
                         if item.materials:
                             mat_box = card.box()
@@ -96,3 +102,9 @@ class RexTools3CleanupToolsPanel(bpy.types.Panel):
                                 mat_box.label(text=mat_name, icon='MATERIAL')
                         else:
                             card.label(text="Not referenced in materials", icon='ERROR')
+
+        # Purge Orphans
+        if not prefs or prefs.enable_tool_purge_orphans:
+            layout.separator(factor=1.5)
+            layout.operator("outliner.orphans_purge", text="Purge Orphans", icon='ORPHAN_DATA')
+

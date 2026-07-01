@@ -63,15 +63,19 @@ class PBR_OT_BatchAssignTextures(Operator):
         folder = Path(folder_path)
         recursive = props.recursive
 
+        # Helper to parse comma-separated suffixes
+        def parse_suffixes(prop_val):
+            return [s.strip().lower() for s in prop_val.split(',') if s.strip()]
+
         suffix_map = {
-            'Base Color': ['albedo', 'basecolor', 'base_color', 'diffuse', 'color', 'col', 'bc', 'd', 'c'],
-            'Roughness': ['roughness', 'rough', 'rgh', 'smoothness', 'gloss', 'glossiness', 'r'],
-            'Metallic':  ['metallic', 'metal', 'metalness', 'mtl', 'm', 'met'],
-            'Normal':    ['normal', 'norm', 'nrm', 'nmap', 'nm', 'n'],
-            'Alpha':     ['alpha', 'opacity', 'transparency', 'a'],
-            'AO':        ['ao', 'ambientocclusion', 'occ'],
-            'Emission':  ['emissive', 'emission', 'emit', 'glow', 'e'],
-            'Height':    ['height', 'disp', 'displacement', 'h'],
+            'Base Color': parse_suffixes(props.suffix_base_color),
+            'Roughness': parse_suffixes(props.suffix_roughness),
+            'Metallic':  parse_suffixes(props.suffix_metallic),
+            'Normal':    parse_suffixes(props.suffix_normal),
+            'Alpha':     parse_suffixes(props.suffix_alpha),
+            'AO':        parse_suffixes(props.suffix_ao),
+            'Emission':  parse_suffixes(props.suffix_emission),
+            'Height':    parse_suffixes(props.suffix_height),
         }
 
         # Gather all folders to search

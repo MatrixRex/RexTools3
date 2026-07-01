@@ -62,6 +62,13 @@ class REXTOOLS3_OT_CleanObjects(Operator):
                 except Exception as e:
                     print(f"Error removing unused material slots for {obj.name}: {e}")
 
+            # 4. Seams
+            if props.seams:
+                for edge in obj.data.edges:
+                    if edge.use_seam:
+                        edge.use_seam = False
+                obj.data.update()
+
         # Restore active object
         if active_obj in context.view_layer.objects.values():
             context.view_layer.objects.active = active_obj

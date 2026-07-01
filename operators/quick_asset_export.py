@@ -67,6 +67,8 @@ class REXTOOLS3_OT_QuickAssetExport(bpy.types.Operator):
 
     def execute(self, context):
         prefs = context.scene.rex_asset_export_settings
+        addon_name = ".".join(__package__.split(".")[:3]) if __package__ and __package__.startswith("bl_ext.") else (__package__.partition('.')[0] if __package__ else "RexTools3")
+        addon_prefs = context.preferences.addons[addon_name].preferences
         target = _target_dir(prefs, context)
 
         if not target or not os.path.isdir(target):
@@ -98,7 +100,7 @@ class REXTOOLS3_OT_QuickAssetExport(bpy.types.Operator):
 
         names = [o.name for o in marked]
         separate = prefs.separate_files
-        clear_after = prefs.clear_after
+        clear_after = addon_prefs.quick_asset_clear_after
         base = bpy.path.clean_name(
             os.path.splitext(os.path.basename(bpy.data.filepath))[0]
         ) or "assets"
@@ -135,7 +137,7 @@ class REXTOOLS3_OT_QuickAssetExport(bpy.types.Operator):
             notify.success(f"Wrote {written} asset(s) to {target}")
             return None  # one-shot timer
 
-        bpy.app.timers.register(_do_write, first_interval=prefs.preview_wait)
+        bpy.app.timers.register(_do_write, first_interval=addon_prefs.quick_asset_preview_wait)
 
         notify.info(f"Exporting {len(marked)} object(s) (rendering thumbnails)...")
         return {'FINISHED'}

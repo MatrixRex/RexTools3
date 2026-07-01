@@ -480,6 +480,51 @@ class BatchMaterialProperties(PropertyGroup):
         description="Search for textures in subfolders",
         default=True
     )
+    show_custom_suffixes: BoolProperty(
+        name="Custom Suffixes",
+        description="Show suffix settings for each map type",
+        default=False
+    )
+    suffix_base_color: StringProperty(
+        name="Base Color",
+        description="Comma-separated suffixes/keywords for Base Color maps",
+        default="albedo, basecolor, base_color, diffuse, color, col, bc, d, c"
+    )
+    suffix_roughness: StringProperty(
+        name="Roughness",
+        description="Comma-separated suffixes/keywords for Roughness maps",
+        default="roughness, rough, rgh, smoothness, gloss, glossiness, r"
+    )
+    suffix_metallic: StringProperty(
+        name="Metallic",
+        description="Comma-separated suffixes/keywords for Metallic maps",
+        default="metallic, metal, metalness, mtl, m, met"
+    )
+    suffix_normal: StringProperty(
+        name="Normal",
+        description="Comma-separated suffixes/keywords for Normal maps",
+        default="normal, norm, nrm, nmap, nm, n"
+    )
+    suffix_alpha: StringProperty(
+        name="Alpha",
+        description="Comma-separated suffixes/keywords for Alpha maps",
+        default="alpha, opacity, transparency, a"
+    )
+    suffix_ao: StringProperty(
+        name="AO",
+        description="Comma-separated suffixes/keywords for Ambient Occlusion maps",
+        default="ao, ambientocclusion, occ"
+    )
+    suffix_emission: StringProperty(
+        name="Emission",
+        description="Comma-separated suffixes/keywords for Emission maps",
+        default="emissive, emission, emit, glow, e"
+    )
+    suffix_height: StringProperty(
+        name="Height",
+        description="Comma-separated suffixes/keywords for Height maps",
+        default="height, disp, displacement, h"
+    )
     items: CollectionProperty(type=MaterialBatchItem)
 
 
@@ -731,6 +776,7 @@ class CleanupProperties(PropertyGroup):
     normals: BoolProperty(name="Normals", default=True)
     quad: BoolProperty(name="Quad", default=True)
     mats: BoolProperty(name="Mats", default=True)
+    seams: BoolProperty(name="Clear Seams", default=True)
 
 
 class ModifierIgnoreItem(PropertyGroup):
@@ -756,15 +802,25 @@ class ModifierIgnoreItem(PropertyGroup):
 
 
 class RexCommonSettings(PropertyGroup):
-    clean_modifiers_all: BoolProperty(
-        name="All",
-        description="Operate on all visible objects, selected or not",
-        default=False
+    clean_modifiers_selection: EnumProperty(
+        name="Scope",
+        description="Objects to check for cleaning modifiers",
+        items=[
+            ('SELECTED', "Selected", "Only selected mesh objects"),
+            ('VISIBLE', "Visible", "All visible mesh objects in the scene"),
+            ('ALL', "All", "All mesh objects in the scene, including hidden ones"),
+        ],
+        default='SELECTED'
     )
-    clean_modifiers_hidden: BoolProperty(
-        name="Hidden",
-        description="Also remove modifiers that are hidden in the viewport",
-        default=False
+    clean_modifiers_validation: EnumProperty(
+        name="Validation",
+        description="Criteria for determining which modifiers to remove",
+        items=[
+            ('UNAFFECTED', "Unaffected", "Remove modifiers that are broken (missing targets) or useless (zero influence)"),
+            ('HIDDEN', "Hidden Only", "Only remove modifiers that are hidden in the viewport"),
+            ('ALL', "All", "Remove all modifiers, including valid and visible ones"),
+        ],
+        default='UNAFFECTED'
     )
     smart_join_apply_modifiers: BoolProperty(
         name="Apply Modifiers",
@@ -1187,20 +1243,7 @@ class RexAssetExportSettings(bpy.types.PropertyGroup):
                     "(off = put them all into a single .blend)",
         default=True,
     )
-    clear_after: BoolProperty(
-        name="Keep working file clean",
-        description="Remove the asset marking from the objects in your working file "
-                    "after exporting, so your scene stays uncluttered",
-        default=True,
-    )
-    preview_wait: FloatProperty(
-        name="Preview wait (seconds)",
-        description="How long to wait for thumbnails to render before writing the file. "
-                    "If your asset thumbnails come out blank, increase this",
-        default=1.5,
-        min=0.1,
-        max=10.0,
-    )
+
 
 
 def update_displacement_strength(self, context):

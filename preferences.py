@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import BoolProperty, EnumProperty, StringProperty, IntProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty, IntProperty, FloatProperty
 
 PANEL_CATEGORY_MAPPINGS = [
     ("common_tools", "RexTools3CommonToolsPanel", "category_common_tools"),
@@ -168,6 +168,20 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         description="Enable/Disable the Quick Blender Assets panel",
         default=True,
         update=update_panel_redraw,
+    )
+    quick_asset_clear_after: BoolProperty(
+        name="Keep working file clean",
+        description="Remove the asset marking from the objects in your working file "
+                    "after exporting, so your scene stays uncluttered",
+        default=True,
+    )
+    quick_asset_preview_wait: FloatProperty(
+        name="Preview wait (seconds)",
+        description="How long to wait for thumbnails to render before writing the file. "
+                    "If your asset thumbnails come out blank, increase this",
+        default=1.5,
+        min=0.1,
+        max=10.0,
     )
     enable_pose_tools: BoolProperty(
         name="Pose Tools",
@@ -372,8 +386,8 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
 
     # Common Tools Sub-tools
     enable_tool_open_folder: BoolProperty(name="Open Folder", default=True, update=update_panel_redraw)
+    enable_tool_object_transform: BoolProperty(name="Object Transform", default=True, update=update_panel_redraw)
     enable_tool_extract_textures: BoolProperty(name="Extract Textures", default=True, update=update_panel_redraw)
-    enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True, update=update_panel_redraw)
     enable_tool_replace_materials: BoolProperty(name="Replace Materials", default=True, update=update_panel_redraw)
     enable_tool_batch_texture_assign: BoolProperty(name="Batch Texture Assign", default=True, update=update_panel_redraw)
     enable_tool_bone_batch_rename: BoolProperty(name="Bone Batch Rename", default=True, update=update_panel_redraw)
@@ -382,9 +396,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     # Cleanup Tools Sub-tools
     enable_tool_clean_objects: BoolProperty(name="Clean Objects", default=True, update=update_panel_redraw)
     enable_tool_checker_dissolve: BoolProperty(name="Checker Dissolve", default=True, update=update_panel_redraw)
-    enable_tool_clear_seams: BoolProperty(name="Clear Seams", default=True, update=update_panel_redraw)
     enable_tool_clean_modifiers: BoolProperty(name="Clean Modifiers", default=True, update=update_panel_redraw)
     enable_tool_missing_textures: BoolProperty(name="Missing Textures Scanner", default=True, update=update_panel_redraw)
+    enable_tool_purge_orphans: BoolProperty(name="Purge Orphans", default=True, update=update_panel_redraw)
 
     # Edit Tools Sub-tools
     enable_tool_angle_loop_select: BoolProperty(name="Angle Loop Select", default=True, update=update_panel_redraw)
@@ -494,14 +508,17 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col_any = box_any.column()
             draw_panel_category(col_any, "Common Tools", 'SETTINGS', "enable_common_tools", [
                 ("enable_tool_open_folder", "Open Folder"),
-                ("enable_tool_purge_orphans", "Purge Orphans")
+                ("enable_tool_object_transform", "Object Transform")
             ], category_prop="category_common_tools")
             draw_panel_category(col_any, "Material Tools", 'TEXTURE_DATA', "enable_batch_material", [
                 ("enable_tool_extract_textures", "Extract Textures"),
                 ("enable_tool_replace_materials", "Replace Materials"),
                 ("enable_tool_batch_texture_assign", "Batch Texture Assign")
             ], category_prop="category_batch_material")
-            draw_panel_category(col_any, "Quick Blender Assets", 'ASSET_MANAGER', "enable_quick_asset_export", category_prop="category_quick_asset_export")
+            draw_panel_category(col_any, "Quick Blender Assets", 'ASSET_MANAGER', "enable_quick_asset_export", sub_props=[
+                ("quick_asset_clear_after", "Keep working file clean"),
+                ("quick_asset_preview_wait", "Preview Wait (s)")
+            ], category_prop="category_quick_asset_export")
  
             # Sub-group: Object Mode
             box_obj = col_3d.box()
@@ -564,9 +581,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_obj_edit, "Cleanup Tools", 'BRUSH_DATA', "enable_cleanup_tools", [
                 ("enable_tool_clean_objects", "Clean Objects"),
                 ("enable_tool_checker_dissolve", "Checker Dissolve"),
-                ("enable_tool_clear_seams", "Clear Seams"),
                 ("enable_tool_clean_modifiers", "Clean Modifiers"),
-                ("enable_tool_missing_textures", "Missing Textures Scanner")
+                ("enable_tool_missing_textures", "Missing Textures Scanner"),
+                ("enable_tool_purge_orphans", "Purge Orphans")
             ], category_prop="category_cleanup_tools")
  
             # Sub-group: Pose Mode

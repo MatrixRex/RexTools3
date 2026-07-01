@@ -6,6 +6,11 @@ class MESH_OT_auto_rename_high_low(bpy.types.Operator):
     bl_description = "Rename selected meshes based on collection/vertex count and match origins"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        return len(selected_objects) == 2
+
     def execute(self, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         props = context.scene.highlow_renamer_props
@@ -140,6 +145,11 @@ class MESH_OT_auto_rename_high_low_detect(bpy.types.Operator):
     bl_description = "Detect suggested base name from selection"
     bl_options = {'INTERNAL'}
 
+    @classmethod
+    def poll(cls, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        return len(selected_objects) == 2
+
     def execute(self, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         low_poly, _ = MESH_OT_auto_rename_high_low.detect_low_high(selected_objects, context)
@@ -155,6 +165,11 @@ class MESH_OT_auto_rename_high_low_pick_collection(bpy.types.Operator):
     bl_label = "Pick Collection Name"
     bl_description = "Set base name from the collection name of the active/selected object"
     bl_options = {'INTERNAL'}
+
+    @classmethod
+    def poll(cls, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        return len(selected_objects) == 2
 
     def execute(self, context):
         col_name = None

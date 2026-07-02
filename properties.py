@@ -1148,6 +1148,11 @@ class PoseToolsProperties(bpy.types.PropertyGroup):
         type=bpy.types.Object,
         poll=lambda self, obj: obj.type == 'ARMATURE'
     )
+    chained_bone_base_name: StringProperty(
+        name="Chained Name",
+        description="Base name for the chained bone renaming",
+        default="spine"
+    )
 
 
 class Rextools3MissingTextureItem(bpy.types.PropertyGroup):

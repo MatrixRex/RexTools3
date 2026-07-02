@@ -1,7 +1,7 @@
 import bpy
 
 class RexTools3PoseToolsPanel(bpy.types.Panel):
-    bl_label = "Pose Tools"
+    bl_label = "Rig & Pose Tools"
     bl_idname = "VIEW3D_PT_rextools3_pose_tools"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -16,7 +16,9 @@ class RexTools3PoseToolsPanel(bpy.types.Panel):
                 return False
         except Exception:
             pass
-        return context.mode == 'POSE'
+        return (context.active_object and 
+                context.active_object.type == 'ARMATURE' and 
+                context.mode in {'POSE', 'EDIT'})
     
     def draw(self, context):
         layout = self.layout
@@ -28,15 +30,27 @@ class RexTools3PoseToolsPanel(bpy.types.Panel):
         except Exception:
             prefs = None
 
-        col = layout.column(align=True)
-        col.prop(props, "source_armature", text="Source")
-        
-        layout.separator()
-        
-        col = layout.column()
-        if not prefs or prefs.enable_tool_pose_init_weight:
-            col.operator("rextools3.init_weight_paint", text="Init Weight Paint", icon='WPAINT_HLT')
-        if not prefs or prefs.enable_tool_setup_pose_copier:
-            col.operator("rextools3.setup_pose_copier", text="Setup Pose Copier", icon='POSE_HLT')
-        if not prefs or prefs.enable_tool_flipped_anim:
-            col.operator("rextools3.flipped_anim", text="Flipped Anim", icon='DUPLICATE')
+        if context.mode == 'POSE':
+            # Pose Tools
+            col = layout.column(align=True)
+            col.prop(props, "source_armature", text="Source")
+            
+            layout.separator()
+            
+            col = layout.column()
+            if not prefs or prefs.enable_tool_pose_init_weight:
+                col.operator("rextools3.init_weight_paint", text="Init Weight Paint", icon='WPAINT_HLT')
+            if not prefs or prefs.enable_tool_setup_pose_copier:
+                col.operator("rextools3.setup_pose_copier", text="Setup Pose Copier", icon='POSE_HLT')
+            if not prefs or prefs.enable_tool_flipped_anim:
+                col.operator("rextools3.flipped_anim", text="Flipped Anim", icon='DUPLICATE')
+            
+            layout.separator()
+
+        # Chained Bone Rename
+        box = layout.box()
+        col = box.column(align=True)
+        col.label(text="Chained Bone Rename", icon='BONE_DATA')
+        col.prop(props, "chained_bone_base_name", text="Base Name")
+        col.separator()
+        col.operator("rextools3.chained_bone_name", text="Rename Chain", icon='FILE_REFRESH')

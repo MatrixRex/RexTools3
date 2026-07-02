@@ -13,6 +13,7 @@ PANEL_CATEGORY_MAPPINGS = [
     ("cleanup_tools", "RexTools3CleanupToolsPanel", "category_cleanup_tools"),
     ("pose_tools", "RexTools3PoseToolsPanel", "category_pose_tools"),
     ("chain_constraints_panel", "RexTools3ChainConstraintsPanel", "category_chain_constraints"),
+    ("animation_tools", "REXTOOLS3_PT_AnimationTools", "category_animation_tools"),
     ("sculpt_panel", "RexTools3SculptToolsPanel", "category_sculpt_tools"),
     ("weight_tools", "RexTools3WeightToolsPanel", "category_weight_tools"),
     ("node_helper_panel", "REXTOOLS3_PT_NodeHelper", "category_node_helper"),
@@ -196,6 +197,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
+    enable_animation_tools: BoolProperty(
+        name="Animation Tools",
+        description="Enable/Disable the Animation Tools panel",
+        default=True,
+        update=update_panel_redraw,
+    )
     enable_sculpt_tools: BoolProperty(
         name="Sculpt Tools",
         description="Enable/Disable the Sculpt Tools panel",
@@ -344,6 +351,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     category_chain_constraints: StringProperty(
         name="Chain Constraints Category",
         description="Sidebar tab category for the Chain Constraints panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
+    category_animation_tools: StringProperty(
+        name="Animation Tools Category",
+        description="Sidebar tab category for the Animation Tools panel",
         default="RexTools3",
         update=update_category_realtime,
     )
@@ -596,6 +609,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_flipped_anim", "Flipped Anim")
             ], category_prop="category_pose_tools")
             draw_panel_category(col_pose, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints", category_prop="category_chain_constraints")
+            draw_panel_category(col_pose, "Animation Tools", 'ANIM', "enable_animation_tools", category_prop="category_animation_tools")
  
             # Sub-group: Paint & Sculpt Modes
             box_paint = col_3d.box()

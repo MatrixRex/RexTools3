@@ -772,6 +772,22 @@ class ChainConstraintsAdderProperties(PropertyGroup):
     )
 
 
+class Rextools3KeyframeOffsetProperties(PropertyGroup):
+    direction: EnumProperty(
+        name="Direction",
+        items=[
+            ('FROM_ROOT', "From Root", "Start offset from root towards tip"),
+            ('FROM_TIP', "From Tip", "Start offset from tip towards root"),
+        ],
+        default='FROM_ROOT'
+    )
+    offset_value: FloatProperty(
+        name="Offset Value",
+        description="Number of frames to offset each bone's keyframes",
+        default=1.0
+    )
+
+
 class CleanupProperties(PropertyGroup):
     normals: BoolProperty(name="Normals", default=True)
     quad: BoolProperty(name="Quad", default=True)
@@ -1350,6 +1366,7 @@ def register_properties():
     bpy.types.Scene.rex_asset_export_settings = PointerProperty(type=RexAssetExportSettings)
     bpy.types.Scene.rex_texture_oven_props = PointerProperty(type=TextureOvenProperties)
     bpy.types.Scene.rex_engine_vertex_stats = PointerProperty(type=EngineVertexStatsProperties)
+    bpy.types.Scene.rextools3_keyframe_offset_props = PointerProperty(type=Rextools3KeyframeOffsetProperties)
 
 
 def unregister_properties():
@@ -1381,3 +1398,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_asset_export_settings
     del bpy.types.Scene.rex_texture_oven_props
     del bpy.types.Scene.rex_engine_vertex_stats
+    del bpy.types.Scene.rextools3_keyframe_offset_props

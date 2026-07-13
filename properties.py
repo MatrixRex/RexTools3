@@ -503,6 +503,31 @@ class Rextools3MarmosetBridgeProperties(PropertyGroup):
         description="Send high poly material textures to Marmoset Toolbag",
         default=True
     )
+    bake_albedo: BoolProperty(
+        name="Bake Albedo",
+        description="Enable baking of albedo/base color maps",
+        default=True
+    )
+    bake_normals: BoolProperty(
+        name="Bake Normals",
+        description="Enable baking of normal maps",
+        default=True
+    )
+    bake_roughness: BoolProperty(
+        name="Bake Roughness",
+        description="Enable baking of roughness maps",
+        default=True
+    )
+    bake_metallic: BoolProperty(
+        name="Bake Metallic",
+        description="Enable baking of metallic maps",
+        default=True
+    )
+    bake_ao: BoolProperty(
+        name="Bake AO",
+        description="Enable baking of ambient occlusion maps",
+        default=True
+    )
     show_in_panel: BoolProperty(default=True)
 
 

@@ -34,7 +34,22 @@ class RexTools3MarmosetBridgePanel(Panel):
         
         layout.separator()
         
-        # 2. Export & Handoff
+        # 2. Bake Maps
+        col_maps = utils.draw_section(layout, "Bake Maps", icon='TEXTURE')
+        row1 = col_maps.row(align=True)
+        row1.prop(props, "bake_albedo", text="Albedo")
+        row1.prop(props, "bake_normals", text="Normals")
+        
+        row2 = col_maps.row(align=True)
+        row2.prop(props, "bake_roughness", text="Roughness")
+        row2.prop(props, "bake_metallic", text="Metallic")
+        
+        row3 = col_maps.row(align=True)
+        row3.prop(props, "bake_ao", text="AO")
+        
+        layout.separator()
+        
+        # 3. Export & Handoff
         col_send = utils.draw_section(layout, "Export & Handoff", icon='EXPORT')
         col_send.prop(props, "auto_rename", text="Auto Rename Meshes/Mats")
         col_send.prop(props, "send_textures", text="Send High Textures")

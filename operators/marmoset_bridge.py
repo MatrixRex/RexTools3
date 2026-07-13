@@ -5,6 +5,7 @@ import subprocess
 import glob
 from bpy.types import Operator
 from .object_auto_rename_low_high import MESH_OT_auto_rename_high_low
+from .pbr_assign import PBR_OT_AssignTexture
 from ..core import notify
 
 def ensure_image_on_disk(img, export_dir):
@@ -385,21 +386,35 @@ baker.outputBits = 8
 baker.outputSamples = 16
 
 
-# Setup suffixes for auto sorting
+# Disable all default maps
+for m in baker.getAllMaps():
+    m.enabled = False
+
+# Setup suffixes and enable selected maps
+albedo_map = baker.getMap("Albedo")
+if albedo_map:
+    albedo_map.enabled = {props.bake_albedo}
+    albedo_map.suffix = "_albedo"
+
 normal_map = baker.getMap("Normals")
 if normal_map:
-    normal_map.enabled = True
+    normal_map.enabled = {props.bake_normals}
     normal_map.suffix = "_normal"
+
+roughness_map = baker.getMap("Roughness")
+if roughness_map:
+    roughness_map.enabled = {props.bake_roughness}
+    roughness_map.suffix = "_roughness"
+
+metalness_map = baker.getMap("Metalness")
+if metalness_map:
+    metalness_map.enabled = {props.bake_metallic}
+    metalness_map.suffix = "_metallic"
 
 ao_map = baker.getMap("Ambient Occlusion")
 if ao_map:
-    ao_map.enabled = True
+    ao_map.enabled = {props.bake_ao}
     ao_map.suffix = "_ao"
-
-curvature_map = baker.getMap("Curvature")
-if curvature_map:
-    curvature_map.enabled = True
-    curvature_map.suffix = "_curvature"
 
 # Import models via Quick Loader
 baker.importModel(r"{low_fbx_path_esc}")
@@ -443,18 +458,26 @@ for mat_name, tex_dict in texture_assignments.items():
         if 'albedo' in tex_dict and os.path.exists(tex_dict['albedo']):
             mat.setSubroutine("albedo", "Albedo")
             mat.albedo.setField("Albedo Map", mset.Texture(tex_dict['albedo']))
+            f = mat.albedo.getField("Albedo Map")
+            if f: f.sRGB = True
             
         if 'normal' in tex_dict and os.path.exists(tex_dict['normal']):
             mat.setSubroutine("surface", "Normals")
             mat.surface.setField("Normal Map", mset.Texture(tex_dict['normal']))
+            f = mat.surface.getField("Normal Map")
+            if f: f.sRGB = False
             
         if 'roughness' in tex_dict and os.path.exists(tex_dict['roughness']):
             mat.setSubroutine("microsurface", "Roughness")
             mat.microsurface.setField("Roughness Map", mset.Texture(tex_dict['roughness']))
+            f = mat.microsurface.getField("Roughness Map")
+            if f: f.sRGB = False
             
         if 'metallic' in tex_dict and os.path.exists(tex_dict['metallic']):
             mat.setSubroutine("reflectivity", "Metalness")
             mat.reflectivity.setField("Metalness Map", mset.Texture(tex_dict['metallic']))
+            f = mat.reflectivity.getField("Metalness Map")
+            if f: f.sRGB = False
 
 print("Marmoset Toolbag 5 setup complete.")
 """
@@ -525,30 +548,60 @@ class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):
             self.report({'WARNING'}, f"No baked files found starting with '{asset_name}' in: {export_dir}")
             return {'CANCELLED'}
             
-        # Suffix matching lists
+        # Suffix matching lists mapping to Easy PBR input names
         map_types = {
+            'Base Color': ['_albedo', '_basecolor', '_base_color', '_diffuse', '_color', '_col', '_bc', '_d', '_c'],
             'Normal': ['_normal', '_normals', '_normal_map'],
             'AO': ['_ao', '_ambient_occlusion', '_occlusion'],
+            'Roughness': ['_roughness', '_rough', '_rgh'],
+            'Metallic': ['_metallic', '_metal', '_met'],
             'Height': ['_height', '_displacement'],
             'Curvature': ['_curvature', '_curve'],
             'Thickness': ['_thickness'],
         }
         
-        # Associate map types with found files
-        found_maps = {}
+        # Associate map types with found files and gather their modification times
+        found_files = [] # list of (map_type, filepath, mtime)
+        import time
+        current_time = time.time()
+        
         for filepath in files:
             filename = os.path.basename(filepath)
             name_no_ext, _ = os.path.splitext(filename)
             name_no_ext = name_no_ext.lower()
             
             for m_type, suffixes in map_types.items():
+                matched = False
                 for suffix in suffixes:
                     if name_no_ext.endswith(suffix):
-                        found_maps[m_type] = filepath
+                        mtime = os.path.getmtime(filepath)
+                        found_files.append((m_type, filepath, mtime))
+                        matched = True
                         break
-                        
-        if not found_maps:
+                if matched:
+                    break
+                    
+        if not found_files:
             self.report({'WARNING'}, f"No baked map matching suffixes (like _normal, _ao) found for '{asset_name}'")
+            return {'CANCELLED'}
+            
+        # Filter files: check if any matched file was modified in the last 10 minutes (600s)
+        recent_threshold = 600
+        has_recent = any((current_time - mtime) < recent_threshold for _, _, mtime in found_files)
+        
+        # Collect maps to assign
+        found_maps = {}
+        for m_type, filepath, mtime in found_files:
+            if has_recent:
+                # If there are recent bakes, only import files updated recently
+                if (current_time - mtime) < recent_threshold:
+                    found_maps[m_type] = filepath
+            else:
+                # Otherwise fall back to importing all matching files
+                found_maps[m_type] = filepath
+                
+        if not found_maps:
+            self.report({'WARNING'}, f"No recently baked maps found for '{asset_name}'")
             return {'CANCELLED'}
             
         # Assign to all materials on the active low-poly object
@@ -558,102 +611,64 @@ class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):
             if not mat:
                 continue
                 
-            mat.use_nodes = True
-            nodes = mat.node_tree.nodes
-            links = mat.node_tree.links
-            
-            # Find or create Principled BSDF
-            principled = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
-            if not principled:
-                principled = nodes.new('ShaderNodeBsdfPrincipled')
-                principled.location = (0, 0)
-                
-            # Find or create Material Output
-            output_node = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL'), None)
-            if not output_node:
-                output_node = nodes.new('ShaderNodeOutputMaterial')
-                output_node.location = (300, 0)
-                
-            # Link BSDF to output
-            surface_input = output_node.inputs.get('Surface')
-            if surface_input and not surface_input.is_linked:
-                links.new(principled.outputs['BSDF'], surface_input)
-                
-            # Connect maps
             for map_type, filepath in found_maps.items():
-                img_name = os.path.basename(filepath)
-                
-                # Check for existing image block to prevent duplicates
-                img = bpy.data.images.get(img_name)
-                if img:
-                    img.filepath = filepath
-                    img.reload()
+                if map_type in {'Base Color', 'Normal', 'AO', 'Roughness', 'Metallic', 'Height', 'Alpha', 'Emission'}:
+                    colorspace = 'sRGB' if map_type == 'Base Color' else 'Non-Color'
+                    # Assign texture using Easy PBR system logic
+                    ok = PBR_OT_AssignTexture.assign_texture_to_input(
+                        context=context,
+                        material=mat,
+                        input_name=map_type,
+                        image_path=filepath,
+                        colorspace=colorspace
+                    )
+                    if not ok:
+                        self.report({'WARNING'}, f"Failed to assign {map_type} to material {mat.name}")
                 else:
-                    img = bpy.data.images.load(filepath)
+                    # Load texture into shader editor without connecting it to anything
+                    mat.use_nodes = True
+                    nodes = mat.node_tree.nodes
                     
-                # Always set to Non-Color for data maps
-                img.colorspace_settings.name = 'Non-Color'
-                
-                # Find or create image node
-                tex_node = next((n for n in nodes if n.type == 'TEX_IMAGE' and n.label == f"Baked {map_type}"), None)
-                if not tex_node:
-                    tex_node = nodes.new('ShaderNodeTexImage')
-                    tex_node.label = f"Baked {map_type}"
+                    img_name = os.path.basename(filepath)
+                    img = bpy.data.images.get(img_name)
+                    if img:
+                        img.filepath = filepath
+                        img.reload()
+                    else:
+                        img = bpy.data.images.load(filepath)
+                    img.colorspace_settings.name = 'Non-Color'
                     
-                tex_node.image = img
-                
-                # Position node dynamically
-                y_offsets = {
-                    'Normal': -150,
-                    'AO': 300,
-                    'Height': -300,
-                    'Curvature': -450,
-                    'Thickness': -600
-                }
-                tex_node.location = (-600, y_offsets.get(map_type, 0))
-                
-                # Link based on type
-                if map_type == 'Normal':
-                    # Create Normal Map helper node
-                    normal_map_node = next((n for n in nodes if n.type == 'NORMAL_MAP'), None)
-                    if not normal_map_node:
-                        normal_map_node = nodes.new('ShaderNodeNormalMap')
-                        normal_map_node.location = (-300, -150)
-                        
-                    links.new(tex_node.outputs['Color'], normal_map_node.inputs['Color'])
-                    links.new(normal_map_node.outputs['Normal'], principled.inputs['Normal'])
+                    # Create/get texture node
+                    tex_node = next((n for n in nodes if n.type == 'TEX_IMAGE' and n.label == f"Baked {map_type}"), None)
+                    if not tex_node:
+                        tex_node = nodes.new('ShaderNodeTexImage')
+                        tex_node.label = f"Baked {map_type}"
+                    tex_node.image = img
                     
-                elif map_type == 'AO':
-                    # Multiply Albedo with AO
-                    base_color_input = principled.inputs.get('Base Color')
-                    if base_color_input:
-                        ao_mix = next((n for n in nodes if n.type in {'MIX', 'MIX_RGB'} and n.label == "AO Multiply"), None)
-                        if not ao_mix:
-                            ao_mix = nodes.new('ShaderNodeMix')
-                            ao_mix.label = "AO Multiply"
-                            ao_mix.data_type = 'RGBA'
-                            ao_mix.blend_type = 'MULTIPLY'
-                            ao_mix.inputs['Factor'].default_value = 1.0
-                            ao_mix.location = (-150, 200)
-                            
-                            # Wire original link to slot A
-                            if base_color_input.is_linked:
-                                old_out = base_color_input.links[0].from_socket
-                                links.new(old_out, ao_mix.inputs['A'])
-                            else:
-                                ao_mix.inputs['A'].default_value = base_color_input.default_value
-                                
-                            links.new(ao_mix.outputs['Result'], base_color_input)
-                            
-                        links.new(tex_node.outputs['Color'], ao_mix.inputs['B'])
-                else:
-                    # Height, Curvature, Thickness - place node without automatic links to BSDF (optional utility maps)
-                    pass
+                    # Position it dynamically based on map type
+                    y_offsets = {
+                        'Curvature': -450,
+                        'Thickness': -600
+                    }
+                    tex_node.location = (-600, y_offsets.get(map_type, -400))
                     
             assigned_mats_count += 1
             
+        # Auto-arrange nodes for modified materials to keep them clean
+        for slot in obj.material_slots:
+            mat = slot.material
+            if mat and mat.use_nodes:
+                try:
+                    orig_active = context.active_object.active_material
+                    context.active_object.active_material = mat
+                    bpy.ops.pbr.arrange_nodes()
+                    context.active_object.active_material = orig_active
+                except Exception:
+                    pass
+            
         if assigned_mats_count > 0:
-            notify.success(f"Assigned {len(found_maps)} baked maps to {assigned_mats_count} material(s) on {obj.name}")
+            assigned_names = ", ".join(found_maps.keys())
+            notify.success(f"Imported {assigned_names} maps to {assigned_mats_count} material(s) on {obj.name}")
         else:
             self.report({'WARNING'}, "No materials found on active object to assign textures")
             return {'CANCELLED'}

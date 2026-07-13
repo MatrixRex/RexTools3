@@ -20,7 +20,8 @@ PANEL_CATEGORY_MAPPINGS = [
     ("node_helper_panel", "REXTOOLS3_PT_NodeLayout", "category_node_helper"),
     ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport"),
     ("texture_oven_panel", "REXTOOLS3_PT_TextureOvenPanel", "category_texture_oven"),
-    ("engine_vertex_stats", "RexTools3EngineVertexStatsPanel", "category_engine_vertex_stats")
+    ("engine_vertex_stats", "RexTools3EngineVertexStatsPanel", "category_engine_vertex_stats"),
+    ("marmoset_bridge_panel", "RexTools3MarmosetBridgePanel", "category_marmoset_bridge")
 ]
 
 def update_category_realtime(self, context):
@@ -239,6 +240,18 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_panel_redraw,
     )
+    enable_marmoset_bridge: BoolProperty(
+        name="Marmoset Bridge",
+        description="Enable/Disable the Marmoset Toolbag Bridge",
+        default=True,
+        update=update_panel_redraw,
+    )
+    marmoset_path: StringProperty(
+        name="Marmoset Toolbag Path",
+        description="Path to the Marmoset Toolbag executable",
+        default=r"C:\Program Files\Marmoset\Toolbag 5\Toolbag.exe",
+        subtype='FILE_PATH'
+    )
     enable_engine_vertex_stats: BoolProperty(
         name="Engine Vertex Stats",
         description="Enable/Disable the Engine Vertex Stats panel",
@@ -396,6 +409,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default="RexTools3",
         update=update_category_realtime,
     )
+    category_marmoset_bridge: StringProperty(
+        name="Marmoset Bridge Category",
+        description="Sidebar tab category for the Marmoset Bridge panel",
+        default="RexTools3",
+        update=update_category_realtime,
+    )
 
     # Common Tools Sub-tools
     enable_tool_open_folder: BoolProperty(name="Open Folder", default=True, update=update_panel_redraw)
@@ -544,6 +563,9 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
                 ("enable_tool_mesh_highlow_rename", "Mesh High/Low Rename")
             ], category_prop="category_rename_tools")
             draw_panel_category(col_obj, "Texture Oven", 'TEXTURE', "enable_texture_oven", category_prop="category_texture_oven")
+            draw_panel_category(col_obj, "Marmoset Bridge", 'LINKED', "enable_marmoset_bridge", [
+                ("marmoset_path", "Marmoset Path")
+            ], category_prop="category_marmoset_bridge")
             box_evstat = col_obj.box()
             hdr_evstat = box_evstat.row()
             hdr_evstat.prop(self, "enable_engine_vertex_stats", text="Engine Vertex Stats", icon='SNAP_VERTEX')

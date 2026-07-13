@@ -462,6 +462,51 @@ class HighLowRenamerProperties(PropertyGroup):
     show_in_panel: BoolProperty(default=True)
 
 
+class Rextools3MarmosetBridgeProperties(PropertyGroup):
+    export_path: StringProperty(
+        name="Bake Output Path",
+        description="Folder to save FBX files and baked textures",
+        default="",
+        subtype='DIR_PATH'
+    )
+    asset_name: StringProperty(
+        name="Asset Name",
+        description="Base name for meshes and textures",
+        default=""
+    )
+    resolution: EnumProperty(
+        name="Resolution",
+        items=[
+            ("512", "512 x 512", ""),
+            ("1024", "1024 x 1024", ""),
+            ("2048", "2048 x 2048", ""),
+            ("4096", "4096 x 4096", "")
+        ],
+        default="2048"
+    )
+    file_format: EnumProperty(
+        name="Format",
+        items=[
+            ("PNG", "PNG", ""),
+            ("TGA", "TGA", ""),
+            ("PSD", "PSD", "")
+        ],
+        default="PNG"
+    )
+    auto_rename: BoolProperty(
+        name="Auto Rename",
+        description="Auto rename meshes and materials when preparing/sending",
+        default=True
+    )
+    send_textures: BoolProperty(
+        name="Send High Textures",
+        description="Send high poly material textures to Marmoset Toolbag",
+        default=True
+    )
+    show_in_panel: BoolProperty(default=True)
+
+
+
 class MaterialBatchItem(PropertyGroup):
     material_name: StringProperty(name="Material Name")
     status: StringProperty(name="Status", default="Pending")
@@ -1340,6 +1385,7 @@ def register_properties():
 
     bpy.types.Scene.bone_rename_props     = PointerProperty(type=BoneRenameProperties)
     bpy.types.Scene.highlow_renamer_props = PointerProperty(type=HighLowRenamerProperties)
+    bpy.types.Scene.rex_marmoset_bridge_props = PointerProperty(type=Rextools3MarmosetBridgeProperties)
 
     wm.select_similar_threshold   = FloatProperty(name="Threshold", default=0.0, min=0.0, max=1.0)
     wm.clear_inner_uv_area_seam   = BoolProperty(name="Clear Inner", default=False)
@@ -1376,6 +1422,7 @@ def unregister_properties():
 
     del bpy.types.Scene.bone_rename_props
     del bpy.types.Scene.highlow_renamer_props
+    del bpy.types.Scene.rex_marmoset_bridge_props
 
     del wm.select_similar_threshold
     del wm.clear_inner_uv_area_seam

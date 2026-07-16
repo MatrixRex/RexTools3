@@ -1,6 +1,5 @@
 import bpy
 import gpu
-from bgl import *
 from bpy.types import Operator
 from ..ui.templates import ModalOverlay
 from ..core.theme import Theme

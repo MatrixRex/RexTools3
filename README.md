@@ -69,6 +69,20 @@ An automated high-to-low texture baking tool (similar to Marmoset Toolbag) to ge
 - **AO Quality**: Configurable sample counts for Ambient Occlusion baking to balance render time and grain quality.
 - **Direct Output Saving**: Clean output directory settings and one-click saving to write the baked PNGs directly to disk.
 
+### 🦫 Marmoset Bridge
+
+**Location:** `RexTools3 panel > Marmoset Bridge`
+
+A comprehensive bridge tool to quickly export meshes and set up baking projects in Marmoset Toolbag.
+
+- **Bake Setup Automation**: Automatically configures the baker output path, resolution, format, and enables/disables specific maps (Albedo, Normals, Roughness, Metallic, AO) in Marmoset Toolbag.
+- **Multi-Mesh Baking Support**: Supports selecting and exporting multiple high-poly and low-poly meshes under a single bake group (or multiple bake groups), automatically grouping them via Marmoset's Quick Loader using variation naming (e.g. `<asset_name>_low_<variation>` and `<asset_name>_high_<variation>`).
+- **Auto-Rename & Match**: Auto rename high/low meshes and materials, ensuring proper suffix setup and matching mesh origins between low/high pairs.
+- **Texture Handoff**: Auto scan high-poly materials' textures (Albedo, Normal, Roughness, Metallic) and assign them to the corresponding Marmoset materials in Toolbag.
+- **Mesh Resending (Hot Reload)**: Automatically detects if Marmoset Toolbag is already running; if so, it only re-exports the FBX files and avoids launching a new instance, allowing Marmoset's built-in file watcher to hot-reload updated meshes immediately.
+- **Bake Set Preview UI**: Lists resolved low-poly/high-poly bake sets with their capitalized common names in the sidebar before exporting, showing any unpaired objects.
+- **Baked Textures Importer**: Automatically scans the bake directory for newly updated textures and assigns them to the corresponding low-poly materials in Blender with one click.
+
 ### 🦴 Rigging Tools
 
 **Location:** `Pose Mode > RexTools3 panel`

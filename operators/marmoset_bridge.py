@@ -156,7 +156,7 @@ class REXTOOLS3_OT_marmoset_bridge_prep(Operator):
     @classmethod
     def poll(cls, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        return len(selected_objects) == 2
+        return len(selected_objects) >= 2
 
     def execute(self, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
@@ -166,15 +166,15 @@ class REXTOOLS3_OT_marmoset_bridge_prep(Operator):
         renamer_props = context.scene.highlow_renamer_props
         
         # 1. Detect high and low poly objects
-        low_poly, high_poly = MESH_OT_auto_rename_high_low.detect_low_high(selected_objects, context)
-        if not low_poly or not high_poly:
+        low_objs, high_objs = MESH_OT_auto_rename_high_low.classify_low_high(selected_objects, context)
+        if not low_objs or not high_objs:
             self.report({'ERROR'}, "Could not differentiate High and Low poly objects")
             return {'CANCELLED'}
             
         # Determine asset name if empty
         asset_name = bridge_props.asset_name.strip()
         if not asset_name:
-            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_poly.name)
+            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
             if not asset_name:
                 asset_name = "Asset"
             bridge_props.asset_name = asset_name
@@ -185,53 +185,71 @@ class REXTOOLS3_OT_marmoset_bridge_prep(Operator):
         # 2. Run high-low renamer
         bpy.ops.mesh.auto_rename_high_low()
         
-        # Retrieve renamed meshes
-        target_low_name = renamer_props.obj_name + renamer_props.low_prefix
-        target_high_name = renamer_props.obj_name + renamer_props.high_prefix
-        
-        low_poly = bpy.data.objects.get(target_low_name)
-        high_poly = bpy.data.objects.get(target_high_name)
-        
-        if not low_poly or not high_poly:
-            self.report({'ERROR'}, f"Failed to retrieve renamed objects: {target_low_name}, {target_high_name}")
-            return {'CANCELLED'}
-            
         # 3. Rename and match materials
         high_suffix = renamer_props.high_prefix
         low_suffix = renamer_props.low_prefix
         
-        for i, slot in enumerate(high_poly.material_slots):
-            high_mat = slot.material
-            if not high_mat:
+        # Build low objs dictionary by their variation suffix to pair with high objs
+        low_by_variation = {}
+        for low_obj in low_objs:
+            name = low_obj.name
+            prefix = renamer_props.obj_name + low_suffix
+            var = ""
+            if name.startswith(prefix):
+                var = name[len(prefix):]
+                if var.startswith("_"):
+                    var = var[1:]
+            low_by_variation[var.lower()] = low_obj
+
+        # Map materials between high and corresponding low objects
+        for high_obj in high_objs:
+            name = high_obj.name
+            prefix = renamer_props.obj_name + high_suffix
+            var = ""
+            if name.startswith(prefix):
+                var = name[len(prefix):]
+                if var.startswith("_"):
+                    var = var[1:]
+            
+            low_obj = low_by_variation.get(var.lower())
+            if not low_obj and len(low_objs) == 1:
+                low_obj = low_objs[0]
+                
+            if not low_obj:
                 continue
                 
-            orig_name = high_mat.name
-            
-            # Clean existing suffixes
-            if orig_name.endswith(high_suffix):
-                base_name = orig_name[:-len(high_suffix)]
-            elif orig_name.endswith(low_suffix):
-                base_name = orig_name[:-len(low_suffix)]
-            else:
-                base_name = orig_name
+            for i, slot in enumerate(high_obj.material_slots):
+                high_mat = slot.material
+                if not high_mat:
+                    continue
+                    
+                orig_name = high_mat.name
                 
-            target_high_mat_name = base_name + high_suffix
-            target_low_mat_name = base_name
-            
-            # Rename high material
-            if high_mat.name != target_high_mat_name:
-                high_mat.name = target_high_mat_name
+                # Clean existing suffixes
+                if orig_name.endswith(high_suffix):
+                    base_name = orig_name[:-len(high_suffix)]
+                elif orig_name.endswith(low_suffix):
+                    base_name = orig_name[:-len(low_suffix)]
+                else:
+                    base_name = orig_name
+                    
+                target_high_mat_name = base_name + high_suffix
+                target_low_mat_name = base_name
                 
-            # Get or create low material
-            low_mat = bpy.data.materials.get(target_low_mat_name)
-            if not low_mat:
-                low_mat = bpy.data.materials.new(name=target_low_mat_name)
-                low_mat.use_nodes = True
-                
-            # Assign corresponding material to low-poly
-            while len(low_poly.material_slots) < i + 1:
-                low_poly.data.materials.append(None)
-            low_poly.material_slots[i].material = low_mat
+                # Rename high material
+                if high_mat.name != target_high_mat_name:
+                    high_mat.name = target_high_mat_name
+                    
+                # Get or create low material
+                low_mat = bpy.data.materials.get(target_low_mat_name)
+                if not low_mat:
+                    low_mat = bpy.data.materials.new(name=target_low_mat_name)
+                    low_mat.use_nodes = True
+                    
+                # Assign corresponding material to low-poly
+                while len(low_obj.material_slots) < i + 1:
+                    low_obj.data.materials.append(None)
+                low_obj.material_slots[i].material = low_mat
             
         notify.success(f"Prepared meshes and materials for {renamer_props.obj_name}")
         return {'FINISHED'}
@@ -245,9 +263,9 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
 
     @classmethod
     def poll(cls, context):
-        # Must have exactly 2 meshes selected
+        # Must have at least 2 meshes selected
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        return len(selected_objects) == 2
+        return len(selected_objects) >= 2
 
     def execute(self, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
@@ -281,16 +299,10 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
         if props.auto_rename:
             bpy.ops.rextools3.marmoset_bridge_prep()
             
-            # Retrieve renamed meshes
-            target_low_name = renamer_props.obj_name + renamer_props.low_prefix
-            target_high_name = renamer_props.obj_name + renamer_props.high_prefix
-            low_poly = bpy.data.objects.get(target_low_name)
-            high_poly = bpy.data.objects.get(target_high_name)
-        else:
-            # Find the high and low poly meshes directly
-            low_poly, high_poly = MESH_OT_auto_rename_high_low.detect_low_high(selected_objects, context)
+        # Classify selected objects
+        low_objs, high_objs = MESH_OT_auto_rename_high_low.classify_low_high(selected_objects, context)
             
-        if not low_poly or not high_poly:
+        if not low_objs or not high_objs:
             self.report({'ERROR'}, "Failed to resolve High/Low poly meshes for sending")
             return {'CANCELLED'}
             
@@ -298,7 +310,7 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
         asset_name = props.asset_name.strip()
         if not asset_name:
             # Fallback to cleaned low poly base name
-            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_poly.name)
+            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
             if not asset_name:
                 asset_name = "Asset"
             props.asset_name = asset_name
@@ -315,8 +327,9 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
         try:
             # Export low-poly
             bpy.ops.object.select_all(action='DESELECT')
-            context.view_layer.objects.active = low_poly
-            low_poly.select_set(True)
+            for obj in low_objs:
+                obj.select_set(True)
+            context.view_layer.objects.active = low_objs[0]
             bpy.ops.export_scene.fbx(
                 filepath=low_fbx_path,
                 use_selection=True,
@@ -327,8 +340,9 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
             
             # Export high-poly
             bpy.ops.object.select_all(action='DESELECT')
-            context.view_layer.objects.active = high_poly
-            high_poly.select_set(True)
+            for obj in high_objs:
+                obj.select_set(True)
+            context.view_layer.objects.active = high_objs[0]
             bpy.ops.export_scene.fbx(
                 filepath=high_fbx_path,
                 use_selection=True,
@@ -351,16 +365,42 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
             o.select_set(True)
         context.view_layer.objects.active = active_obj
         
+        # Check if Marmoset is already running (skip launching and script generation if it is)
+        marmoset_bin = os.path.basename(marmoset_path)
+        is_running = False
+        import sys
+        if sys.platform == 'win32':
+            try:
+                cmd = f'tasklist /NH /FI "IMAGENAME eq {marmoset_bin}"'
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                output = subprocess.check_output(cmd, startupinfo=startupinfo, shell=True).decode('utf-8', errors='ignore')
+                is_running = marmoset_bin.lower() in output.lower()
+            except Exception:
+                pass
+        else:
+            try:
+                output = subprocess.check_output(["pgrep", "-f", marmoset_bin]).decode('utf-8')
+                is_running = bool(output.strip())
+            except Exception:
+                pass
+
+        if is_running:
+            self.report({'INFO'}, "Marmoset is already running. Meshes exported (auto-reloading in Toolbag).")
+            notify.success(f"FBX exported & auto-reloaded in Marmoset for {asset_name}")
+            return {'FINISHED'}
+            
         # 3. Scan high-poly textures if enabled
         texture_assignments = {}
         expected_mats = []
         if props.send_textures:
-            for slot in high_poly.material_slots:
-                if slot.material:
-                    tex_dict = find_material_textures(slot.material, export_dir)
-                    if tex_dict:
-                        texture_assignments[slot.material.name] = tex_dict
-                        expected_mats.append(slot.material.name)
+            for high_obj in high_objs:
+                for slot in high_obj.material_slots:
+                    if slot.material and slot.material.name not in texture_assignments:
+                        tex_dict = find_material_textures(slot.material, export_dir)
+                        if tex_dict:
+                            texture_assignments[slot.material.name] = tex_dict
+                            expected_mats.append(slot.material.name)
                         
         # 4. Generate Marmoset Script
         ext = props.file_format.lower()
@@ -516,7 +556,14 @@ class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):
         return context.active_object and context.active_object.type == 'MESH'
 
     def execute(self, context):
-        obj = context.active_object
+        target_objects = [o for o in context.selected_objects if o.type == 'MESH']
+        if not target_objects and context.active_object:
+            target_objects = [context.active_object]
+            
+        if not target_objects:
+            self.report({'ERROR'}, "No mesh selected")
+            return {'CANCELLED'}
+            
         props = context.scene.rex_marmoset_bridge_props
         
         # Determine export directory
@@ -531,7 +578,7 @@ class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):
         # Resolve asset name
         asset_name = props.asset_name.strip()
         if not asset_name:
-            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(obj.name)
+            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(target_objects[0].name)
             if not asset_name:
                 self.report({'ERROR'}, "Please specify the Asset Name.")
                 return {'CANCELLED'}
@@ -604,73 +651,78 @@ class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):
             self.report({'WARNING'}, f"No recently baked maps found for '{asset_name}'")
             return {'CANCELLED'}
             
-        # Assign to all materials on the active low-poly object
+        # Assign to all materials on the target low-poly objects
         assigned_mats_count = 0
-        for slot in obj.material_slots:
-            mat = slot.material
-            if not mat:
-                continue
-                
-            for map_type, filepath in found_maps.items():
-                if map_type in {'Base Color', 'Normal', 'AO', 'Roughness', 'Metallic', 'Height', 'Alpha', 'Emission'}:
-                    colorspace = 'sRGB' if map_type == 'Base Color' else 'Non-Color'
-                    # Assign texture using Easy PBR system logic
-                    ok = PBR_OT_AssignTexture.assign_texture_to_input(
-                        context=context,
-                        material=mat,
-                        input_name=map_type,
-                        image_path=filepath,
-                        colorspace=colorspace
-                    )
-                    if not ok:
-                        self.report({'WARNING'}, f"Failed to assign {map_type} to material {mat.name}")
-                else:
-                    # Load texture into shader editor without connecting it to anything
-                    mat.use_nodes = True
-                    nodes = mat.node_tree.nodes
+        modified_materials = set()
+        
+        for obj in target_objects:
+            for slot in obj.material_slots:
+                mat = slot.material
+                if not mat or mat in modified_materials:
+                    continue
                     
-                    img_name = os.path.basename(filepath)
-                    img = bpy.data.images.get(img_name)
-                    if img:
-                        img.filepath = filepath
-                        img.reload()
+                for map_type, filepath in found_maps.items():
+                    if map_type in {'Base Color', 'Normal', 'AO', 'Roughness', 'Metallic', 'Height', 'Alpha', 'Emission'}:
+                        colorspace = 'sRGB' if map_type == 'Base Color' else 'Non-Color'
+                        # Assign texture using Easy PBR system logic
+                        ok = PBR_OT_AssignTexture.assign_texture_to_input(
+                            context=context,
+                            material=mat,
+                            input_name=map_type,
+                            image_path=filepath,
+                            colorspace=colorspace
+                        )
+                        if not ok:
+                            self.report({'WARNING'}, f"Failed to assign {map_type} to material {mat.name}")
                     else:
-                        img = bpy.data.images.load(filepath)
-                    img.colorspace_settings.name = 'Non-Color'
-                    
-                    # Create/get texture node
-                    tex_node = next((n for n in nodes if n.type == 'TEX_IMAGE' and n.label == f"Baked {map_type}"), None)
-                    if not tex_node:
-                        tex_node = nodes.new('ShaderNodeTexImage')
-                        tex_node.label = f"Baked {map_type}"
-                    tex_node.image = img
-                    
-                    # Position it dynamically based on map type
-                    y_offsets = {
-                        'Curvature': -450,
-                        'Thickness': -600
-                    }
-                    tex_node.location = (-600, y_offsets.get(map_type, -400))
-                    
-            assigned_mats_count += 1
+                        # Load texture into shader editor without connecting it to anything
+                        mat.use_nodes = True
+                        nodes = mat.node_tree.nodes
+                        
+                        img_name = os.path.basename(filepath)
+                        img = bpy.data.images.get(img_name)
+                        if img:
+                            img.filepath = filepath
+                            img.reload()
+                        else:
+                            img = bpy.data.images.load(filepath)
+                        img.colorspace_settings.name = 'Non-Color'
+                        
+                        # Create/get texture node
+                        tex_node = next((n for n in nodes if n.type == 'TEX_IMAGE' and n.label == f"Baked {map_type}"), None)
+                        if not tex_node:
+                            tex_node = nodes.new('ShaderNodeTexImage')
+                            tex_node.label = f"Baked {map_type}"
+                        tex_node.image = img
+                        
+                        # Position it dynamically based on map type
+                        y_offsets = {
+                            'Curvature': -450,
+                            'Thickness': -600
+                        }
+                        tex_node.location = (-600, y_offsets.get(map_type, -400))
+                        
+                assigned_mats_count += 1
+                modified_materials.add(mat)
             
         # Auto-arrange nodes for modified materials to keep them clean
-        for slot in obj.material_slots:
-            mat = slot.material
+        for mat in modified_materials:
             if mat and mat.use_nodes:
                 try:
-                    orig_active = context.active_object.active_material
-                    context.active_object.active_material = mat
-                    bpy.ops.pbr.arrange_nodes()
-                    context.active_object.active_material = orig_active
+                    orig_active = context.active_object.active_material if context.active_object else None
+                    if context.active_object:
+                        context.active_object.active_material = mat
+                        bpy.ops.pbr.arrange_nodes()
+                        if orig_active:
+                            context.active_object.active_material = orig_active
                 except Exception:
                     pass
             
         if assigned_mats_count > 0:
             assigned_names = ", ".join(found_maps.keys())
-            notify.success(f"Imported {assigned_names} maps to {assigned_mats_count} material(s) on {obj.name}")
+            notify.success(f"Imported {assigned_names} maps to {assigned_mats_count} material(s)")
         else:
-            self.report({'WARNING'}, "No materials found on active object to assign textures")
+            self.report({'WARNING'}, "No materials found on active object(s) to assign textures")
             return {'CANCELLED'}
             
         return {'FINISHED'}

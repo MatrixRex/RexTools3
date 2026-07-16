@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-16
+
+### Added
+
+- **Marmoset Bridge Multi-Mesh Support**:
+  - Implements exporting and baking multiple high-poly and low-poly meshes under a single bake group (or multiple bake groups).
+  - Automatically classifies selected meshes into high-poly and low-poly lists based on collection naming, suffix naming (regex-matching suffixes like `_low_bolts`, `_low.001`, etc.), and relative vertex counts.
+  - Renames meshes adhering to Marmoset's Quick Loader variation syntax: `<asset_name>_low_<variation>` and `<asset_name>_high_<variation>` (preserving original names as variations, or assigning numbered suffixes if base name is empty/matches the asset name).
+  - Aligns origin matrices for paired high-poly/low-poly meshes sharing the same variation base name.
+  - Automatically matches and assigns materials across all paired high-poly/low-poly meshes.
+  - Re-exports all low-poly meshes into `{asset_name}_low.fbx` and all high-poly meshes into `{asset_name}_high.fbx` in a single operation.
+  - Batch assigns baked textures to all selected low-poly objects with one click.
+- **Detailed Set Preview UI**:
+  - Displays a list of resolved low-poly/high-poly bake sets (e.g., `Set 1: Wheels (car_low_wheels, car_high_wheels)`) instead of simple counts, showing the capitalized common name (variation/base name) of each set.
+  - Displays clear error/warning labels for any unpaired low-poly or high-poly meshes in the active selection.
+- **Marmoset Hot Reload (Mesh Resending)**:
+  - Added a running process check in the bridge send operator. If Marmoset Toolbag is already running, it only exports the updated FBX files to the output directory and bypasses launching a new instance, allowing Marmoset's built-in file watcher to hot-reload the updated geometry immediately.
+
 ## [0.3.0] - 2026-06-18
 
 ### Added

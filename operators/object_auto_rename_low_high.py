@@ -9,15 +9,104 @@ class MESH_OT_auto_rename_high_low(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        return len(selected_objects) == 2
+        return len(selected_objects) >= 2
 
-    def execute(self, context):
-        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        props = context.scene.highlow_renamer_props
+    @staticmethod
+    def classify_low_high(selected_objects, context):
+        low_suffixes = ["_low", "_lp", "_lowpoly", "low", "lp", "lowpoly", ".low", " low", "-low"]
+        high_suffixes = ["_high", "_hp", "_highpoly", "high", "hp", "highpoly", ".high", " high", "-high"]
+        
+        # If exactly 2 objects, fall back to the existing logic for perfect backward compatibility
+        if len(selected_objects) == 2:
+            low, high = MESH_OT_auto_rename_high_low.detect_low_high(selected_objects, context)
+            if low and high:
+                return [low], [high]
+            return [], []
 
-        if len(selected_objects) != 2:
-            self.report({'ERROR'}, "Need two meshes only")
-            return {'CANCELLED'}
+        import re
+        # Pattern to match the suffix, allowing word boundaries, numbers, underscores, or dots after it (variations/numbers)
+        low_pat = re.compile(r'(_low|_lp|_lowpoly|low|lp|lowpoly)(\b|_|\.|\d)', re.IGNORECASE)
+        high_pat = re.compile(r'(_high|_hp|_highpoly|high|hp|highpoly)(\b|_|\.|\d)', re.IGNORECASE)
+
+        low_objs = []
+        high_objs = []
+        unclassified = []
+
+        for obj in selected_objects:
+            if obj.type != 'MESH':
+                continue
+                
+            # 1. Check collections
+            is_low = False
+            is_high = False
+            for col in obj.users_collection:
+                n = col.name.lower()
+                if any(s in n for s in ["low", "lp", "lowpoly"]):
+                    is_low = True
+                    break
+                if any(s in n for s in ["high", "hp", "highpoly"]):
+                    is_high = True
+                    break
+                    
+            if is_low:
+                low_objs.append(obj)
+                continue
+            if is_high:
+                high_objs.append(obj)
+                continue
+
+            # 2. Check name
+            n = obj.name.lower()
+            if low_pat.search(n):
+                low_objs.append(obj)
+            elif high_pat.search(n):
+                high_objs.append(obj)
+            else:
+                unclassified.append(obj)
+                
+        # 3. For unclassified objects, if we can guess from vertex count comparison to already classified objects:
+        if unclassified and (low_objs or high_objs):
+            # Calculate average vertex counts
+            depsgraph = context.evaluated_depsgraph_get()
+            def get_verts(o):
+                return len(o.evaluated_get(depsgraph).data.vertices)
+                
+            low_verts = [get_verts(o) for o in low_objs]
+            high_verts = [get_verts(o) for o in high_objs]
+            
+            avg_low = sum(low_verts) / len(low_verts) if low_verts else 0
+            avg_high = sum(high_verts) / len(high_verts) if high_verts else 0
+            
+            for obj in unclassified:
+                v = get_verts(obj)
+                if avg_low > 0 and avg_high > 0:
+                    # If we have both, classify by proximity to averages
+                    if abs(v - avg_low) < abs(v - avg_high):
+                        low_objs.append(obj)
+                    else:
+                        high_objs.append(obj)
+                elif avg_low > 0:
+                    # If we only have low, classify as high if it has significantly more vertices
+                    if v > avg_low * 1.5:
+                        high_objs.append(obj)
+                    else:
+                        low_objs.append(obj)
+                elif avg_high > 0:
+                    # If we only have high, classify as low if it has significantly fewer vertices
+                    if v < avg_high * 0.7:
+                        low_objs.append(obj)
+                    else:
+                        high_objs.append(obj)
+        elif unclassified:
+            # If all are unclassified and >= 2, sort by vertex count and split
+            # The top half (fewer vertices) is low, bottom half is high
+            depsgraph = context.evaluated_depsgraph_get()
+            sorted_objs = sorted(unclassified, key=lambda o: len(o.evaluated_get(depsgraph).data.vertices))
+            mid = len(sorted_objs) // 2
+            low_objs = sorted_objs[:mid]
+            high_objs = sorted_objs[mid:]
+            
+        return low_objs, high_objs
 
     @staticmethod
     def detect_low_high(selected_objects, context):
@@ -85,15 +174,18 @@ class MESH_OT_auto_rename_high_low(bpy.types.Operator):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         props = context.scene.highlow_renamer_props
 
-        if len(selected_objects) != 2:
-            self.report({'ERROR'}, "Need two meshes only")
+        if len(selected_objects) < 2:
+            self.report({'ERROR'}, "Select at least 2 meshes")
             return {'CANCELLED'}
 
-        low_poly, high_poly = self.detect_low_high(selected_objects, context)
-        
+        low_objs, high_objs = self.classify_low_high(selected_objects, context)
+        if not low_objs or not high_objs:
+            self.report({'ERROR'}, "Could not differentiate Low and High poly objects")
+            return {'CANCELLED'}
+
         # 3. Auto-fill the object name if it's currently empty
         if not props.obj_name:
-            detected_name = self.clean_base_name(low_poly.name)
+            detected_name = self.clean_base_name(low_objs[0].name)
             if detected_name:
                 props.obj_name = detected_name
 
@@ -101,42 +193,97 @@ class MESH_OT_auto_rename_high_low(bpy.types.Operator):
         if not props.obj_name:
             props.obj_name = "Asset"
 
+        # Pair objects by clean base name before renaming to match origins later
+        low_by_base = {self.clean_base_name(o.name).lower(): o for o in low_objs}
+        pairs = [] # list of (low_obj, high_obj)
+        for high_obj in high_objs:
+            base = self.clean_base_name(high_obj.name).lower()
+            low_obj = low_by_base.get(base)
+            if not low_obj and len(low_objs) == 1:
+                low_obj = low_objs[0]
+            if low_obj:
+                pairs.append((low_obj, high_obj))
+
         # 4. Rename with conflict handling
-        target_low = props.obj_name + props.low_prefix
-        target_high = props.obj_name + props.high_prefix
+        # Precompute target names before any renaming so we don't lose the original names
+        low_targets = []
+        used_low_names = set()
+        for idx, low_obj in enumerate(low_objs):
+            base = self.clean_base_name(low_obj.name)
+            if not base or base.lower() == props.obj_name.lower():
+                variation = f"{idx + 1}"
+            else:
+                variation = base
+                
+            if len(low_objs) == 1:
+                target_name = props.obj_name + props.low_prefix
+            else:
+                target_name = f"{props.obj_name}{props.low_prefix}_{variation}"
+                
+            counter = 1
+            temp_name = target_name
+            while temp_name in used_low_names:
+                temp_name = f"{target_name}_{counter}"
+                counter += 1
+            target_name = temp_name
+            used_low_names.add(target_name)
+            low_targets.append(target_name)
+
+        high_targets = []
+        used_high_names = set()
+        for idx, high_obj in enumerate(high_objs):
+            base = self.clean_base_name(high_obj.name)
+            if not base or base.lower() == props.obj_name.lower():
+                variation = f"{idx + 1}"
+            else:
+                variation = base
+                
+            if len(high_objs) == 1:
+                target_name = props.obj_name + props.high_prefix
+            else:
+                target_name = f"{props.obj_name}{props.high_prefix}_{variation}"
+                
+            counter = 1
+            temp_name = target_name
+            while temp_name in used_high_names:
+                temp_name = f"{target_name}_{counter}"
+                counter += 1
+            target_name = temp_name
+            used_high_names.add(target_name)
+            high_targets.append(target_name)
 
         def safe_rename(obj, target):
             if obj.name == target:
                 return
-            
-            # If target name is taken by ANY other object
             existing = bpy.data.objects.get(target)
             if existing and existing != obj:
-                # Rename the conflicting object to free up the name
-                # We append .old and potentially another number if .old is taken
                 existing.name += ".old"
-            
             obj.name = target
 
         # Use temporary names first to avoid swapping conflicts within selection
-        low_poly.name = "__rextools_tmp_low__"
-        high_poly.name = "__rextools_tmp_high__"
+        for idx, obj in enumerate(low_objs):
+            obj.name = f"__rextools_tmp_low_{idx}__"
+        for idx, obj in enumerate(high_objs):
+            obj.name = f"__rextools_tmp_high_{idx}__"
+
+        # Apply target names
+        for obj, target in zip(low_objs, low_targets):
+            safe_rename(obj, target)
+        for obj, target in zip(high_objs, high_targets):
+            safe_rename(obj, target)
         
-        safe_rename(low_poly, target_low)
-        safe_rename(high_poly, target_high)
-        
-        # 5. Match Origins
-        old_high_mat = high_poly.matrix_world.copy()
-        target_mat = low_poly.matrix_world.copy()
-        
-        high_poly.matrix_world = target_mat
-        high_poly.data.transform(target_mat.inverted() @ old_high_mat)
+        # 5. Match Origins for paired objects
+        for low_obj, high_obj in pairs:
+            old_high_mat = high_obj.matrix_world.copy()
+            target_mat = low_obj.matrix_world.copy()
+            
+            high_obj.matrix_world = target_mat
+            high_obj.data.transform(target_mat.inverted() @ old_high_mat)
         
         context.view_layer.update()
 
-        self.report({'INFO'}, f"Renamed & Matched Origins: {low_poly.name}, {high_poly.name}")
+        self.report({'INFO'}, f"Renamed & Matched Origins for {len(low_objs)} Low and {len(high_objs)} High meshes")
         return {'FINISHED'}
-
 
 
 class MESH_OT_auto_rename_high_low_detect(bpy.types.Operator):
@@ -148,13 +295,13 @@ class MESH_OT_auto_rename_high_low_detect(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        return len(selected_objects) == 2
+        return len(selected_objects) >= 2
 
     def execute(self, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        low_poly, _ = MESH_OT_auto_rename_high_low.detect_low_high(selected_objects, context)
-        if low_poly:
-            name = MESH_OT_auto_rename_high_low.clean_base_name(low_poly.name)
+        low_objs, _ = MESH_OT_auto_rename_high_low.classify_low_high(selected_objects, context)
+        if low_objs:
+            name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
             if name:
                 context.scene.highlow_renamer_props.obj_name = name
         return {'FINISHED'}
@@ -169,7 +316,7 @@ class MESH_OT_auto_rename_high_low_pick_collection(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        return len(selected_objects) == 2
+        return len(selected_objects) >= 2
 
     def execute(self, context):
         col_name = None

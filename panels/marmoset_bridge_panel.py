@@ -54,21 +54,77 @@ class RexTools3MarmosetBridgePanel(Panel):
         col_send.prop(props, "auto_rename", text="Auto Rename Meshes/Mats")
         col_send.prop(props, "send_textures", text="Send High Textures")
         
+        renamer_props = context.scene.highlow_renamer_props
         selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
         
         col_send.separator()
-        if len(selected_meshes) != 2:
-            col_send.label(text="Select exactly 2 meshes (High/Low)", icon='INFO')
+        if len(selected_meshes) < 2:
+            col_send.label(text="Select at least 2 meshes (High/Low)", icon='INFO')
         else:
-            low_poly, high_poly = MESH_OT_auto_rename_high_low.detect_low_high(selected_meshes, context)
-            if low_poly and high_poly:
-                col_send.label(text=f"Low: {low_poly.name}", icon='MESH_DATA')
-                col_send.label(text=f"High: {high_poly.name}", icon='MESH_DATA')
+            low_objs, high_objs = MESH_OT_auto_rename_high_low.classify_low_high(selected_meshes, context)
+            if not low_objs or not high_objs:
+                col_send.label(text="Select at least 1 Low and 1 High poly mesh", icon='INFO')
+            else:
+                # Resolve prefixes and names
+                asset_name = props.asset_name.strip()
+                if not asset_name:
+                    asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
+                    if not asset_name:
+                        asset_name = "Asset"
+                low_prefix = renamer_props.low_prefix
+                high_prefix = renamer_props.high_prefix
+
+                def get_common_name(obj):
+                    name = obj.name
+                    for pref in [asset_name + low_prefix, asset_name + high_prefix]:
+                        if name.startswith(pref):
+                            var = name[len(pref):]
+                            if var.startswith("_"):
+                                var = var[1:]
+                            return var.lower()
+                    return MESH_OT_auto_rename_high_low.clean_base_name(name).lower()
+
+                # Pair them
+                pairs = []
+                unpaired_low = []
+                unpaired_high = []
+                
+                if len(low_objs) == 1 and len(high_objs) == 1:
+                    low_obj = low_objs[0]
+                    high_obj = high_objs[0]
+                    base = get_common_name(low_obj)
+                    pairs.append((base, low_obj, high_obj))
+                else:
+                    low_by_base = {get_common_name(o): o for o in low_objs}
+                    high_by_base = {get_common_name(o): o for o in high_objs}
+                    all_bases = sorted(list(set(low_by_base.keys()) | set(high_by_base.keys())))
+                    
+                    for base in all_bases:
+                        low_obj = low_by_base.get(base)
+                        high_obj = high_by_base.get(base)
+                        if low_obj and high_obj:
+                            pairs.append((base, low_obj, high_obj))
+                        elif low_obj:
+                            unpaired_low.append(low_obj)
+                        elif high_obj:
+                            unpaired_high.append(high_obj)
+
+                # Draw sets
+                for idx, (base, low_obj, high_obj) in enumerate(pairs):
+                    display_base = base.title() if base else asset_name
+                    # set 1: common_name (low_mesh, high_mesh)
+                    col_send.label(text=f"Set {idx + 1}: {display_base} ({low_obj.name}, {high_obj.name})", icon='MESH_DATA')
+                    
+                # Draw unpaired meshes if any
+                for obj in unpaired_low:
+                    col_send.label(text=f"Unpaired Low: {obj.name}", icon='ERROR')
+                for obj in unpaired_high:
+                    col_send.label(text=f"Unpaired High: {obj.name}", icon='ERROR')
                 col_send.separator()
                 
-            utils.draw_call_to_action(col_send, "rextools3.marmoset_bridge_send", "Prepare & Send to Marmoset", icon='EXPORT', type='PRIMARY')
-            col_send.separator()
-            col_send.operator("rextools3.marmoset_bridge_prep", text="Auto Name Meshes & Materials", icon='FILE_REFRESH')
+                utils.draw_call_to_action(col_send, "rextools3.marmoset_bridge_send", "Prepare & Send to Marmoset", icon='EXPORT', type='PRIMARY')
+                col_send.separator()
+                col_send.operator("rextools3.marmoset_bridge_prep", text="Auto Name Meshes & Materials", icon='FILE_REFRESH')
             
         layout.separator()
         

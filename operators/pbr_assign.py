@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from bpy.types import Operator
 from bpy.props import StringProperty, BoolProperty, EnumProperty
-from ..core import notify
+from ..core import notify, node_utils
 from .. import properties
 
 
@@ -405,12 +405,14 @@ class PBR_OT_AssignTexture(Operator):
                 if chan == 'A':
                     src = tex_node.outputs['Alpha']
                 elif chan != 'FULL':
-                    sep = nodes.get("AlphaSplit") or nodes.new('ShaderNodeSeparateRGB')
+                    sep = nodes.get("AlphaSplit") or node_utils.create_separate_node(nodes, "AlphaSplit")
                     sep.name = "AlphaSplit"
                     sep.label = "Alpha Channel Split"
                     sep.location = (-350, y)
-                    links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-                    src = sep.outputs[chan]
+                    sep_in = node_utils.get_separate_input_socket(sep)
+                    if sep_in:
+                        links.new(tex_node.outputs['Color'], sep_in)
+                    src = node_utils.get_separate_output_socket(sep, chan)
                 links.new(src, math.inputs[0])
                 material.blend_method = 'BLEND'
             else:
@@ -492,12 +494,14 @@ class PBR_OT_AssignTexture(Operator):
             if chan == 'A':
                 src = tex_node.outputs['Alpha']
             elif chan != 'FULL':
-                sep = nodes.new('ShaderNodeSeparateRGB')
+                sep = node_utils.create_separate_node(nodes, "EmissionSplit")
                 sep.name = "EmissionSplit"
                 sep.label = "Emission Channel Split"
                 sep.location = (-350, y)
-                links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-                src = sep.outputs[chan]
+                sep_in = node_utils.get_separate_input_socket(sep)
+                if sep_in:
+                    links.new(tex_node.outputs['Color'], sep_in)
+                src = node_utils.get_separate_output_socket(sep, chan)
             
             links.new(src, mix.inputs['A'])
             mix.inputs['B'].default_value = (1.0, 1.0, 1.0, 1.0) # Emission Tint

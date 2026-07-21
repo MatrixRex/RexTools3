@@ -9,6 +9,7 @@ from bpy.props import (
 )
 # pyrefly: ignore [missing-import]
 from bpy.types import PropertyGroup
+from .core import node_utils
 
 
 def update_use_sep_alpha(self, context):
@@ -147,29 +148,37 @@ def update_channel_map(self, context, input_name):
         if sep: nodes.remove(sep)
         src_sock = tex_node.outputs['Color'] if chan == 'FULL' else tex_node.outputs['Alpha']
     else:
-        sep = nodes.get(f"{input_name}Split") or nodes.new('ShaderNodeSeparateRGB')
+        sep = nodes.get(f"{input_name}Split") or node_utils.create_separate_node(nodes, f"{input_name}Split")
         sep.name = f"{input_name}Split"
         sep.location = (tex_node.location.x + 150, tex_node.location.y)
-        if sep.inputs['Image'].is_linked:
-            links.remove(sep.inputs['Image'].links[0])
-        links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-        src_sock = sep.outputs[chan]
+        sep_in = node_utils.get_separate_input_socket(sep)
+        if sep_in and sep_in.is_linked:
+            links.remove(sep_in.links[0])
+        if sep_in:
+            links.new(tex_node.outputs['Color'], sep_in)
+        src_sock = node_utils.get_separate_output_socket(sep, chan)
 
     # Invert logic
     if invert:
-        inv_node = nodes.get(f"{input_name}Invert") or nodes.new('ShaderNodeInvert')
+        inv_node = nodes.get(f"{input_name}Invert") or node_utils.create_invert_node(nodes, f"{input_name}Invert")
         inv_node.name = f"{input_name}Invert"
         inv_node.label = f"Invert {input_name}"
         inv_node.location = (tex_node.location.x + 300, tex_node.location.y - 100)
-        inv_node.inputs['Fac'].default_value = 1.0
+        fac_inp = inv_node.inputs.get('Fac') or inv_node.inputs.get('Factor') or inv_node.inputs[0]
+        if fac_inp:
+            fac_inp.default_value = 1.0
         
+        inv_in = node_utils.get_invert_input_socket(inv_node)
+        inv_out = node_utils.get_invert_output_socket(inv_node)
+
         # Link source to Invert
-        if inv_node.inputs['Color'].is_linked:
-            links.remove(inv_node.inputs['Color'].links[0])
-        links.new(src_sock, inv_node.inputs['Color'])
+        if inv_in and inv_in.is_linked:
+            links.remove(inv_in.links[0])
+        if inv_in and src_sock:
+            links.new(src_sock, inv_in)
         
         # New source is the Invert output
-        src_sock = inv_node.outputs['Color']
+        src_sock = inv_out
     else:
         # Cleanup Invert node if it exists
         inv_node = nodes.get(f"{input_name}Invert")
@@ -311,7 +320,7 @@ def update_flip_normal_g(self, context):
         
     if self.flip_normal_g:
         # Create helper nodes if they don't exist
-        sep = nodes.get("NormalSplit") or nodes.new('ShaderNodeSeparateRGB')
+        sep = nodes.get("NormalSplit") or node_utils.create_separate_node(nodes, "NormalSplit")
         sep.name = "NormalSplit"
         sep.label = "Normal Split"
         
@@ -321,7 +330,7 @@ def update_flip_normal_g(self, context):
         inv.operation = 'SUBTRACT'
         inv.inputs[0].default_value = 1.0
         
-        com = nodes.get("NormalCombine") or nodes.new('ShaderNodeCombineRGB')
+        com = nodes.get("NormalCombine") or node_utils.create_combine_node(nodes, "NormalCombine")
         com.name = "NormalCombine"
         com.label = "Normal Combine"
         
@@ -331,12 +340,22 @@ def update_flip_normal_g(self, context):
         com.location = (inv.location.x + 200, inv.location.y + 100)
         
         # Links
-        links.new(tex_node.outputs['Color'], sep.inputs['Image'])
-        links.new(sep.outputs['R'], com.inputs['R'])
-        links.new(sep.outputs['G'], inv.inputs[1])
-        links.new(inv.outputs['Value'], com.inputs['G'])
-        links.new(sep.outputs['B'], com.inputs['B'])
-        links.new(com.outputs['Image'], nm_node.inputs['Color'])
+        sep_in = node_utils.get_separate_input_socket(sep)
+        sep_r = node_utils.get_separate_output_socket(sep, 'R')
+        sep_g = node_utils.get_separate_output_socket(sep, 'G')
+        sep_b = node_utils.get_separate_output_socket(sep, 'B')
+
+        com_r = node_utils.get_combine_input_socket(com, 'R')
+        com_g = node_utils.get_combine_input_socket(com, 'G')
+        com_b = node_utils.get_combine_input_socket(com, 'B')
+        com_out = node_utils.get_combine_output_socket(com)
+
+        if sep_in: links.new(tex_node.outputs['Color'], sep_in)
+        if sep_r and com_r: links.new(sep_r, com_r)
+        if sep_g: links.new(sep_g, inv.inputs[1])
+        if com_g: links.new(inv.outputs['Value'], com_g)
+        if sep_b and com_b: links.new(sep_b, com_b)
+        if com_out: links.new(com_out, nm_node.inputs['Color'])
     else:
         # Clear helper nodes
         for name in ["NormalSplit", "NormalInvertG", "NormalCombine"]:
@@ -356,7 +375,7 @@ def update_flip_normal_g(self, context):
             if self.flip_normal_g:
                 com = nodes.get("NormalCombine")
                 if com:
-                    target_out = com.outputs.get('Image') or com.outputs[0]
+                    target_out = node_utils.get_combine_output_socket(com)
             else:
                 target_out = tex_node.outputs.get('Color') or tex_node.outputs[0]
             

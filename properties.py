@@ -462,6 +462,19 @@ class HighLowRenamerProperties(PropertyGroup):
     show_in_panel: BoolProperty(default=True)
 
 
+class Rextools3MarmosetMeshRef(PropertyGroup):
+    obj: PointerProperty(name="Object", type=bpy.types.Object)
+    name: StringProperty(name="Object Name", default="")
+
+
+class Rextools3MarmosetBakeGroup(PropertyGroup):
+    group_name: StringProperty(name="Group Name", default="")
+    is_locked: BoolProperty(name="Locked", default=False)
+    is_expanded: BoolProperty(name="Expanded", default=False)
+    low_meshes: CollectionProperty(type=Rextools3MarmosetMeshRef)
+    high_meshes: CollectionProperty(type=Rextools3MarmosetMeshRef)
+
+
 class Rextools3MarmosetBridgeProperties(PropertyGroup):
     export_path: StringProperty(
         name="Bake Output Path",
@@ -529,6 +542,9 @@ class Rextools3MarmosetBridgeProperties(PropertyGroup):
         default=True
     )
     show_in_panel: BoolProperty(default=True)
+    bake_groups: CollectionProperty(type=Rextools3MarmosetBakeGroup)
+    global_lock: BoolProperty(name="Lock All Groups", default=False)
+
 
 
 

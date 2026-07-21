@@ -147,130 +147,310 @@ def find_material_textures(material, export_dir):
     return textures
 
 
+def get_object_group_info(obj):
+    import re
+    name = obj.name
+    clean_n = re.sub(r'\.\d{3,}$', '', name)
+    
+    # Check regex for _high, _hp, _highpoly
+    high_match = re.search(r'^(.*?)(_high|_hp|_highpoly|\.high|-high)(.*)$', clean_n, re.IGNORECASE)
+    if high_match:
+        group = high_match.group(1).rstrip('_ .-')
+        var = high_match.group(3).lstrip('_ .-')
+        return (group if group else "Asset"), 'high', var
+
+    low_match = re.search(r'^(.*?)(_low|_lp|_lowpoly|\.low|-low)(.*)$', clean_n, re.IGNORECASE)
+    if low_match:
+        group = low_match.group(1).rstrip('_ .-')
+        var = low_match.group(3).lstrip('_ .-')
+        return (group if group else "Asset"), 'low', var
+        
+    # Check collections
+    for col in obj.users_collection:
+        col_n = col.name.lower()
+        if any(s in col_n for s in ["high", "hp", "highpoly"]):
+            return MESH_OT_auto_rename_high_low.clean_base_name(clean_n), 'high', ""
+        if any(s in col_n for s in ["low", "lp", "lowpoly"]):
+            return MESH_OT_auto_rename_high_low.clean_base_name(clean_n), 'low', ""
+
+    return MESH_OT_auto_rename_high_low.clean_base_name(clean_n), 'unknown', ""
+
+
+def populate_bake_groups(context, selection_only=True):
+    props = context.scene.rex_marmoset_bridge_props
+    
+    selected_meshes = [o for o in context.selected_objects if o.type == 'MESH']
+    if selection_only and selected_meshes:
+        target_objs = selected_meshes
+    else:
+        target_objs = [o for o in context.scene.objects if o.type == 'MESH']
+        
+    if not target_objs:
+        return
+        
+    # Build dictionary of groups: group_name -> {'low': [objs], 'high': [objs]}
+    groups_dict = {}
+    unclassified = []
+    
+    for obj in target_objs:
+        group_name, mesh_type, _ = get_object_group_info(obj)
+        if group_name not in groups_dict:
+            groups_dict[group_name] = {'low': [], 'high': []}
+            
+        if mesh_type == 'low':
+            groups_dict[group_name]['low'].append(obj)
+        elif mesh_type == 'high':
+            groups_dict[group_name]['high'].append(obj)
+        else:
+            unclassified.append((group_name, obj))
+            
+    # Classify unclassified objects via vertex count
+    if unclassified:
+        depsgraph = context.evaluated_depsgraph_get()
+        def get_v(o):
+            return len(o.evaluated_get(depsgraph).data.vertices)
+            
+        for g_name, obj in unclassified:
+            g = groups_dict.get(g_name, {'low': [], 'high': []})
+            v = get_v(obj)
+            low_verts = [get_v(o) for o in g['low']]
+            high_verts = [get_v(o) for o in g['high']]
+            
+            avg_low = sum(low_verts) / len(low_verts) if low_verts else 0
+            avg_high = sum(high_verts) / len(high_verts) if high_verts else 0
+            
+            if avg_low > 0 and avg_high > 0:
+                if abs(v - avg_low) < abs(v - avg_high):
+                    g['low'].append(obj)
+                else:
+                    g['high'].append(obj)
+            elif avg_low > 0:
+                if v > avg_low * 1.5:
+                    g['high'].append(obj)
+                else:
+                    g['low'].append(obj)
+            elif avg_high > 0:
+                if v < avg_high * 0.7:
+                    g['low'].append(obj)
+                else:
+                    g['high'].append(obj)
+            else:
+                # Fallback: classify as low default
+                g['low'].append(obj)
+                
+            groups_dict[g_name] = g
+
+    # Preserve locked groups while rebuilding/updating
+    locked_group_names = {bg.group_name for bg in props.bake_groups if bg.is_locked}
+    
+    # Store previous lock states
+    prev_locks = {bg.group_name: bg.is_locked for bg in props.bake_groups}
+    prev_exp = {bg.group_name: bg.is_expanded for bg in props.bake_groups}
+    
+    # Clear unlocked entries
+    i = len(props.bake_groups) - 1
+    while i >= 0:
+        if not props.bake_groups[i].is_locked:
+            props.bake_groups.remove(i)
+        i -= 1
+
+    existing_group_names = {bg.group_name for bg in props.bake_groups}
+    
+    for g_name, mesh_data in groups_dict.items():
+        if not mesh_data['low'] and not mesh_data['high']:
+            continue
+            
+        if g_name in existing_group_names:
+            continue # Keep locked version
+            
+        bg = props.bake_groups.add()
+        bg.group_name = g_name
+        bg.is_locked = prev_locks.get(g_name, False)
+        bg.is_expanded = prev_exp.get(g_name, False)
+        
+        bg.low_meshes.clear()
+        for o in mesh_data['low']:
+            item = bg.low_meshes.add()
+            item.obj = o
+            item.name = o.name
+            
+        bg.high_meshes.clear()
+        for o in mesh_data['high']:
+            item = bg.high_meshes.add()
+            item.obj = o
+            item.name = o.name
+
+
+class REXTOOLS3_OT_marmoset_bridge_refresh_groups(Operator):
+    bl_idname = "rextools3.marmoset_bridge_refresh_groups"
+    bl_label = "Detect / Refresh Bake Groups"
+    bl_description = "Auto-detect Bake Groups from selected or scene meshes"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        populate_bake_groups(context, selection_only=bool(context.selected_objects))
+        props = context.scene.rex_marmoset_bridge_props
+        notify.success(f"Detected {len(props.bake_groups)} Bake Group(s)")
+        return {'FINISHED'}
+
+
+class REXTOOLS3_OT_marmoset_bridge_toggle_lock(Operator):
+    bl_idname = "rextools3.marmoset_bridge_toggle_lock"
+    bl_label = "Toggle Group Lock"
+    bl_description = "Lock or unlock Bake Group(s) to persist export targets"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    group_index: bpy.props.IntProperty(default=-1)
+
+    def execute(self, context):
+        props = context.scene.rex_marmoset_bridge_props
+        if self.group_index == -1:
+            props.global_lock = not props.global_lock
+            for bg in props.bake_groups:
+                bg.is_locked = props.global_lock
+        elif 0 <= self.group_index < len(props.bake_groups):
+            bg = props.bake_groups[self.group_index]
+            bg.is_locked = not bg.is_locked
+            props.global_lock = all(g.is_locked for g in props.bake_groups) if props.bake_groups else False
+        return {'FINISHED'}
+
+
+class REXTOOLS3_OT_marmoset_bridge_toggle_expand(Operator):
+    bl_idname = "rextools3.marmoset_bridge_toggle_expand"
+    bl_label = "Toggle Group Expand"
+    bl_description = "Expand or collapse Bake Group sub-mesh list"
+    bl_options = {'REGISTER'}
+
+    group_index: bpy.props.IntProperty(default=0)
+
+    def execute(self, context):
+        props = context.scene.rex_marmoset_bridge_props
+        if 0 <= self.group_index < len(props.bake_groups):
+            bg = props.bake_groups[self.group_index]
+            bg.is_expanded = not bg.is_expanded
+        return {'FINISHED'}
+
+
 class REXTOOLS3_OT_marmoset_bridge_prep(Operator):
     bl_idname = "rextools3.marmoset_bridge_prep"
     bl_label = "Prepare Meshes & Materials"
-    bl_description = "Auto rename selected high/low meshes and materials, ensuring proper suffix setup"
+    bl_description = "Auto rename high/low meshes and materials per Bake Group (Marmoset convention)"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
+        props = context.scene.rex_marmoset_bridge_props
+        if props.bake_groups:
+            return True
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         return len(selected_objects) >= 2
 
     def execute(self, context):
-        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        
-        # Get bridge properties and renamer properties
-        bridge_props = context.scene.rex_marmoset_bridge_props
+        props = context.scene.rex_marmoset_bridge_props
         renamer_props = context.scene.highlow_renamer_props
         
-        # 1. Detect high and low poly objects
-        low_objs, high_objs = MESH_OT_auto_rename_high_low.classify_low_high(selected_objects, context)
-        if not low_objs or not high_objs:
-            self.report({'ERROR'}, "Could not differentiate High and Low poly objects")
+        populate_bake_groups(context, selection_only=bool(context.selected_objects) and not any(bg.is_locked for bg in props.bake_groups))
+        
+        if not props.bake_groups:
+            self.report({'ERROR'}, "No Bake Groups found to prepare")
             return {'CANCELLED'}
             
-        # Determine asset name if empty
-        asset_name = bridge_props.asset_name.strip()
-        if not asset_name:
-            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
-            if not asset_name:
-                asset_name = "Asset"
-            bridge_props.asset_name = asset_name
-            
-        # Sync asset name to highlow renamer properties before renaming
-        renamer_props.obj_name = bridge_props.asset_name
-            
-        # 2. Run high-low renamer
-        bpy.ops.mesh.auto_rename_high_low()
+        high_suffix = renamer_props.high_prefix if renamer_props.high_prefix else "_high"
+        low_suffix = renamer_props.low_prefix if renamer_props.low_prefix else "_low"
         
-        # 3. Rename and match materials
-        high_suffix = renamer_props.high_prefix
-        low_suffix = renamer_props.low_prefix
+        prepared_count = 0
         
-        # Build low objs dictionary by their variation suffix to pair with high objs
-        low_by_variation = {}
-        for low_obj in low_objs:
-            name = low_obj.name
-            prefix = renamer_props.obj_name + low_suffix
-            var = ""
-            if name.startswith(prefix):
-                var = name[len(prefix):]
-                if var.startswith("_"):
-                    var = var[1:]
-            low_by_variation[var.lower()] = low_obj
-
-        # Map materials between high and corresponding low objects
-        for high_obj in high_objs:
-            name = high_obj.name
-            prefix = renamer_props.obj_name + high_suffix
-            var = ""
-            if name.startswith(prefix):
-                var = name[len(prefix):]
-                if var.startswith("_"):
-                    var = var[1:]
-            
-            low_obj = low_by_variation.get(var.lower())
-            if not low_obj and len(low_objs) == 1:
-                low_obj = low_objs[0]
+        for bg in props.bake_groups:
+            group_name = bg.group_name.strip()
+            if not group_name:
+                group_name = "Asset"
                 
-            if not low_obj:
+            low_objs = [ref.obj for ref in bg.low_meshes if ref.obj and ref.obj.name in context.scene.objects]
+            high_objs = [ref.obj for ref in bg.high_meshes if ref.obj and ref.obj.name in context.scene.objects]
+            
+            if not low_objs and not high_objs:
                 continue
                 
-            for i, slot in enumerate(high_obj.material_slots):
-                high_mat = slot.material
-                if not high_mat:
-                    continue
-                    
-                orig_name = high_mat.name
-                
-                # Clean existing suffixes
-                if orig_name.endswith(high_suffix):
-                    base_name = orig_name[:-len(high_suffix)]
-                elif orig_name.endswith(low_suffix):
-                    base_name = orig_name[:-len(low_suffix)]
+            # Rename low meshes to Marmoset convention: group_name_low or group_name_low_1, group_name_low_2...
+            for idx, low_obj in enumerate(low_objs):
+                if len(low_objs) == 1:
+                    target_name = f"{group_name}{low_suffix}"
                 else:
-                    base_name = orig_name
+                    target_name = f"{group_name}{low_suffix}_{idx + 1}"
+                if low_obj.name != target_name:
+                    existing = bpy.data.objects.get(target_name)
+                    if existing and existing != low_obj:
+                        existing.name += ".old"
+                    low_obj.name = target_name
                     
-                target_high_mat_name = base_name + high_suffix
-                target_low_mat_name = base_name
-                
-                # Rename high material
-                if high_mat.name != target_high_mat_name:
-                    high_mat.name = target_high_mat_name
+            # Rename high meshes to Marmoset convention: group_name_high or group_name_high_1, group_name_high_2...
+            for idx, high_obj in enumerate(high_objs):
+                if len(high_objs) == 1:
+                    target_name = f"{group_name}{high_suffix}"
+                else:
+                    target_name = f"{group_name}{high_suffix}_{idx + 1}"
+                if high_obj.name != target_name:
+                    existing = bpy.data.objects.get(target_name)
+                    if existing and existing != high_obj:
+                        existing.name += ".old"
+                    high_obj.name = target_name
                     
-                # Get or create low material
-                low_mat = bpy.data.materials.get(target_low_mat_name)
-                if not low_mat:
-                    low_mat = bpy.data.materials.new(name=target_low_mat_name)
-                    low_mat.use_nodes = True
+            # Match materials between high and low objects in this group
+            for high_obj in high_objs:
+                for i, slot in enumerate(high_obj.material_slots):
+                    high_mat = slot.material
+                    if not high_mat:
+                        continue
+                    orig_name = high_mat.name
+                    if orig_name.endswith(high_suffix):
+                        base_name = orig_name[:-len(high_suffix)]
+                    elif orig_name.endswith(low_suffix):
+                        base_name = orig_name[:-len(low_suffix)]
+                    else:
+                        base_name = orig_name
+                        
+                    target_high_mat_name = base_name + high_suffix
+                    target_low_mat_name = base_name
                     
-                # Assign corresponding material to low-poly
-                while len(low_obj.material_slots) < i + 1:
-                    low_obj.data.materials.append(None)
-                low_obj.material_slots[i].material = low_mat
+                    if high_mat.name != target_high_mat_name:
+                        high_mat.name = target_high_mat_name
+                        
+                    low_mat = bpy.data.materials.get(target_low_mat_name)
+                    if not low_mat:
+                        low_mat = bpy.data.materials.new(name=target_low_mat_name)
+                        low_mat.use_nodes = True
+                        
+                    for low_obj in low_objs:
+                        while len(low_obj.material_slots) < i + 1:
+                            low_obj.data.materials.append(None)
+                        low_obj.material_slots[i].material = low_mat
+                        
+            prepared_count += 1
+
+        # Re-populate references to sync updated names
+        populate_bake_groups(context, selection_only=False)
             
-        notify.success(f"Prepared meshes and materials for {renamer_props.obj_name}")
+        notify.success(f"Prepared {prepared_count} Bake Group(s) & materials")
         return {'FINISHED'}
 
 
 class REXTOOLS3_OT_marmoset_bridge_send(Operator):
     bl_idname = "rextools3.marmoset_bridge_send"
     bl_label = "Send to Marmoset"
-    bl_description = "Export high/low poly meshes to FBX and launch Marmoset Toolbag with bake setup"
+    bl_description = "Export high/low poly meshes to FBX per Bake Group and launch Marmoset Toolbag"
     bl_options = {'REGISTER', 'UNDO'}
+
+    group_name: bpy.props.StringProperty(default="")
 
     @classmethod
     def poll(cls, context):
-        # Must have at least 2 meshes selected
+        props = context.scene.rex_marmoset_bridge_props
+        if props.bake_groups:
+            return True
         selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         return len(selected_objects) >= 2
 
     def execute(self, context):
-        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
-        
-        # Get bridge and renamer properties
         props = context.scene.rex_marmoset_bridge_props
         renamer_props = context.scene.highlow_renamer_props
         
@@ -295,77 +475,100 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
         if not os.path.exists(export_dir):
             os.makedirs(export_dir, exist_ok=True)
             
+        # Ensure bake groups are populated
+        populate_bake_groups(context, selection_only=bool(context.selected_objects) and not any(bg.is_locked for bg in props.bake_groups))
+        
+        # Determine target bake groups to export
+        if self.group_name:
+            target_groups = [bg for bg in props.bake_groups if bg.group_name.lower() == self.group_name.lower()]
+        else:
+            locked_groups = [bg for bg in props.bake_groups if bg.is_locked]
+            target_groups = locked_groups if locked_groups else list(props.bake_groups)
+            
+        if not target_groups:
+            self.report({'ERROR'}, "No Bake Groups available to send")
+            return {'CANCELLED'}
+            
         # 1. Run prep logic if enabled
         if props.auto_rename:
             bpy.ops.rextools3.marmoset_bridge_prep()
             
-        # Classify selected objects
-        low_objs, high_objs = MESH_OT_auto_rename_high_low.classify_low_high(selected_objects, context)
-            
-        if not low_objs or not high_objs:
-            self.report({'ERROR'}, "Failed to resolve High/Low poly meshes for sending")
-            return {'CANCELLED'}
-            
-        # Determine asset name
-        asset_name = props.asset_name.strip()
-        if not asset_name:
-            # Fallback to cleaned low poly base name
-            asset_name = MESH_OT_auto_rename_high_low.clean_base_name(low_objs[0].name)
-            if not asset_name:
-                asset_name = "Asset"
-            props.asset_name = asset_name
-            
-        # Export paths
-        low_fbx_path = os.path.join(export_dir, f"{asset_name}_low.fbx")
-        high_fbx_path = os.path.join(export_dir, f"{asset_name}_high.fbx")
-        
-        # 2. Export meshes to FBX
-        # Save selection state
+        # Export individual FBX files for each target Bake Group
         active_obj = context.view_layer.objects.active
         selected_objs = list(context.selected_objects)
         
+        exported_fbx_files = [] # list of (low_fbx_path, high_fbx_path, group_name)
+        texture_assignments = {}
+        expected_mats = []
+        
         try:
-            # Export low-poly
-            bpy.ops.object.select_all(action='DESELECT')
-            for obj in low_objs:
-                obj.select_set(True)
-            context.view_layer.objects.active = low_objs[0]
-            bpy.ops.export_scene.fbx(
-                filepath=low_fbx_path,
-                use_selection=True,
-                object_types={'MESH'},
-                add_leaf_bones=False,
-                bake_anim=False
-            )
-            
-            # Export high-poly
-            bpy.ops.object.select_all(action='DESELECT')
-            for obj in high_objs:
-                obj.select_set(True)
-            context.view_layer.objects.active = high_objs[0]
-            bpy.ops.export_scene.fbx(
-                filepath=high_fbx_path,
-                use_selection=True,
-                object_types={'MESH'},
-                add_leaf_bones=False,
-                bake_anim=False
-            )
-        except Exception as e:
-            self.report({'ERROR'}, f"Failed to export meshes: {e}")
+            for bg in target_groups:
+                g_name = bg.group_name.strip()
+                if not g_name:
+                    g_name = "Asset"
+                    
+                low_objs = [ref.obj for ref in bg.low_meshes if ref.obj and ref.obj.name in context.scene.objects]
+                high_objs = [ref.obj for ref in bg.high_meshes if ref.obj and ref.obj.name in context.scene.objects]
+                
+                if not low_objs and not high_objs:
+                    continue
+                    
+                asset_prefix = props.asset_name.strip()
+                file_base = f"{asset_prefix}_{g_name}" if asset_prefix else g_name
+                
+                low_fbx_path = os.path.join(export_dir, f"{file_base}_low.fbx")
+                high_fbx_path = os.path.join(export_dir, f"{file_base}_high.fbx")
+                
+                if low_objs:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for o in low_objs:
+                        o.select_set(True)
+                    context.view_layer.objects.active = low_objs[0]
+                    bpy.ops.export_scene.fbx(
+                        filepath=low_fbx_path,
+                        use_selection=True,
+                        object_types={'MESH'},
+                        add_leaf_bones=False,
+                        bake_anim=False
+                    )
+                    
+                if high_objs:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for o in high_objs:
+                        o.select_set(True)
+                    context.view_layer.objects.active = high_objs[0]
+                    bpy.ops.export_scene.fbx(
+                        filepath=high_fbx_path,
+                        use_selection=True,
+                        object_types={'MESH'},
+                        add_leaf_bones=False,
+                        bake_anim=False
+                    )
+                    
+                exported_fbx_files.append((low_fbx_path if low_objs else None, high_fbx_path if high_objs else None, g_name))
+                
+                # Scan high poly textures if enabled
+                if props.send_textures:
+                    for high_obj in high_objs:
+                        for slot in high_obj.material_slots:
+                            if slot.material and slot.material.name not in texture_assignments:
+                                tex_dict = find_material_textures(slot.material, export_dir)
+                                if tex_dict:
+                                    texture_assignments[slot.material.name] = tex_dict
+                                    expected_mats.append(slot.material.name)
+        finally:
             # Restore selection
             bpy.ops.object.select_all(action='DESELECT')
             for o in selected_objs:
-                o.select_set(True)
-            context.view_layer.objects.active = active_obj
+                if o.name in context.scene.objects:
+                    o.select_set(True)
+            context.view_layer.objects.active = active_obj if active_obj and active_obj.name in context.scene.objects else None
+
+        if not exported_fbx_files:
+            self.report({'ERROR'}, "Failed to export FBX files for selected Bake Group(s)")
             return {'CANCELLED'}
-            
-        # Restore selection
-        bpy.ops.object.select_all(action='DESELECT')
-        for o in selected_objs:
-            o.select_set(True)
-        context.view_layer.objects.active = active_obj
-        
-        # Check if Marmoset is already running (skip launching and script generation if it is)
+
+        # Check if Marmoset is running
         marmoset_bin = os.path.basename(marmoset_path)
         is_running = False
         import sys
@@ -386,33 +589,28 @@ class REXTOOLS3_OT_marmoset_bridge_send(Operator):
                 pass
 
         if is_running:
-            self.report({'INFO'}, "Marmoset is already running. Meshes exported (auto-reloading in Toolbag).")
-            notify.success(f"FBX exported & auto-reloaded in Marmoset for {asset_name}")
+            self.report({'INFO'}, f"Marmoset running. Exported {len(exported_fbx_files)} Bake Group FBX(s) (Auto-reloading in Toolbag).")
+            notify.success(f"FBX exported for {len(exported_fbx_files)} group(s) & auto-reloading in Marmoset")
             return {'FINISHED'}
             
-        # 3. Scan high-poly textures if enabled
-        texture_assignments = {}
-        expected_mats = []
-        if props.send_textures:
-            for high_obj in high_objs:
-                for slot in high_obj.material_slots:
-                    if slot.material and slot.material.name not in texture_assignments:
-                        tex_dict = find_material_textures(slot.material, export_dir)
-                        if tex_dict:
-                            texture_assignments[slot.material.name] = tex_dict
-                            expected_mats.append(slot.material.name)
-                        
-        # 4. Generate Marmoset Script
+        # Generate Marmoset Script with multiple FBX model imports
         ext = props.file_format.lower()
-        script_output_base = os.path.join(export_dir, f"{asset_name}.{ext}").replace("\\", "/")
-        low_fbx_path_esc = os.path.normpath(low_fbx_path).replace("\\", "/")
-        high_fbx_path_esc = os.path.normpath(high_fbx_path).replace("\\", "/")
+        asset_base = props.asset_name.strip() if props.asset_name.strip() else "Bake"
+        script_output_base = os.path.join(export_dir, f"{asset_base}.{ext}").replace("\\", "/")
         
-        # Serialize texture assignments and expected mats to python literals
         import json
         tex_assign_str = json.dumps(texture_assignments)
         expected_mats_str = json.dumps(expected_mats)
         
+        fbx_import_lines = []
+        for low_f, high_f, _ in exported_fbx_files:
+            if low_f:
+                fbx_import_lines.append(f'baker.importModel(r"{os.path.normpath(low_f).replace("\\", "/")}")')
+            if high_f:
+                fbx_import_lines.append(f'baker.importModel(r"{os.path.normpath(high_f).replace("\\", "/")}")')
+                
+        imports_block = "\n".join(fbx_import_lines)
+
         script_content = f"""import mset
 import os
 import time
@@ -424,7 +622,6 @@ baker.outputWidth = {props.resolution}
 baker.outputHeight = {props.resolution}
 baker.outputBits = 8
 baker.outputSamples = 16
-
 
 # Disable all default maps
 for m in baker.getAllMaps():
@@ -456,9 +653,8 @@ if ao_map:
     ao_map.enabled = {props.bake_ao}
     ao_map.suffix = "_ao"
 
-# Import models via Quick Loader
-baker.importModel(r"{low_fbx_path_esc}")
-baker.importModel(r"{high_fbx_path_esc}")
+# Import models via Quick Loader for each Bake Group
+{imports_block}
 
 # Asynchronous wait loop for FBX models to finish importing
 expected_mats = {expected_mats_str}
@@ -486,7 +682,6 @@ for mat_name, tex_dict in texture_assignments.items():
     if mat_name in all_mats:
         mat = all_mats[mat_name]
     else:
-        # Case-insensitive fuzzy matching ignoring spaces, underscores, and suffixes
         target_clean = mat_name.lower().replace(" ", "").replace("_", "")
         for m_name, m_obj in all_mats.items():
             m_clean = m_name.lower().replace(" ", "").replace("_", "")
@@ -522,10 +717,10 @@ for mat_name, tex_dict in texture_assignments.items():
 print("Marmoset Toolbag 5 setup complete.")
 """
         
-        # Write to temporary file
+        # Write temporary script
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".py")
         tmp_name = tmp.name
-        tmp.close() # Close immediately to release Windows locks!
+        tmp.close()
         try:
             with open(tmp_name, "w", encoding="utf-8") as f:
                 f.write(script_content)
@@ -536,13 +731,14 @@ print("Marmoset Toolbag 5 setup complete.")
         # Launch Marmoset
         try:
             subprocess.Popen([marmoset_path, "-py", tmp_name])
-            self.report({'INFO'}, "Sent meshes to Marmoset Toolbag 5")
-            notify.success(f"FBX exported & Marmoset launched for {asset_name}")
+            self.report({'INFO'}, f"Sent {len(exported_fbx_files)} Bake Group(s) to Marmoset Toolbag 5")
+            notify.success(f"FBX exported & Marmoset launched for {len(exported_fbx_files)} group(s)")
         except Exception as e:
             self.report({'ERROR'}, f"Failed to launch Marmoset Toolbag: {e}")
             return {'CANCELLED'}
             
         return {'FINISHED'}
+
 
 
 class REXTOOLS3_OT_marmoset_bridge_get_textures(Operator):

@@ -197,7 +197,7 @@ def draw_viewport_callback():
     except Exception:
         return
         
-    if not getattr(prefs, "enable_engine_vertex_stats", False) or not getattr(prefs, "evstat_show_overlay", True):
+    if not getattr(prefs, "enable_engine_vertex_stats", False) or not getattr(prefs, "evstat_show_overlay", False):
         return
 
     # Only draw in Object Mode

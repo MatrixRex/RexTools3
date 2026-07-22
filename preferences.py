@@ -291,13 +291,13 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     evstat_auto_recalculate: BoolProperty(
         name="Auto Recalculate",
         description="Automatically recalculate stats when selection or active object changes",
-        default=True,
+        default=False,
         update=update_panel_redraw,
     )
     evstat_show_overlay: BoolProperty(
         name="Show Viewport Overlay",
         description="Show the Game Engine vertex count in the top-left corner of the 3D Viewport",
-        default=True,
+        default=False,
         update=update_panel_redraw,
     )
 

@@ -1,9 +1,9 @@
 import bpy
 from ..ui import utils
 
-class RexTools3EngineVertexStatsPanel(bpy.types.Panel):
+class REXTOOLS3_PT_engine_vertex_stats(bpy.types.Panel):
     bl_label = "Engine Vertex Stats"
-    bl_idname = "RexTools3EngineVertexStatsPanel"
+    bl_idname = "REXTOOLS3_PT_engine_vertex_stats"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "RexTools3"  # default, but overridden by preferences on register

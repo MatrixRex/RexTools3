@@ -1006,6 +1006,7 @@ class RexCollectionExportOverrides(PropertyGroup):
     override_pre_rotation: BoolProperty(name="Override Pre Rotation", default=False)
     override_pre_scale: BoolProperty(name="Override Pre Scale", default=False)
     override_rename_armature: BoolProperty(name="Override Rename Armature", default=False)
+    override_single_mesh: BoolProperty(name="Override Single Mesh", default=False)
 
 
     export_path: StringProperty(
@@ -1075,6 +1076,11 @@ class RexCollectionExportOverrides(PropertyGroup):
     rename_armature: BoolProperty(
         name="Rename Armature to 'Armature'",
         description="Rename armature object and data to 'Armature' before export (useful for Unity root name)",
+        default=False
+    )
+    single_mesh: BoolProperty(
+        name="Single Mesh",
+        description="Merge all mesh objects under a single collection into one mesh object with non-armature modifiers applied",
         default=False
     )
 
@@ -1177,6 +1183,11 @@ class RexExportSettings(PropertyGroup):
     rename_armature: BoolProperty(
         name="Rename Armature to 'Armature'",
         description="Rename armature object and data to 'Armature' before export (useful for Unity root name)",
+        default=False
+    )
+    single_mesh: BoolProperty(
+        name="Single Mesh",
+        description="Merge all mesh objects under a single collection into one mesh object with non-armature modifiers applied",
         default=False
     )
 

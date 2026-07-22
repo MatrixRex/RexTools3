@@ -48,6 +48,8 @@ class REXTOOLS3_PT_ExportManager(Panel):
         scol.use_property_split = True
         scol.use_property_decorate = False
         scol.prop(settings, "export_mode", text="Mode")
+        if settings.export_mode == 'COLLECTIONS':
+            scol.prop(settings, "single_mesh", text="Single Mesh")
         scol.prop(settings, "export_limit", text="Limit")
         scol.prop(settings, "export_format", text="Format")
         scol.prop(settings, "export_preset", text="Preset")
@@ -291,6 +293,7 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
         draw_override_prop(col, overrides, "reset_transform", "override_reset_transform")
         draw_override_prop(col, overrides, "pre_rotation", "override_pre_rotation")
         draw_override_prop(col, overrides, "pre_scale", "override_pre_scale")
+        draw_override_prop(col, overrides, "single_mesh", "override_single_mesh")
 
         layout.separator()
         layout.operator("rextools3.clear_all_overrides", text="Clear All Overrides", icon='X')

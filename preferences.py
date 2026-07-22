@@ -20,7 +20,7 @@ PANEL_CATEGORY_MAPPINGS = [
     ("node_helper_panel", "REXTOOLS3_PT_NodeLayout", "category_node_helper"),
     ("export_panel", "REXTOOLS3_PT_ExportManager", "category_rexport"),
     ("texture_oven_panel", "REXTOOLS3_PT_TextureOvenPanel", "category_texture_oven"),
-    ("engine_vertex_stats", "RexTools3EngineVertexStatsPanel", "category_engine_vertex_stats"),
+    ("engine_vertex_stats", "REXTOOLS3_PT_engine_vertex_stats", "category_engine_vertex_stats"),
     ("marmoset_bridge_panel", "RexTools3MarmosetBridgePanel", "category_marmoset_bridge")
 ]
 
@@ -71,7 +71,7 @@ def pre_apply_panel_categories():
 
 def update_keymap_active_states(self, context):
     try:
-        from .operators import smart_join, rex_shading_pie, edit_delete_ops, context_aware_select
+        from .operators import smart_join, rex_shading_pie, edit_delete_ops, context_aware_select, flip_paint_polarity
         
         if hasattr(smart_join, 'addon_keymaps'):
             for km, kmi in smart_join.addon_keymaps:
@@ -88,6 +88,10 @@ def update_keymap_active_states(self, context):
         if hasattr(context_aware_select, 'addon_keymaps'):
             for km, kmi in context_aware_select.addon_keymaps:
                 kmi.active = self.enable_context_select
+
+        if hasattr(flip_paint_polarity, 'addon_keymaps'):
+            for km, kmi in flip_paint_polarity.addon_keymaps:
+                kmi.active = self.enable_paint_flip
     except Exception as e:
         print("[RexTools3] Error updating keymap active states:", e)
 
@@ -492,6 +496,12 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
         default=True,
         update=update_keymap_active_states,
     )
+    enable_paint_flip: BoolProperty(
+        name="Paint Flip (Sculpt/Weight/Color)",
+        description="Enable/Disable X key shortcut to flip weight, sculpt polarity, or colors in paint modes",
+        default=True,
+        update=update_keymap_active_states,
+    )
 
     def draw(self, context):
         layout = self.layout
@@ -681,12 +691,13 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             col = layout.column()
             col.label(text="Shortcut Tools Configuration", icon='TOOL_SETTINGS')
             
-            from .operators import smart_join, edit_delete_ops, context_aware_select
+            from .operators import smart_join, edit_delete_ops, context_aware_select, flip_paint_polarity
 
             shortcut_tools = [
                 (self.enable_smart_join, "enable_smart_join", smart_join, "Smart Join (Object Mode: Ctrl+J)"),
                 (self.enable_quick_delete, "enable_quick_delete", edit_delete_ops, "Quick Delete Modal (3D View: X)"),
                 (self.enable_context_select, "enable_context_select", context_aware_select, "Context Aware Select (Mesh/Curve: Double Click)"),
+                (self.enable_paint_flip, "enable_paint_flip", flip_paint_polarity, "Paint Flip (Sculpt/Weight/Color Paint: X)"),
             ]
 
             wm = context.window_manager

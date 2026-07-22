@@ -76,4 +76,5 @@ class REXTOOLS3_OT_ClearExportPath(Operator):
                 overrides.override_reset_transform = False
                 overrides.override_pre_rotation = False
                 overrides.override_pre_scale = False
+                overrides.override_single_mesh = False
         return {'FINISHED'}

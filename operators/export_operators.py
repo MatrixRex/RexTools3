@@ -9,7 +9,8 @@ def has_any_override(overrides):
     flags = [
         'override_path', 'override_texture_copy_path', 'override_format', 'override_preset', 
         'override_remove_armature_root', 'override_rename_armature', 
-        'override_reset_transform', 'override_pre_rotation', 'override_pre_scale'
+        'override_reset_transform', 'override_pre_rotation', 'override_pre_scale',
+        'override_single_mesh'
     ]
     return any(getattr(overrides, f, False) for f in flags)
 
@@ -25,6 +26,7 @@ def get_resolved_val(coll, prop_name, global_settings):
         'reset_transform': 'override_reset_transform',
         'pre_rotation': 'override_pre_rotation',
         'pre_scale': 'override_pre_scale',
+        'single_mesh': 'override_single_mesh',
     }
     
     flag = mapping.get(prop_name)
@@ -74,7 +76,7 @@ def get_effective_overrides(coll, global_settings):
         props = [
             'export_path', 'texture_copy_path', 'export_format', 'export_preset', 
             'fbx_remove_armature_root', 'rename_armature', 
-            'reset_transform', 'pre_rotation', 'pre_scale'
+            'reset_transform', 'pre_rotation', 'pre_scale', 'single_mesh'
         ]
         
         for p in props:
@@ -253,6 +255,7 @@ class REXTOOLS3_OT_Export(Operator):
     
     def execute(self, context):
         global_settings = context.scene.rex_export_settings
+        export_mode = global_settings.export_mode
         export_groups = get_export_groups(context, global_settings)
             
         if not export_groups:
@@ -305,6 +308,56 @@ class REXTOOLS3_OT_Export(Operator):
             if not valid_objs:
                 continue
             
+            # --- Single Mesh Option (Collections mode only) ---
+            temp_single_mesh_objs = []
+            if export_mode == 'COLLECTIONS' and getattr(item_settings, 'single_mesh', False):
+                mesh_objs = [o for o in valid_objs if o.type == 'MESH']
+                non_mesh_objs = [o for o in valid_objs if o.type != 'MESH']
+                
+                if mesh_objs:
+                    dup_objs = []
+                    for o in mesh_objs:
+                        dup_o = o.copy()
+                        dup_o.data = o.data.copy()
+                        context.scene.collection.objects.link(dup_o)
+                        dup_objs.append(dup_o)
+                    
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for dup_o in dup_objs:
+                        context.view_layer.objects.active = dup_o
+                        dup_o.select_set(True)
+                        for mod in list(dup_o.modifiers):
+                            if mod.type != 'ARMATURE':
+                                try:
+                                    bpy.ops.object.modifier_apply(modifier=mod.name)
+                                except Exception as e:
+                                    print(f"Could not apply modifier {mod.name} on {dup_o.name}: {e}")
+                        dup_o.select_set(False)
+                    
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for dup_o in dup_objs:
+                        dup_o.select_set(True)
+                    context.view_layer.objects.active = dup_objs[0]
+                    
+                    if len(dup_objs) > 1:
+                        bpy.ops.object.join()
+                    
+                    merged_obj = context.active_object
+                    merged_obj.name = name
+                    if merged_obj.data:
+                        merged_obj.data.name = name
+                    
+                    temp_single_mesh_objs.append(merged_obj)
+                    valid_objs = [merged_obj] + non_mesh_objs
+
+                    # Refresh selection for updated valid_objs
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for o in valid_objs:
+                        try:
+                            o.select_set(True)
+                        except Exception as e:
+                            print(f"Skipping selection for {o.name}: {e}")
+
             # Sort by hierarchy depth (root first) to ensure parents are reset before children
             def get_obj_depth(obj):
                 depth = 0
@@ -516,6 +569,17 @@ class REXTOOLS3_OT_Export(Operator):
                     except Exception as e:
                         print(f"Failed to restore armature pose position: {e}")
 
+                # --- Clean up Temporary Single Mesh Object ---
+                if temp_single_mesh_objs:
+                    for t_obj in temp_single_mesh_objs:
+                        try:
+                            t_mesh = t_obj.data
+                            bpy.data.objects.remove(t_obj, do_unlink=True)
+                            if t_mesh and t_mesh.users == 0:
+                                bpy.data.meshes.remove(t_mesh)
+                        except Exception as e:
+                            print(f"Failed to remove temporary single mesh object: {e}")
+
         # Restore
         bpy.ops.object.select_all(action='DESELECT')
         for o in orig_selection:
@@ -663,6 +727,7 @@ class REXTOOLS3_OT_ClearAllOverrides(Operator):
         overrides.override_reset_transform = False
         overrides.override_pre_rotation = False
         overrides.override_pre_scale = False
+        overrides.override_single_mesh = False
         
         self.report({'INFO'}, f"Cleared all overrides for {coll.name}")
         return {'FINISHED'}

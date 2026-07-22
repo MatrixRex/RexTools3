@@ -1263,6 +1263,50 @@ class SculptToolsProperties(bpy.types.PropertyGroup):
     orig_zoom_to_mouse: BoolProperty()
 
 
+def get_mute_constraint_items(self, context):
+    items = [
+        ('ALL', "All Constraints", "Mute or unmute all constraints on selected bone(s)")
+    ]
+    added_keys = {'ALL'}
+    
+    if context and hasattr(context, "active_pose_bone") and context.active_pose_bone:
+        for con in context.active_pose_bone.constraints:
+            key = f"NAME:{con.name}"
+            if key not in added_keys:
+                items.append((key, f"Constraint: {con.name}", f"Target constraint '{con.name}'"))
+                added_keys.add(key)
+                
+    type_items = [
+        ('COPY_LOCATION', "Copy Location", ""),
+        ('COPY_ROTATION', "Copy Rotation", ""),
+        ('COPY_SCALE', "Copy Scale", ""),
+        ('COPY_TRANSFORMS', "Copy Transforms", ""),
+        ('LIMIT_DISTANCE', "Limit Distance", ""),
+        ('LIMIT_LOCATION', "Limit Location", ""),
+        ('LIMIT_ROTATION', "Limit Rotation", ""),
+        ('LIMIT_SCALE', "Limit Scale", ""),
+        ('MAINTAIN_VOLUME', "Maintain Volume", ""),
+        ('TRANSFORM_CACHE', "Transform Cache", ""),
+        ('CLAMP_TO', "Clamp To", ""),
+        ('DAMPED_TRACK', "Damped Track", ""),
+        ('IK', "IK", ""),
+        ('LOCKED_TRACK', "Locked Track", ""),
+        ('SPLINE_IK', "Spline IK", ""),
+        ('STRETCH_TO', "Stretch To", ""),
+        ('TRACK_TO', "Track To", ""),
+        ('ACTION', "Action", ""),
+        ('ARMATURE', "Armature", ""),
+    ]
+    
+    for identifier, name, desc in type_items:
+        key = f"TYPE:{identifier}"
+        if key not in added_keys:
+            items.append((key, name, desc if desc else f"All {name} constraints"))
+            added_keys.add(key)
+            
+    return items
+
+
 class PoseToolsProperties(bpy.types.PropertyGroup):
     source_armature: PointerProperty(
         name="Source",
@@ -1274,6 +1318,12 @@ class PoseToolsProperties(bpy.types.PropertyGroup):
         description="Base name for the chained bone renaming",
         default="spine"
     )
+    mute_constraint_target: EnumProperty(
+        name="Constraint Picker",
+        description="Select constraint or type to mute/unmute, or All Constraints",
+        items=get_mute_constraint_items
+    )
+
 
 
 class Rextools3MissingTextureItem(bpy.types.PropertyGroup):

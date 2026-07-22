@@ -439,6 +439,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
     # Pose Tools Sub-tools
     enable_tool_pose_init_weight: BoolProperty(name="Init Weight Paint", default=True, update=update_panel_redraw)
     enable_tool_setup_pose_copier: BoolProperty(name="Setup Pose Copier", default=True, update=update_panel_redraw)
+    enable_tool_mute_constraints: BoolProperty(name="Mute Constraints", default=True, update=update_panel_redraw)
     enable_tool_flipped_anim: BoolProperty(name="Flipped Anim", default=True, update=update_panel_redraw)
 
     # Sculpt Tools Sub-tools
@@ -628,6 +629,7 @@ class RexTools3Preferences(bpy.types.AddonPreferences):
             draw_panel_category(col_pose, "Pose Tools", 'POSE_HLT', "enable_pose_tools", [
                 ("enable_tool_pose_init_weight", "Init Weight Paint"),
                 ("enable_tool_setup_pose_copier", "Setup Pose Copier"),
+                ("enable_tool_mute_constraints", "Mute Constraints"),
                 ("enable_tool_flipped_anim", "Flipped Anim")
             ], category_prop="category_pose_tools")
             draw_panel_category(col_pose, "Chain Constraints Adder", 'CONSTRAINT_BONE', "enable_chain_constraints", category_prop="category_chain_constraints")

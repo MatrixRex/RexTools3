@@ -62,4 +62,6 @@ class REXTOOLS3_PT_ChainConstraintsAdder(Panel):
         layout.operator("rex.chain_constraints_adder", text="Execute", icon='PLAY')
 
         layout.separator()
-        layout.operator("rex.remove_all_bone_constraints", text="Remove All Constraints", icon='X')
+        row = layout.row(align=True)
+        row.operator("rex.remove_all_bone_constraints", text="Remove All", icon='X')
+        row.operator("rextools3.mute_constraints", text="Mute / Unmute", icon='HIDE_OFF')

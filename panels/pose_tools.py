@@ -31,17 +31,30 @@ class RexTools3PoseToolsPanel(bpy.types.Panel):
             prefs = None
 
         if context.mode == 'POSE':
-            # Pose Tools
-            col = layout.column(align=True)
-            col.prop(props, "source_armature", text="Source")
-            
-            layout.separator()
-            
+            # Setup Pose Copier
+            if not prefs or prefs.enable_tool_setup_pose_copier:
+                box = layout.box()
+                col = box.column(align=True)
+                col.label(text="Setup Pose Copier", icon='POSE_HLT')
+                col.prop(props, "source_armature", text="Source")
+                col.separator()
+                col.operator("rextools3.setup_pose_copier", text="Setup Pose Copier", icon='POSE_HLT')
+                layout.separator()
+
+            # Mute Constraints
+            if not prefs or prefs.enable_tool_mute_constraints:
+                box = layout.box()
+                col = box.column(align=True)
+                col.label(text="Mute Constraints", icon='CONSTRAINT_BONE')
+                col.prop(props, "mute_constraint_target", text="Constraint")
+                col.separator()
+                col.operator("rextools3.mute_constraints", text="Mute Constraints", icon='HIDE_OFF')
+                layout.separator()
+
+            # Other Pose Tools
             col = layout.column()
             if not prefs or prefs.enable_tool_pose_init_weight:
                 col.operator("rextools3.init_weight_paint", text="Init Weight Paint", icon='WPAINT_HLT')
-            if not prefs or prefs.enable_tool_setup_pose_copier:
-                col.operator("rextools3.setup_pose_copier", text="Setup Pose Copier", icon='POSE_HLT')
             if not prefs or prefs.enable_tool_flipped_anim:
                 col.operator("rextools3.flipped_anim", text="Flipped Anim", icon='DUPLICATE')
             

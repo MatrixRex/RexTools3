@@ -12,6 +12,11 @@ from bpy.types import PropertyGroup
 from .core import node_utils
 
 
+def update_auto_frame_range(self, context):
+    from .operators.auto_frame_range import update_frame_range
+    update_frame_range(self)
+
+
 def update_use_sep_alpha(self, context):
     mat = self.id_data
     if not mat.use_nodes:
@@ -1521,8 +1526,9 @@ def register_properties():
     bpy.types.Scene.rex_common_settings = PointerProperty(type=RexCommonSettings)
     bpy.types.Scene.rex_auto_frame_range = BoolProperty(
         name="Auto Frame Range",
-        description="Auto calculate start and end frame based on active action",
-        default=False
+        description="Auto calculate start and end frame based on active action or selected NLA strips",
+        default=False,
+        update=update_auto_frame_range
     )
     bpy.types.Scene.rex_cleanup_props = PointerProperty(type=CleanupProperties)
     bpy.types.Scene.weight_tools_props = PointerProperty(type=WeightToolsProperties)

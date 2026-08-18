@@ -173,7 +173,7 @@ def get_object_group_info(obj):
         if any(s in col_n for s in ["low", "lp", "lowpoly"]):
             return MESH_OT_auto_rename_high_low.clean_base_name(clean_n), 'low', ""
 
-    return MESH_OT_auto_rename_high_low.clean_base_name(clean_n), 'unknown', ""
+    return None, 'none', ""
 
 
 def populate_bake_groups(context, selection_only=True):
@@ -190,10 +190,12 @@ def populate_bake_groups(context, selection_only=True):
         
     # Build dictionary of groups: group_name -> {'low': [objs], 'high': [objs]}
     groups_dict = {}
-    unclassified = []
     
     for obj in target_objs:
         group_name, mesh_type, _ = get_object_group_info(obj)
+        if mesh_type == 'none' or not group_name:
+            continue
+            
         if group_name not in groups_dict:
             groups_dict[group_name] = {'low': [], 'high': []}
             
@@ -201,44 +203,6 @@ def populate_bake_groups(context, selection_only=True):
             groups_dict[group_name]['low'].append(obj)
         elif mesh_type == 'high':
             groups_dict[group_name]['high'].append(obj)
-        else:
-            unclassified.append((group_name, obj))
-            
-    # Classify unclassified objects via vertex count
-    if unclassified:
-        depsgraph = context.evaluated_depsgraph_get()
-        def get_v(o):
-            return len(o.evaluated_get(depsgraph).data.vertices)
-            
-        for g_name, obj in unclassified:
-            g = groups_dict.get(g_name, {'low': [], 'high': []})
-            v = get_v(obj)
-            low_verts = [get_v(o) for o in g['low']]
-            high_verts = [get_v(o) for o in g['high']]
-            
-            avg_low = sum(low_verts) / len(low_verts) if low_verts else 0
-            avg_high = sum(high_verts) / len(high_verts) if high_verts else 0
-            
-            if avg_low > 0 and avg_high > 0:
-                if abs(v - avg_low) < abs(v - avg_high):
-                    g['low'].append(obj)
-                else:
-                    g['high'].append(obj)
-            elif avg_low > 0:
-                if v > avg_low * 1.5:
-                    g['high'].append(obj)
-                else:
-                    g['low'].append(obj)
-            elif avg_high > 0:
-                if v < avg_high * 0.7:
-                    g['low'].append(obj)
-                else:
-                    g['high'].append(obj)
-            else:
-                # Fallback: classify as low default
-                g['low'].append(obj)
-                
-            groups_dict[g_name] = g
 
     # Preserve locked groups while rebuilding/updating
     locked_group_names = {bg.group_name for bg in props.bake_groups if bg.is_locked}
@@ -351,6 +315,12 @@ class REXTOOLS3_OT_marmoset_bridge_prep(Operator):
         
         populate_bake_groups(context, selection_only=bool(context.selected_objects) and not any(bg.is_locked for bg in props.bake_groups))
         
+        if not props.bake_groups:
+            selected_meshes = [o for o in context.selected_objects if o.type == 'MESH']
+            if len(selected_meshes) >= 2:
+                bpy.ops.mesh.auto_rename_high_low()
+                populate_bake_groups(context, selection_only=True)
+
         if not props.bake_groups:
             self.report({'ERROR'}, "No Bake Groups found to prepare")
             return {'CANCELLED'}

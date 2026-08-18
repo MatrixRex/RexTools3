@@ -732,6 +732,161 @@ class REXTOOLS3_OT_ClearAllOverrides(Operator):
         self.report({'INFO'}, f"Cleared all overrides for {coll.name}")
         return {'FINISHED'}
 
+FORMAT_EXTENSIONS = {
+    'BMP': '.bmp',
+    'PNG': '.png',
+    'JPEG': '.jpg',
+    'JPEG2000': '.jp2',
+    'TARGA': '.tga',
+    'TARGA_RAW': '.tga',
+    'CINEON': '.cin',
+    'DPX': '.dpx',
+    'MULTILAYER': '.exr',
+    'OPEN_EXR': '.exr',
+    'OPEN_EXR_MULTILAYER': '.exr',
+    'HDR': '.hdr',
+    'TIFF': '.tif',
+    'WEBP': '.webp',
+}
+
+
+def _get_image_filename(img):
+    """Determine a safe and valid filename for the image datablock."""
+    raw_name = ""
+    ext = ""
+    if img.filepath:
+        basename = os.path.basename(img.filepath)
+        if basename:
+            raw_name, ext = os.path.splitext(basename)
+            
+    if not raw_name:
+        raw_name = bpy.path.clean_name(img.name)
+    if not raw_name:
+        raw_name = "texture"
+        
+    if not ext:
+        ext = FORMAT_EXTENSIONS.get(img.file_format, '.png')
+        
+    return f"{raw_name}{ext}"
+
+
+def _collect_images_from_material(mat):
+    """Recursively collect all image datablocks from a material's node tree, including node groups."""
+    images = set()
+    if not mat or not mat.use_nodes or not mat.node_tree:
+        return images
+        
+    def _traverse(tree, visited):
+        if not tree or tree in visited:
+            return
+        visited.add(tree)
+        for node in tree.nodes:
+            if node.type == 'TEX_IMAGE' and node.image:
+                images.add(node.image)
+            elif node.type == 'GROUP' and getattr(node, 'node_tree', None):
+                _traverse(node.node_tree, visited)
+                
+    _traverse(mat.node_tree, set())
+    return images
+
+
+def _collect_images_from_object(obj):
+    """Collect all unique images from all material slots and mesh data of an object."""
+    images = set()
+    if not obj:
+        return images
+        
+    mats = set()
+    if hasattr(obj, "material_slots"):
+        for slot in obj.material_slots:
+            if slot.material:
+                mats.add(slot.material)
+    if hasattr(obj, "data") and hasattr(obj.data, "materials"):
+        for mat in obj.data.materials:
+            if mat:
+                mats.add(mat)
+                
+    for mat in mats:
+        images.update(_collect_images_from_material(mat))
+        
+    return images
+
+
+def _resolve_image_on_disk(img, filename):
+    """Attempt to find the image on disk across original and local project candidate locations."""
+    candidates = []
+    
+    # 1. Direct resolution via image.filepath
+    if img.filepath:
+        abs_path = bpy.path.abspath(img.filepath)
+        if abs_path:
+            candidates.append(abs_path)
+        norm_path = os.path.normpath(img.filepath)
+        if norm_path and norm_path not in candidates:
+            candidates.append(norm_path)
+            
+    # 2. Blend file directory candidates (if blend is saved)
+    if bpy.data.is_saved and bpy.data.filepath:
+        blend_dir = os.path.dirname(bpy.data.filepath)
+        candidates.append(os.path.join(blend_dir, "textures", filename))
+        candidates.append(os.path.join(blend_dir, filename))
+        candidates.append(os.path.join(blend_dir, "Textures", filename))
+        
+        if img.filepath:
+            clean_rel = img.filepath.lstrip("/\\")
+            candidates.append(os.path.join(blend_dir, clean_rel))
+            
+    for cand in candidates:
+        if cand and os.path.isfile(cand):
+            return os.path.abspath(cand)
+            
+    return None
+
+
+def _save_memory_image_to_disk(img, target_path):
+    """Save an in-memory, packed, or generated image datablock to disk at target_path."""
+    try:
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        
+        # 1. If packed into .blend, write raw bytes directly (exact, lossless)
+        if img.packed_file and hasattr(img.packed_file, "data") and img.packed_file.data:
+            with open(target_path, "wb") as f:
+                f.write(img.packed_file.data)
+            return True
+            
+        # 2. Force pixel data load into memory if needed
+        if not img.has_data:
+            try:
+                _ = img.pixels[0]
+            except Exception:
+                pass
+                
+        # 3. Try saving via filepath_raw
+        orig_filepath = img.filepath_raw
+        try:
+            img.filepath_raw = target_path
+            img.save()
+            if os.path.isfile(target_path):
+                return True
+        except Exception:
+            pass
+        finally:
+            img.filepath_raw = orig_filepath
+            
+        # 4. Fallback to save_render
+        try:
+            img.save_render(target_path)
+            if os.path.isfile(target_path):
+                return True
+        except Exception as e:
+            print(f"[RexTools3] save_render failed for {img.name}: {e}")
+            
+    except Exception as e:
+        print(f"[RexTools3] Failed to save image {img.name} to {target_path}: {e}")
+        
+    return False
+
+
 class REXTOOLS3_OT_CopyTextures(Operator):
     bl_idname = "rextools3.copy_textures"
     bl_label = "Copy Textures"
@@ -768,20 +923,13 @@ class REXTOOLS3_OT_CopyTextures(Operator):
             if dest_dir not in dest_images:
                 dest_images[dest_dir] = set()
                 
-            # Collect mesh objects for this group
+            # Collect all mesh/object textures for this group
             for obj in data['objects']:
-                if obj.type == 'MESH':
-                    for mat in obj.data.materials:
-                        if mat and mat.use_nodes and mat.node_tree:
-                            for node in mat.node_tree.nodes:
-                                if node.type == 'TEX_IMAGE' and node.image:
-                                    img = node.image
-                                    if img.source in {'FILE', 'SEQUENCE', 'TILED'}:
-                                        dest_images[dest_dir].add(img)
+                dest_images[dest_dir].update(_collect_images_from_object(obj))
                                         
         total_images = sum(len(imgs) for imgs in dest_images.values())
         if total_images == 0:
-            self.report({'WARNING'}, "No file-based textures found in materials.")
+            self.report({'WARNING'}, "No textures found in export materials.")
             return {'FINISHED'}
             
         copied_count = 0
@@ -801,25 +949,89 @@ class REXTOOLS3_OT_CopyTextures(Operator):
                     self.report({'ERROR'}, f"Failed to create directory {dest_dir}: {str(e)}")
                     continue
                     
-            dest_dir_names.add(os.path.basename(dest_dir))
+            dest_dir_names.add(os.path.basename(dest_dir) or dest_dir)
             
             for img in images:
-                if not img.filepath:
+                # Handle UDIM / Tiled images
+                is_udim = (img.source == 'TILED') or (img.filepath and ("<UDIM>" in img.filepath or "<udim>" in img.filepath))
+                
+                if is_udim and hasattr(img, "tiles") and len(img.tiles) > 0:
+                    base_filename = _get_image_filename(img)
+                    for tile in img.tiles:
+                        tile_str = str(tile.number)
+                        tile_filename = base_filename.replace("<UDIM>", tile_str).replace("<udim>", tile_str)
+                        if "<UDIM>" not in base_filename and "<udim>" not in base_filename:
+                            name_part, ext_part = os.path.splitext(base_filename)
+                            tile_filename = f"{name_part}_{tile_str}{ext_part}"
+                            
+                        # Look on disk
+                        src_path = _resolve_image_on_disk(img, tile_filename)
+                        if not src_path:
+                            # Try resolving tile filepath directly
+                            if img.filepath:
+                                t_path = bpy.path.abspath(img.filepath).replace("<UDIM>", tile_str).replace("<udim>", tile_str)
+                                if os.path.isfile(t_path):
+                                    src_path = t_path
+                                    
+                        dest_path = os.path.join(dest_dir, tile_filename)
+                        if src_path and os.path.isfile(src_path):
+                            try:
+                                is_same = False
+                                if os.path.exists(dest_path):
+                                    try:
+                                        is_same = os.path.samefile(src_path, dest_path)
+                                    except Exception:
+                                        is_same = (os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)))
+                                if not is_same:
+                                    shutil.copy2(src_path, dest_path)
+                                    copied_count += 1
+                                else:
+                                    skipped_count += 1
+                            except Exception as e:
+                                self.report({'WARNING'}, f"Failed to copy tile {tile_filename}: {str(e)}")
+                        else:
+                            missing_count += 1
+                    continue
+                
+                # Standard / Non-UDIM image handling
+                filename = _get_image_filename(img)
+                src_path = _resolve_image_on_disk(img, filename)
+                
+                # If not found on disk, attempt saving from memory/packed data
+                if not src_path:
+                    has_memory_data = (img.packed_file is not None) or img.has_data or img.is_dirty or (img.size[0] > 0 and img.size[1] > 0)
+                    if has_memory_data:
+                        if bpy.data.is_saved and bpy.data.filepath:
+                            blend_dir = os.path.dirname(bpy.data.filepath)
+                            local_textures_dir = os.path.join(blend_dir, "textures")
+                            local_file_path = os.path.join(local_textures_dir, filename)
+                            if _save_memory_image_to_disk(img, local_file_path):
+                                src_path = local_file_path
+                                # Link image to local textures folder
+                                img.filepath = f"//textures/{filename}"
+                        else:
+                            # Blend file not saved: save directly to destination
+                            dest_path = os.path.join(dest_dir, filename)
+                            if _save_memory_image_to_disk(img, dest_path):
+                                copied_count += 1
+                                continue
+                                
+                if not src_path or not os.path.isfile(src_path):
+                    print(f"[RexTools3] Texture could not be found or extracted: {img.name} ({img.filepath})")
                     missing_count += 1
                     continue
                     
-                filepath = bpy.path.abspath(img.filepath)
-                if not filepath or not os.path.exists(filepath) or os.path.isdir(filepath):
-                    print(f"[RexTools3] Texture file not found: {filepath}")
-                    missing_count += 1
-                    continue
-                    
-                filename = os.path.basename(filepath)
                 dest_path = os.path.join(dest_dir, filename)
                 
                 try:
-                    if not os.path.exists(dest_path) or not os.path.samefile(filepath, dest_path):
-                        shutil.copy2(filepath, dest_path)
+                    is_same = False
+                    if os.path.exists(dest_path):
+                        try:
+                            is_same = os.path.samefile(src_path, dest_path)
+                        except Exception:
+                            is_same = (os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)))
+                    if not is_same:
+                        shutil.copy2(src_path, dest_path)
                         copied_count += 1
                     else:
                         skipped_count += 1
@@ -831,10 +1043,16 @@ class REXTOOLS3_OT_CopyTextures(Operator):
         if skipped_count > 0:
             msg += f", {skipped_count} already existed"
         if missing_count > 0:
-            msg += f", {missing_count} missing on disk"
+            msg += f", {missing_count} missing"
         msg += f" in {dest_desc}."
         
         self.report({'INFO'}, msg)
-        notify.success(msg)
+        if copied_count > 0:
+            notify.success(msg)
+        elif skipped_count > 0:
+            notify.info(msg)
+        else:
+            notify.warning(msg)
+            
         return {'FINISHED'}
 

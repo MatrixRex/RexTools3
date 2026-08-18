@@ -5,16 +5,7 @@ addon_keymaps = []
 
 def get_sculpt_brush(context):
     """Robust sculpt brush lookup across Blender 3.x, 4.x, 4.5+ and 5.x."""
-    # 1. Check sculpt_object.sculpt_session
-    sculpt_obj = getattr(context, "sculpt_object", None) or getattr(context, "active_object", None)
-    if sculpt_obj:
-        ss = getattr(sculpt_obj, "sculpt_session", None)
-        if ss:
-            b = getattr(ss, "active_brush", None) or getattr(ss, "brush", None)
-            if b:
-                return b
-
-    # 2. Check context.tool_settings.sculpt
+    # 1. Check context.tool_settings.sculpt
     ts = getattr(context, "tool_settings", None)
     if ts:
         sculpt = getattr(ts, "sculpt", None)
@@ -23,13 +14,22 @@ def get_sculpt_brush(context):
             if b:
                 return b
 
-    # 3. Direct context brush
+    # 2. Direct context brush
     try:
         b = getattr(context, "brush", None)
         if b:
             return b
     except Exception:
         pass
+
+    # 3. Check sculpt_object.sculpt_session
+    sculpt_obj = getattr(context, "sculpt_object", None) or getattr(context, "active_object", None)
+    if sculpt_obj:
+        ss = getattr(sculpt_obj, "sculpt_session", None)
+        if ss:
+            b = getattr(ss, "active_brush", None) or getattr(ss, "brush", None)
+            if b:
+                return b
 
     return None
 
@@ -156,16 +156,126 @@ class REXTOOLS3_OT_flip_paint_polarity(bpy.types.Operator):
             toggled = False
             new_dir_str = "Toggled"
 
-            if brush and hasattr(brush, 'direction'):
-                try:
-                    current_dir = brush.direction
-                    new_dir = 'SUBTRACT' if current_dir == 'ADD' else 'ADD'
-                    brush.direction = new_dir
-                    new_dir_str = new_dir.title()
-                    toggled = True
-                except Exception as e:
-                    print(f"[RexTools3] Direct brush.direction edit failed: {e}")
+            if brush:
+                sculpt_tool = getattr(brush, "sculpt_tool", None)
 
+                # Mask Brush (mask_tool: DRAW vs ERASE)
+                if sculpt_tool == 'MASK' or hasattr(brush, 'mask_tool'):
+                    if hasattr(brush, 'mask_tool'):
+                        try:
+                            current_mask = brush.mask_tool
+                            new_mask = 'ERASE' if current_mask == 'DRAW' else 'DRAW'
+                            brush.mask_tool = new_mask
+                            new_dir_str = "Erase Mask" if new_mask == 'ERASE' else "Draw Mask"
+                            toggled = True
+                        except Exception as e:
+                            print(f"[RexTools3] Direct brush.mask_tool edit failed: {e}")
+
+                    if hasattr(brush, 'direction'):
+                        try:
+                            current_dir = getattr(brush, 'direction', 'ADD')
+                            brush.direction = 'SUBTRACT' if current_dir == 'ADD' else 'ADD'
+                            if not toggled:
+                                new_dir_str = "Subtract Mask" if brush.direction == 'SUBTRACT' else "Add Mask"
+                                toggled = True
+                        except Exception:
+                            pass
+
+                # Face Sets Brush (face_sets_tool: DRAW vs ERASE)
+                elif sculpt_tool == 'DRAW_FACE_SETS' or hasattr(brush, 'face_sets_tool'):
+                    if hasattr(brush, 'face_sets_tool'):
+                        try:
+                            current_fs = brush.face_sets_tool
+                            new_fs = 'ERASE' if current_fs == 'DRAW' else 'DRAW'
+                            brush.face_sets_tool = new_fs
+                            new_dir_str = "Erase Face Sets" if new_fs == 'ERASE' else "Draw Face Sets"
+                            toggled = True
+                        except Exception as e:
+                            print(f"[RexTools3] Direct brush.face_sets_tool edit failed: {e}")
+
+                    if hasattr(brush, 'direction'):
+                        try:
+                            current_dir = getattr(brush, 'direction', 'ADD')
+                            brush.direction = 'SUBTRACT' if current_dir == 'ADD' else 'ADD'
+                            if not toggled:
+                                new_dir_str = brush.direction.title()
+                                toggled = True
+                        except Exception:
+                            pass
+
+                # Sculpt Paint / Color Brush
+                elif sculpt_tool in {'PAINT', 'COLOR', 'VERTEX_COLOR'}:
+                    flipped_color = False
+                    if hasattr(brush, 'color') and hasattr(brush, 'secondary_color'):
+                        try:
+                            brush.color, brush.secondary_color = list(brush.secondary_color), list(brush.color)
+                            flipped_color = True
+                        except Exception:
+                            pass
+
+                    if hasattr(brush, 'direction'):
+                        try:
+                            current_dir = brush.direction
+                            new_dir = 'SUBTRACT' if current_dir == 'ADD' else 'ADD'
+                            brush.direction = new_dir
+                            new_dir_str = new_dir.title()
+                            toggled = True
+                        except Exception:
+                            pass
+
+                    if flipped_color and not toggled:
+                        new_dir_str = "Colors Swapped"
+                        toggled = True
+
+                # Standard Sculpt Brushes with direction attribute
+                if not toggled and hasattr(brush, 'direction'):
+                    try:
+                        current_dir = brush.direction
+                        new_dir = 'SUBTRACT' if current_dir == 'ADD' else 'ADD'
+                        brush.direction = new_dir
+                        new_dir_str = new_dir.title()
+                        toggled = True
+                    except Exception as e:
+                        print(f"[RexTools3] Direct brush.direction edit failed: {e}")
+
+            # Fallback 1: Built-in Blender sculpt.direction_toggle operator
+            if not toggled:
+                try:
+                    if hasattr(bpy.ops.sculpt, "direction_toggle"):
+                        res = bpy.ops.sculpt.direction_toggle()
+                        if 'FINISHED' in res:
+                            toggled = True
+                            if brush:
+                                if hasattr(brush, 'mask_tool'):
+                                    new_dir_str = "Erase Mask" if brush.mask_tool == 'ERASE' else "Draw Mask"
+                                elif hasattr(brush, 'direction'):
+                                    new_dir_str = brush.direction.title()
+                except Exception as e:
+                    print(f"[RexTools3] sculpt.direction_toggle failed: {e}")
+
+            # Fallback 2: wm.context_toggle_enum on tool_settings.sculpt.brush.direction
+            if not toggled:
+                try:
+                    res = bpy.ops.wm.context_toggle_enum(data_path="tool_settings.sculpt.brush.direction", value_1="ADD", value_2="SUBTRACT")
+                    if 'FINISHED' in res:
+                        toggled = True
+                        if brush and hasattr(brush, 'direction'):
+                            new_dir_str = brush.direction.title()
+                except Exception as e:
+                    print(f"[RexTools3] context_toggle_enum brush.direction failed: {e}")
+
+            # Fallback 3: wm.context_toggle_enum on tool_settings.sculpt.brush.mask_tool
+            if not toggled:
+                try:
+                    res = bpy.ops.wm.context_toggle_enum(data_path="tool_settings.sculpt.brush.mask_tool", value_1="DRAW", value_2="ERASE")
+                    if 'FINISHED' in res:
+                        toggled = True
+                        if brush and hasattr(brush, 'mask_tool'):
+                            new_dir_str = "Erase Mask" if brush.mask_tool == 'ERASE' else "Draw Mask"
+                except Exception as e:
+                    print(f"[RexTools3] context_toggle_enum mask_tool failed: {e}")
+
+            # Fallback 4: wm.context_toggle_enum on brush.direction
             if not toggled:
                 try:
                     res = bpy.ops.wm.context_toggle_enum(data_path="brush.direction", value_1="ADD", value_2="SUBTRACT")
@@ -174,7 +284,7 @@ class REXTOOLS3_OT_flip_paint_polarity(bpy.types.Operator):
                         if brush and hasattr(brush, 'direction'):
                             new_dir_str = brush.direction.title()
                 except Exception as e:
-                    print(f"[RexTools3] context_toggle_enum failed: {e}")
+                    print(f"[RexTools3] context_toggle_enum brush.direction fallback failed: {e}")
 
             if toggled:
                 redraw_all_areas(context)

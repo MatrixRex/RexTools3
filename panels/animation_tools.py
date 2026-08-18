@@ -26,7 +26,7 @@ class REXTOOLS3_PT_AnimationTools(Panel):
         scene = context.scene
         props = scene.rextools3_keyframe_offset_props
 
-        # Use helper from ui/utils to draw the section
+        # Keyframe Offset section
         col = draw_section(layout, "Keyframe Offset", icon='ANIM_DATA')
 
         # Direction toggle
@@ -42,3 +42,41 @@ class REXTOOLS3_PT_AnimationTools(Panel):
         
         # Execute operator button using draw_call_to_action helper
         draw_call_to_action(col, "rextools3.keyframe_offset", "Offset Keyframes", icon='PLAY')
+
+        # Walk Cycle Creator section
+        wc_props = scene.rextools3_walk_cycle_props
+        layout.separator()
+        col2 = draw_section(layout, "Walk Cycle Creator", icon='ARMATURE_DATA')
+        
+        col2.prop(wc_props, "walk_mode")
+        
+        box = col2.box()
+        box.label(text="Bones", icon='BONE_DATA')
+        obj = context.active_object
+        
+        if obj and obj.type == 'ARMATURE':
+            box.prop_search(wc_props, "bone_leg_l", obj.data, "bones")
+            box.prop_search(wc_props, "bone_leg_r", obj.data, "bones")
+            if wc_props.walk_mode == 'BIPEDAL':
+                box.prop_search(wc_props, "bone_arm_l", obj.data, "bones")
+                box.prop_search(wc_props, "bone_arm_r", obj.data, "bones")
+            else:
+                box.prop_search(wc_props, "bone_arm_l", obj.data, "bones", text="Front Leg L")
+                box.prop_search(wc_props, "bone_arm_r", obj.data, "bones", text="Front Leg R")
+            
+            box.prop_search(wc_props, "bone_hip", obj.data, "bones")
+            box.prop_search(wc_props, "bone_head", obj.data, "bones")
+        else:
+            box.label(text="Please select an armature", icon='ERROR')
+            
+        col2.separator()
+        col2.prop(wc_props, "cycle_length")
+        col2.prop(wc_props, "stride_length")
+        col2.prop(wc_props, "step_height")
+        col2.prop(wc_props, "hip_sway")
+        col2.prop(wc_props, "hip_bob")
+        if wc_props.walk_mode == 'BIPEDAL':
+            col2.prop(wc_props, "arm_swing")
+            
+        col2.separator()
+        draw_call_to_action(col2, "rextools3.walk_cycle_creator", "Create Walk Cycle", icon='PLAY')

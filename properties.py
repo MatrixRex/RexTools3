@@ -1497,6 +1497,30 @@ class TextureOvenProperties(PropertyGroup):
     )
 
 
+class WalkCycleProperties(PropertyGroup):
+    walk_mode: EnumProperty(
+        name="Mode",
+        items=[
+            ('BIPEDAL', "Bipedal", "Generate bipedal walk cycle"),
+            ('QUADRUPEDAL', "Quadrupedal", "Generate quadrupedal walk cycle"),
+        ],
+        default='BIPEDAL'
+    )
+    bone_leg_l: StringProperty(name="Leg L")
+    bone_leg_r: StringProperty(name="Leg R")
+    bone_arm_l: StringProperty(name="Arm L (Front L)")
+    bone_arm_r: StringProperty(name="Arm R (Front R)")
+    bone_hip: StringProperty(name="Hip")
+    bone_head: StringProperty(name="Head / Spine")
+
+    cycle_length: IntProperty(name="Cycle Length", default=24, min=4)
+    stride_length: FloatProperty(name="Stride Length", default=0.5, min=0.0)
+    step_height: FloatProperty(name="Step Height", default=0.2, min=0.0)
+    hip_sway: FloatProperty(name="Hip Sway", default=0.05, min=0.0)
+    hip_bob: FloatProperty(name="Hip Bob", default=0.05, min=0.0)
+    arm_swing: FloatProperty(name="Arm Swing", default=0.2, min=0.0)
+
+
 class EngineVertexStatsProperties(PropertyGroup):
     blender_verts: IntProperty(default=0)
     engine_verts: IntProperty(default=0)
@@ -1540,6 +1564,7 @@ def register_properties():
     bpy.types.Scene.rex_texture_oven_props = PointerProperty(type=TextureOvenProperties)
     bpy.types.Scene.rex_engine_vertex_stats = PointerProperty(type=EngineVertexStatsProperties)
     bpy.types.Scene.rextools3_keyframe_offset_props = PointerProperty(type=Rextools3KeyframeOffsetProperties)
+    bpy.types.Scene.rextools3_walk_cycle_props = PointerProperty(type=WalkCycleProperties)
 
 
 def unregister_properties():
@@ -1573,3 +1598,4 @@ def unregister_properties():
     del bpy.types.Scene.rex_texture_oven_props
     del bpy.types.Scene.rex_engine_vertex_stats
     del bpy.types.Scene.rextools3_keyframe_offset_props
+    del bpy.types.Scene.rextools3_walk_cycle_props

@@ -39,7 +39,10 @@ class REXTOOLS3_PT_ExportManager(Panel):
         col = utils.draw_section(layout, "Global Configuration", icon='WORLD')
         
         # Path selection
-        col.prop(settings, "export_path", text="")
+        row = col.row(align=True)
+        row.prop(settings, "export_path", text="")
+        op = row.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+        op.target_path = "scene.rex_export_settings.export_path"
         
         col.separator()
         
@@ -102,7 +105,10 @@ class REXTOOLS3_PT_ExportManager(Panel):
 
         # --- TEXTURE COPY ---
         col = utils.draw_section(layout, "Texture Copy", icon='IMAGE_DATA')
-        col.prop(settings, "texture_copy_path", text="")
+        row = col.row(align=True)
+        row.prop(settings, "texture_copy_path", text="")
+        op = row.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+        op.target_path = "scene.rex_export_settings.texture_copy_path"
         col.separator()
         col.operator("rextools3.copy_textures", text="Copy Textures", icon='DUPLICATE')
 
@@ -222,8 +228,15 @@ class REXTOOLS3_PT_GlobalExportSettings(Panel):
         col.use_property_split = True
         col.use_property_decorate = False
         
-        col.prop(settings, "export_path", text="Global Path")
-        col.prop(settings, "texture_copy_path", text="Texture Copy Path")
+        row1 = col.row(align=True)
+        row1.prop(settings, "export_path", text="Global Path")
+        op1 = row1.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+        op1.target_path = "scene.rex_export_settings.export_path"
+        
+        row2 = col.row(align=True)
+        row2.prop(settings, "texture_copy_path", text="Texture Copy Path")
+        op2 = row2.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+        op2.target_path = "scene.rex_export_settings.texture_copy_path"
         col.separator()
         col.prop(settings, "export_mode", text="Mode")
         col.prop(settings, "export_limit", text="Limit")
@@ -263,7 +276,7 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
         col.use_property_decorate = False
         
         # Helper to draw a property with an override toggle
-        def draw_override_prop(layout, overrides, prop_name, override_name, text=None):
+        def draw_override_prop(layout, overrides, prop_name, override_name, text=None, is_path=False):
             row = layout.row(align=True)
             row.use_property_split = False
             # Standard override toggle
@@ -277,9 +290,13 @@ class REXTOOLS3_PT_CollectionExportPath(Panel):
                 sub.prop(overrides, prop_name, text=text)
             else:
                 sub.prop(overrides, prop_name)
+                
+            if is_path:
+                op = sub.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+                op.target_path = f"collection.rex_export_overrides.{prop_name}"
 
-        draw_override_prop(col, overrides, "export_path", "override_path", text="Path")
-        draw_override_prop(col, overrides, "texture_copy_path", "override_texture_copy_path", text="Texture Path")
+        draw_override_prop(col, overrides, "export_path", "override_path", text="Path", is_path=True)
+        draw_override_prop(col, overrides, "texture_copy_path", "override_texture_copy_path", text="Texture Path", is_path=True)
         col.separator()
         draw_override_prop(col, overrides, "export_format", "override_format", text="Format")
         draw_override_prop(col, overrides, "export_preset", "override_preset", text="Preset")

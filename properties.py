@@ -503,8 +503,8 @@ class Rextools3MarmosetBridgeProperties(PropertyGroup):
     export_path: StringProperty(
         name="Bake Output Path",
         description="Folder to save FBX files and baked textures",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     asset_name: StringProperty(
         name="Asset Name",
@@ -582,8 +582,8 @@ class BatchMaterialProperties(PropertyGroup):
     target_folder: StringProperty(
         name="Texture Folder",
         description="Folder to search for textures",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     recursive: BoolProperty(
         name="Recursive Search",
@@ -1017,14 +1017,14 @@ class RexCollectionExportOverrides(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
         description="Custom directory for this collection's export",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     texture_copy_path: StringProperty(
         name="Texture Copy Path",
         description="Custom directory for copying textures",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     export_format: EnumProperty(
         name="Format",
@@ -1094,14 +1094,14 @@ class RexExportSettings(PropertyGroup):
     export_path: StringProperty(
         name="Export Path",
         description="Global directory for exports",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     texture_copy_path: StringProperty(
         name="Texture Copy Path",
         description="Folder where textures will be copied",
-        default="",
-        subtype='DIR_PATH'
+        default="//",
+        subtype='NONE'
     )
     export_mode: EnumProperty(
         name="Export Mode",

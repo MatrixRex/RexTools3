@@ -140,3 +140,4 @@ class PBR_OT_BatchAssignTextures(Operator):
         bpy.ops.pbr.arrange_nodes()
         notify.success(f"Batch assignment complete. {assigned_count}/{total_mats} materials updated.")
         return {'FINISHED'}
+

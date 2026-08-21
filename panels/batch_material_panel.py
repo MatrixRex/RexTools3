@@ -74,7 +74,10 @@ class PBR_PT_BatchMaterialPanel(Panel):
                 # Settings Section
                 sbox = batch_box.box()
                 sbox.label(text="Batch Settings", icon='SETTINGS')
-                sbox.prop(props, "target_folder")
+                row = sbox.row(align=True)
+                row.prop(props, "target_folder")
+                op = row.operator("rextools3.pick_folder", text="", icon='FILE_FOLDER')
+                op.target_path = "scene.rex_batch_mat_props.target_folder"
                 sbox.prop(props, "recursive")
 
                 # Custom Suffixes (Collapsible)

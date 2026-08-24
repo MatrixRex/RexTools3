@@ -976,13 +976,23 @@ class REXTOOLS3_OT_CopyTextures(Operator):
                         dest_path = os.path.join(dest_dir, tile_filename)
                         if src_path and os.path.isfile(src_path):
                             try:
-                                is_same = False
+                                should_copy = True
                                 if os.path.exists(dest_path):
                                     try:
-                                        is_same = os.path.samefile(src_path, dest_path)
+                                        if os.path.samefile(src_path, dest_path):
+                                            should_copy = False
+                                        elif os.path.getmtime(src_path) <= os.path.getmtime(dest_path):
+                                            should_copy = False
                                     except Exception:
-                                        is_same = (os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)))
-                                if not is_same:
+                                        if os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)):
+                                            should_copy = False
+                                        else:
+                                            try:
+                                                if os.path.getmtime(src_path) <= os.path.getmtime(dest_path):
+                                                    should_copy = False
+                                            except Exception:
+                                                pass
+                                if should_copy:
                                     shutil.copy2(src_path, dest_path)
                                     copied_count += 1
                                 else:
@@ -1024,13 +1034,23 @@ class REXTOOLS3_OT_CopyTextures(Operator):
                 dest_path = os.path.join(dest_dir, filename)
                 
                 try:
-                    is_same = False
+                    should_copy = True
                     if os.path.exists(dest_path):
                         try:
-                            is_same = os.path.samefile(src_path, dest_path)
+                            if os.path.samefile(src_path, dest_path):
+                                should_copy = False
+                            elif os.path.getmtime(src_path) <= os.path.getmtime(dest_path):
+                                should_copy = False
                         except Exception:
-                            is_same = (os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)))
-                    if not is_same:
+                            if os.path.normcase(os.path.abspath(src_path)) == os.path.normcase(os.path.abspath(dest_path)):
+                                should_copy = False
+                            else:
+                                try:
+                                    if os.path.getmtime(src_path) <= os.path.getmtime(dest_path):
+                                        should_copy = False
+                                except Exception:
+                                    pass
+                    if should_copy:
                         shutil.copy2(src_path, dest_path)
                         copied_count += 1
                     else:
